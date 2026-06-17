@@ -148,6 +148,15 @@ def get_sia():
     return sia
 
 
+def _num(v, to_type=float):
+    """Convert a value to a native Python number; return "N/A" if None or non-numeric."""
+    if v is None:
+        return "N/A"
+    if isinstance(v, str):
+        return v
+    return to_type(v)
+
+
 def get_stock_info(ticker):
     """Fetch stock data from yfinance."""
     cached = cache_get(f"stock_{ticker}")
@@ -167,27 +176,27 @@ def get_stock_info(ticker):
             day_low = float(hist["Low"].iloc[-1])
             volume = int(hist["Volume"].iloc[-1])
         else:
-            current_price = info.get("currentPrice", info.get("regularMarketPrice", "N/A"))
-            change = info.get("regularMarketChange", "N/A")
-            change_pct = info.get("regularMarketChangePercent", "N/A")
-            day_high = info.get("dayHigh", "N/A")
-            day_low = info.get("dayLow", "N/A")
-            volume = info.get("volume", "N/A")
+            current_price = _num(info.get("currentPrice") or info.get("regularMarketPrice"))
+            change = _num(info.get("regularMarketChange"))
+            change_pct = _num(info.get("regularMarketChangePercent"))
+            day_high = _num(info.get("dayHigh"))
+            day_low = _num(info.get("dayLow"))
+            volume = _num(info.get("volume"), int)
 
         result = {
             "name": info.get("longName", info.get("shortName", ticker)),
             "sector": info.get("sector", "N/A"),
             "industry": info.get("industry", "N/A"),
-            "market_cap": info.get("marketCap", "N/A"),
-            "pe_ratio": info.get("trailingPE", "N/A"),
+            "market_cap": _num(info.get("marketCap"), int),
+            "pe_ratio": _num(info.get("trailingPE")),
             "current_price": current_price,
             "change": change,
             "change_pct": change_pct,
             "day_high": day_high,
             "day_low": day_low,
             "volume": volume,
-            "52w_high": info.get("fiftyTwoWeekHigh", "N/A"),
-            "52w_low": info.get("fiftyTwoWeekLow", "N/A"),
+            "52w_high": _num(info.get("fiftyTwoWeekHigh")),
+            "52w_low": _num(info.get("fiftyTwoWeekLow")),
         }
         cache_set(f"stock_{ticker}", result)
         return result
