@@ -85,6 +85,46 @@ NSE_TICKERS = {
     "METALETF": "Mirae Asset Metal ETF",
     "PWL": "PW Lakshmi AI & Tech Fund",
     "GROWW": "Groww Asset Management",
+    "M&M": "Mahindra & Mahindra",
+    "TATAPOWER": "Tata Power",
+    "HINDALCO": "Hindalco Industries",
+    "INDUSINDBK": "IndusInd Bank",
+    "BANKBARODA": "Bank of Baroda",
+    "PNB": "Punjab National Bank",
+    "BEL": "Bharat Electronics",
+    "MARICO": "Marico Ltd",
+    "DABUR": "Dabur India",
+    "GODREJCP": "Godrej Consumer Products",
+    "PIDILITIND": "Pidilite Industries",
+    "HAVELLS": "Havells India",
+    "TORNTPHARM": "Torrent Pharmaceuticals",
+    "APOLLOHOSP": "Apollo Hospitals",
+    "LUPIN": "Lupin Ltd",
+    "BIOCON": "Biocon Ltd",
+    "INDIGO": "InterGlobe Aviation",
+    "DLF": "DLF Ltd",
+    "IEX": "Indian Energy Exchange",
+    "IRCTC": "IRCTC",
+    "JUBLFOOD": "Jubilant FoodWorks",
+    "TVSMOTOR": "TVS Motor Company",
+    "ABB": "ABB India",
+    "SIEMENS": "Siemens India",
+    "POLYCAB": "Polycab India",
+    "DIXON": "Dixon Technologies",
+    "VBL": "Varun Beverages",
+    "YESBANK": "Yes Bank",
+    "IDFCFIRSTB": "IDFC First Bank",
+    "ADANIPOWER": "Adani Power",
+    "ADANIGREEN": "Adani Green Energy",
+    "ADANITRANS": "Adani Energy Solutions",
+    "IRFC": "IRFC",
+    "RVNL": "RVNL",
+    "NHPC": "NHPC Ltd",
+    "SOLARINDS": "Solar Industries",
+    "ASTRAL": "Astral Ltd",
+    "BALKRISIND": "Balkrishna Industries",
+    "PFC": "Power Finance Corp",
+    "RECLTD": "REC Ltd",
 }
 
 
@@ -206,43 +246,50 @@ def get_stock_info(ticker):
 
 
 def search_news(ticker, company_name, max_results=10):
-    """Search for recent news via DuckDuckGo."""
+    """Search for recent news via DuckDuckGo with text fallback."""
     cached = cache_get(f"news_{ticker}")
     if cached:
         return cached[:max_results]
 
     queries = [
-        f"NSE {ticker} stock",
+        f"NSE {ticker} stock news",
         f"{company_name} NSE news",
         f"{ticker} share price",
+        f"{company_name} stock market",
+        f"{ticker} NSE Ltd",
     ]
     all_results = []
     seen_urls = set()
-    failed = 0
 
     with DDGS() as ddgs:
         for query in queries:
             try:
-                results = list(ddgs.news(query, max_results=5, timelimit="w"))
-                for r in results:
-                    url = r.get("url", "")
-                    if url and url not in seen_urls:
-                        seen_urls.add(url)
-                        all_results.append({
-                            "title": r.get("title", ""),
-                            "body": r.get("body", ""),
-                            "date": r.get("date", ""),
-                            "url": url,
-                        })
+                results = list(ddgs.news(query, max_results=3, timelimit="m"))
             except Exception:
-                failed += 1
-                continue
-            time.sleep(0.3)
+                results = []
+            if not results:
+                try:
+                    results = list(ddgs.text(query, max_results=3))
+                except Exception:
+                    results = []
+            for r in results:
+                url = r.get("url", "") or r.get("link", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    all_results.append({
+                        "title": r.get("title", ""),
+                        "body": r.get("body", ""),
+                        "date": r.get("date", ""),
+                        "url": url,
+                    })
+            time.sleep(0.5)
+            if len(all_results) >= max_results:
+                break
 
     all_results.sort(key=lambda x: x["date"], reverse=True)
     cache_set(f"news_{ticker}", all_results)
-    if failed == len(queries) or not all_results:
-        st.warning(f"⚠️ News search unavailable for {ticker}. Signal is based on price data only.")
+    if not all_results:
+        st.info("ℹ️ News feed unavailable for today. Showing price data only.")
     return all_results[:max_results]
 
 
