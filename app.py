@@ -10,6 +10,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from duckduckgo_search import DDGS
+import feedparser
 import json
 from pathlib import Path
 import time
@@ -245,51 +246,83 @@ def get_stock_info(ticker):
         return None
 
 
+def _parse_date(d):
+    """Parse RSS date string to ISO format, return empty string on failure."""
+    try:
+        return datetime(*d[:6]).isoformat()[:10]
+    except Exception:
+        return ""
+
+
 def search_news(ticker, company_name, max_results=10):
-    """Search for recent news via DuckDuckGo with text fallback."""
+    """Fetch news from RSS feeds (primary), fallback to DuckDuckGo."""
     cached = cache_get(f"news_{ticker}")
     if cached:
         return cached[:max_results]
 
-    queries = [
-        f"NSE {ticker} stock news",
-        f"{company_name} NSE news",
-        f"{ticker} share price",
-        f"{company_name} stock market",
-        f"{ticker} NSE Ltd",
-    ]
-    all_results = []
     seen_urls = set()
+    all_results = []
 
-    with DDGS() as ddgs:
-        for query in queries:
-            try:
-                results = list(ddgs.news(query, max_results=3, timelimit="m"))
-            except Exception:
-                results = []
-            if not results:
-                try:
-                    results = list(ddgs.text(query, max_results=3))
-                except Exception:
-                    results = []
-            for r in results:
-                url = r.get("url", "") or r.get("link", "")
-                if url and url not in seen_urls:
-                    seen_urls.add(url)
+    # RSS feed sources (no API keys needed)
+    rss_urls = [
+        f"https://finance.yahoo.com/rss/headline?s={ticker}.NS",
+        f"https://news.google.com/rss/search?q={ticker}+NSE+stock&hl=en-IN&gl=IN&ceid=IN:en",
+    ]
+    if company_name != ticker:
+        rss_urls.append(
+            f"https://news.google.com/rss/search?q={company_name}+NSE&hl=en-IN&gl=IN&ceid=IN:en"
+        )
+
+    for url in rss_urls:
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:5]:
+                link = entry.get("link", "")
+                if link and link not in seen_urls:
+                    seen_urls.add(link)
                     all_results.append({
-                        "title": r.get("title", ""),
-                        "body": r.get("body", ""),
-                        "date": r.get("date", ""),
-                        "url": url,
+                        "title": entry.get("title", ""),
+                        "body": entry.get("summary", ""),
+                        "date": _parse_date(entry.get("published_parsed")),
+                        "url": link,
                     })
-            time.sleep(0.5)
-            if len(all_results) >= max_results:
-                break
+        except Exception:
+            continue
+
+    # Fallback: DuckDuckGo when RSS returns little
+    if len(all_results) < 3:
+        try:
+            with DDGS() as ddgs:
+                for query in [f"{ticker} NSE", f"{company_name} stock"]:
+                    try:
+                        results = list(ddgs.news(query, max_results=3, timelimit="w"))
+                    except Exception:
+                        results = []
+                    if not results:
+                        try:
+                            results = list(ddgs.text(query, max_results=3))
+                        except Exception:
+                            results = []
+                    for r in results:
+                        url = r.get("url", "") or r.get("link", "")
+                        if url and url not in seen_urls:
+                            seen_urls.add(url)
+                            all_results.append({
+                                "title": r.get("title", ""),
+                                "body": r.get("body", ""),
+                                "date": r.get("date", ""),
+                                "url": url,
+                            })
+                    time.sleep(0.3)
+                    if len(all_results) >= max_results:
+                        break
+        except Exception:
+            pass
 
     all_results.sort(key=lambda x: x["date"], reverse=True)
     cache_set(f"news_{ticker}", all_results)
     if not all_results:
-        st.info("ℹ️ News feed unavailable for today. Showing price data only.")
+        st.info("ℹ️ News feed unavailable. Showing price data only.")
     return all_results[:max_results]
 
 
