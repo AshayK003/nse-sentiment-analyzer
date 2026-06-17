@@ -1,7 +1,7 @@
 """
 NSE Stock Sentiment Analyzer — AI Tool #1
 Enter any NSE ticker → get live price + news sentiment score + signal.
-Built with Streamlit + yfinance + VADER sentiment.
+Built with Streamlit + yfinance + VADER + FinBERT sentiment.
 """
 
 import streamlit as st
@@ -184,9 +184,18 @@ FINANCIAL_BOOSTERS = {
 @st.cache_resource
 def get_sia():
     sia = SentimentIntensityAnalyzer()
-    # Augment VADER's lexicon with financial terms
     sia.lexicon.update(FINANCIAL_BOOSTERS)
     return sia
+
+
+# ─── FinBERT (domain-adapted financial sentiment) ───
+@st.cache_resource
+def get_finbert():
+    try:
+        from transformers import pipeline
+        return pipeline("sentiment-analysis", model="ProsusAI/finbert")
+    except Exception:
+        return None
 
 
 def _num(v, to_type=float):
@@ -326,15 +335,24 @@ def search_news(ticker, company_name, max_results=10):
     return all_results[:max_results]
 
 
-def analyze_headline_sentiment(headline, body, sia):
-    """Get VADER sentiment for a headline + body snippet."""
+def analyze_headline_sentiment(headline, body, sia, finbert=None):
+    """Get VADER + optional FinBERT sentiment for a headline."""
     text = f"{headline}. {body}" if body else headline
-    scores = sia.polarity_scores(text)
-    return scores
+    vader = sia.polarity_scores(text)
+    result = {"compound": vader["compound"], "vader": vader, "finbert": None}
+    if finbert:
+        try:
+            fb = finbert(text[:512])[0]
+            compound = fb["score"] if fb["label"] == "positive" else -fb["score"] if fb["label"] == "negative" else 0.0
+            result["finbert"] = compound
+            result["compound"] = compound  # prefer FinBERT
+        except Exception:
+            pass
+    return result
 
 
 def get_overall_signal(headline_scores):
-    """Determine overall signal based on aggregate sentiment."""
+    """Determine overall signal from headline scores."""
     if not headline_scores:
         return "NEUTRAL", 0.0, "⚪"
 
@@ -425,8 +443,9 @@ def analyze_ticker(ticker, company_name):
     if not stock_data:
         return None
     sia = get_sia()
+    finbert = get_finbert()
     news_items = search_news(ticker, company_name)
-    headline_scores = [analyze_headline_sentiment(n["title"], n["body"], sia) for n in news_items]
+    headline_scores = [analyze_headline_sentiment(n["title"], n["body"], sia, finbert) for n in news_items]
     signal, avg_compound, signal_emoji = get_overall_signal(headline_scores)
     return {
         "stock_data": stock_data,
@@ -436,6 +455,7 @@ def analyze_ticker(ticker, company_name):
         "avg_compound": avg_compound,
         "signal_emoji": signal_emoji,
         "num_articles": len(news_items),
+        "using_finbert": finbert is not None,
     }
 
 
@@ -517,6 +537,7 @@ if final_ticker and final_ticker != "":
         signal = result["signal"]
         avg_compound = result["avg_compound"]
         signal_emoji = result["signal_emoji"]
+        using_finbert = result.get("using_finbert", False)
         confidence = abs(avg_compound)
 
         # Save to track record
@@ -564,7 +585,8 @@ if final_ticker and final_ticker != "":
         col_s1, col_s2, col_s3 = st.columns(3)
         with col_s1:
             st.markdown(f"### {signal_emoji} {signal}")
-            st.caption(f"Based on {len(news_items)} news articles")
+            model_tag = "🧠 FinBERT" if using_finbert else "📐 VADER"
+            st.caption(f"Based on {len(news_items)} news articles · {model_tag}")
 
         with col_s2:
             confidence_pct = min(confidence * 100, 99)
