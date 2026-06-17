@@ -30,3 +30,8 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Gumroad / sales / promotional (not part of the open-source tool)
+x-thread.md
+landing.html
+gumroad-description.md
