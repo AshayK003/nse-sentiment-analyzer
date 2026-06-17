@@ -159,13 +159,13 @@ def get_stock_info(ticker):
         hist = stock.history(period="5d")
 
         if not hist.empty:
-            current_price = hist["Close"].iloc[-1]
-            prev_close = hist["Close"].iloc[-2] if len(hist) > 1 else current_price
-            change = current_price - prev_close
-            change_pct = (change / prev_close) * 100
-            day_high = hist["High"].iloc[-1]
-            day_low = hist["Low"].iloc[-1]
-            volume = hist["Volume"].iloc[-1]
+            current_price = float(hist["Close"].iloc[-1])
+            prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
+            change = float(current_price - prev_close)
+            change_pct = float((change / prev_close) * 100)
+            day_high = float(hist["High"].iloc[-1])
+            day_low = float(hist["Low"].iloc[-1])
+            volume = int(hist["Volume"].iloc[-1])
         else:
             current_price = info.get("currentPrice", info.get("regularMarketPrice", "N/A"))
             change = info.get("regularMarketChange", "N/A")
@@ -293,7 +293,7 @@ def load_json(path, default=None):
 
 def save_json(path, data):
     with open(path, "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, default=str)
 
 def load_portfolio():
     return load_json(PORTFOLIO_FILE, [])
