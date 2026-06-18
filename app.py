@@ -1,5 +1,5 @@
 """
-NSE Stock Sentiment Analyzer — AI Tool #1
+NSE Stock Sentiment Analyzer
 Enter any NSE ticker → get live price + news sentiment score + signal.
 Built with Streamlit + yfinance + VADER + custom financial lexicon.
 """
@@ -383,7 +383,7 @@ else:
 
 # ─── FOOTER ───
 st.markdown("---")
-st.caption("⚡ Tool #1 of 52 — Built with Streamlit + yfinance + VADER + Financial Lexicon | Data from Yahoo Finance + RSS News")
+st.caption("Built with Streamlit + yfinance + VADER + Financial Lexicon | Data from Yahoo Finance + RSS News")
 st.caption("📌 Not financial advice. Always do your own research.")
 st.markdown(
     '<div style="display:flex;justify-content:center;margin-top:12px">'

@@ -2,7 +2,7 @@
 
 # 📊 NSE Stock Sentiment Analyzer
 
-**AI Tool #1 of 52** — Enter any NSE ticker & get live price + news sentiment + technical indicators in one dashboard.
+Enter any NSE ticker & get live price + news sentiment + technical indicators in one dashboard.
 
 [![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
@@ -155,7 +155,7 @@ Building 52 AI tools in 52 weeks takes time and coffee. If you find this useful:
 
 ## 🤝 Contributing
 
-This is Tool #1 of the **52 AI Tools in 52 Weeks** challenge. The goal is to ship fast and iterate.
+The goal is to ship fast and iterate.
 
 - **Issues:** Found a bug? Open an issue.
 - **PRs:** Feature ideas, better lexicon, UI improvements — all welcome.
@@ -170,7 +170,7 @@ MIT © [Ashay Kushwaha](https://github.com/AshayK003)
 ---
 
 <div align="center">
-  <sub>Built by <a href="https://x.com/sentinelcipher">@sentinelcipher</a> · Part of the 52 AI Tools in 52 Weeks challenge</sub>
+  <sub>Built by <a href="https://x.com/sentinelcipher">@sentinelcipher</a></sub>
   <br/>
   <sub>⚠️ Not financial advice. Always do your own research.</sub>
 </div>
