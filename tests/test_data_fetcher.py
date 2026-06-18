@@ -288,12 +288,6 @@ class TestFormatting:
         assert _is_numeric(None) is False
         assert _is_numeric(True) is False
 
-    def test_format_price(self):
-        from data_fetcher import format_price
-        assert "N/A" in str(format_price(None))
-        assert "N/A" in str(format_price("N/A"))
-        assert isinstance(format_price(100.5), (int, float))
-
     def test_format_large_num(self):
         from data_fetcher import format_large_num
         assert "Cr" in format_large_num(100_00_000)

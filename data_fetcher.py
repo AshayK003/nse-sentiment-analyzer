@@ -6,6 +6,7 @@ Stock data via yfinance + news via RSS + DuckDuckGo fallback.
 import yfinance as yf
 import requests
 import feedparser
+import html
 import time
 import streamlit as st
 import subprocess
@@ -143,13 +144,13 @@ def _is_numeric(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
-def format_price(v):
-    """Format a value for display, returning 'N/A' for missing data."""
-    if v is None:
-        return "N/A"
-    if not _is_numeric(v):
-        return str(v)
-    return v
+def _strip_html(text):
+    """Strip HTML tags + unescape entities for clean text analysis & display."""
+    if not text:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return " ".join(text.split())
 
 
 def format_large_num(n):
@@ -463,7 +464,7 @@ def search_news(ticker, company_name, max_results=10):
                     seen_urls.add(link)
                     all_results.append({
                         "title": entry.get("title", ""),
-                        "body": entry.get("summary", ""),
+                        "body": _strip_html(entry.get("summary", "")),
                         "date": _parse_date(entry.get("published_parsed")),
                         "url": link,
                         "source": "Google News",
@@ -482,7 +483,7 @@ def search_news(ticker, company_name, max_results=10):
             for entry in feed.entries[:7]:
                 link = entry.get("link", "")
                 title = entry.get("title", "")
-                body = entry.get("summary", "")
+                body = _strip_html(entry.get("summary", ""))
                 if link and _relevant(ticker, company_name, title, body):
                     items.append({
                         "title": title,

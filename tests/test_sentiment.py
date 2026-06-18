@@ -15,7 +15,6 @@ from sentiment import (
 )
 from data_fetcher import (
     _is_numeric,
-    format_price,
     format_large_num,
     NSE_TICKERS,
 )
@@ -166,12 +165,6 @@ class TestDataFetcher:
         assert not _is_numeric("N/A")
         assert not _is_numeric(None)
         assert not _is_numeric(True)
-
-    def test_format_price(self):
-        assert "N/A" in str(format_price(None))
-        assert "N/A" in str(format_price("N/A"))
-        # Numeric values returned as numbers for Streamlit compatibility
-        assert isinstance(format_price(100.5), (int, float))
 
     def test_format_large_num(self):
         assert "Cr" in format_large_num(100_00_000)

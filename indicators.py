@@ -15,7 +15,7 @@ def get_technical_indicators(ticker, hist=None):
         if hist is None:
             # ponytail: check _hist_cache from data_fetcher to reuse get_stock_info's 1y fetch
             from data_fetcher import _hist_cache
-            hist = _hist_cache.pop(ticker, None)
+            hist = _hist_cache.get(ticker)
         if hist is None:
             # Fallback: own yfinance fetch with retry
             for attempt in range(3):

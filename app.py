@@ -208,6 +208,16 @@ if final_ticker and final_ticker != "":
         if result:
             st.session_state._last_ticker = final_ticker
             st.session_state._last_result = result
+            # Save to track record — only on fresh analysis, never on cache re-use
+            recs = load_track_record()
+            recs.append({
+                "ticker": final_ticker,
+                "datetime": datetime.now().isoformat(timespec="minutes"),
+                "compound": result["avg_compound"],
+                "signal": result["signal"],
+                "vote": None,
+            })
+            save_track_record(recs)
     if result:
         stock_data = result["stock_data"]
         news_items = result["news_items"]
@@ -217,17 +227,6 @@ if final_ticker and final_ticker != "":
         signal_emoji = result["signal_emoji"]
         source_stats = result.get("source_stats", {})
         confidence = abs(avg_compound)
-
-        # Save to track record
-        records = load_track_record()
-        records.append({
-            "ticker": final_ticker,
-            "datetime": datetime.now().isoformat(timespec="minutes"),
-            "compound": avg_compound,
-            "signal": signal,
-            "vote": None,
-        })
-        save_track_record(records)
 
         # ─── PRICE CARD ───
         # Compute technical indicators
