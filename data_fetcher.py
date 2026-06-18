@@ -4,6 +4,7 @@ Stock data via yfinance + news via RSS + DuckDuckGo fallback.
 """
 
 import yfinance as yf
+import requests
 import feedparser
 import time
 import streamlit as st
@@ -12,6 +13,18 @@ import re
 from datetime import datetime
 from duckduckgo_search import DDGS
 from persistence import cache_get, cache_set
+
+
+# ─── yfinance: set browser User-Agent to avoid 429 rate limiting ───
+_session = requests.Session()
+_session.headers["User-Agent"] = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/125.0.0.0 Safari/537.36"
+)
+yf.utils._session = _session
+# Some yfinance versions read from a module-level session
+yf._session = _session
 
 # ─── NSE Tickers ───
 NSE_TICKERS = {
@@ -147,16 +160,44 @@ def format_large_num(n):
 
 
 def get_stock_info(ticker):
-    """Fetch stock data from yfinance."""
+    """Fetch stock data from yfinance with retry and backoff."""
     cached = cache_get(f"stock_{ticker}")
     if cached:
         return cached
     try:
         stock = yf.Ticker(f"{ticker}.NS")
-        info = stock.info
-        hist = stock.history(period="5d")
 
-        if not hist.empty:
+        # Retry info with backoff (this is the heaviest yfinance call)
+        info = None
+        for attempt in range(3):
+            try:
+                info = stock.info
+                if info:
+                    break
+            except Exception as e:
+                if "Too Many" in str(e) or "429" in str(e):
+                    wait = 2 ** attempt
+                    time.sleep(wait)
+                    continue
+                raise
+
+        if not info:
+            raise Exception("Empty response from Yahoo Finance")
+
+        # Retry history up to 2 times with backoff if rate-limited
+        hist = None
+        for attempt in range(3):
+            try:
+                hist = stock.history(period="5d")
+                break
+            except Exception as e:
+                if "Too Many" in str(e) or "429" in str(e):
+                    wait = 2 ** attempt
+                    time.sleep(wait)
+                    continue
+                raise
+
+        if hist is not None and not hist.empty:
             current_price = float(hist["Close"].iloc[-1])
             prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
             change = float(current_price - prev_close)

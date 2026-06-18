@@ -4,15 +4,27 @@ RSI(14), SMA 50/200, MACD(12,26,9) from 1yr daily data.
 """
 
 import yfinance as yf
+import time
 import streamlit as st
 
 
 @st.cache_data(ttl=3600)
 def get_technical_indicators(ticker):
-    """Compute RSI, SMA, MACD from 1yr daily data."""
+    """Compute RSI, SMA, MACD from 1yr daily data. Retries on rate limit."""
     try:
-        hist = yf.Ticker(f"{ticker}.NS").history(period="1y")
-        if hist.empty or len(hist) < 50:
+        # Retry history with backoff if rate-limited
+        hist = None
+        for attempt in range(3):
+            try:
+                hist = yf.Ticker(f"{ticker}.NS").history(period="1y")
+                break
+            except Exception as e:
+                if "Too Many" in str(e) or "429" in str(e):
+                    time.sleep(2 ** attempt)
+                    continue
+                raise
+
+        if hist is None or hist.empty or len(hist) < 50:
             return None
         close = hist["Close"]
 
