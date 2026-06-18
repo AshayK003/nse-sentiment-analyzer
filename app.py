@@ -343,7 +343,12 @@ if final_ticker and final_ticker != "":
                     unsafe_allow_html=True,
                 )
                 st.caption(f"Based on {len(news_items)} articles · Weighted across {len(source_breakdown)} sources")
-                st.success(rec) if "BUY" in rec else st.warning(rec) if "CAUTION" in rec else st.info(rec)
+                if "BULLISH" in str(primary_signal):
+                    st.success(rec)
+                elif "BEARISH" in str(primary_signal):
+                    st.warning(rec)
+                else:
+                    st.info(rec)
 
             with s_col2:
                 # Confidence score
