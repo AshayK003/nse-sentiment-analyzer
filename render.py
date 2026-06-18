@@ -49,7 +49,8 @@ def get_sentiment_emoji(compound):
     return "\u26aa"
 
 
-def render_dashboard(result, ticker, company_name, technical_indicators=None):
+def render_dashboard(result, ticker, company_name, technical_indicators=None,
+                     track_record=None, fii_dii_data=None):
     """Return a complete premium HTML dashboard as a string."""
     stock = result["stock_data"]
     news_items = result["news_items"]
@@ -99,6 +100,95 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None):
     volume = fmt_vol(stock["volume"])
     pe = stock.get("pe_ratio")
     pe_str = f"{pe:.2f}" if isinstance(pe, (int, float)) else "N/A"
+
+    # 52-week proximity badge
+    price_now = stock["current_price"]
+    high_52 = stock.get("52w_high")
+    low_52 = stock.get("52w_low")
+    proximity_msg = ""
+    proximity_class = ""
+    if isinstance(high_52, (int, float)) and high_52 > 0:
+        pct_of_high = (price_now / high_52) * 100
+        proximity_msg = f"{pct_of_high:.0f}% of 52W High"
+        proximity_class = "high" if pct_of_high > 90 else "mid" if pct_of_high > 70 else "low"
+    elif isinstance(low_52, (int, float)) and low_52 > 0:
+        pct_above_low = ((price_now - low_52) / low_52) * 100
+        proximity_msg = f"{pct_above_low:.0f}% above 52W Low"
+        proximity_class = "low" if pct_above_low < 10 else "mid"
+
+    # Volume spike badge
+    vol_now = stock["volume"]
+    vol_spike_html = ""
+    if technical_indicators and technical_indicators.get("avg_volume_50"):
+        avg_vol_50 = technical_indicators["avg_volume_50"]
+        if isinstance(vol_now, (int, float)) and avg_vol_50 > 0:
+            vol_ratio = vol_now / avg_vol_50
+            if vol_ratio >= 3:
+                vol_spike_html = '<span class="spike-badge huge">🚨 3x volume surge!</span>'
+            elif vol_ratio >= 2:
+                vol_spike_html = f'<span class="spike-badge high">{vol_ratio:.1f}x normal volume</span>'
+            elif vol_ratio >= 1.5:
+                vol_spike_html = f'<span class="spike-badge mid">{vol_ratio:.1f}x avg volume</span>'
+
+    # SMA crossover badges
+    cross_50_html = ""
+    cross_200_html = ""
+    if technical_indicators:
+        ti = technical_indicators
+        if ti.get("sma50_cross") == "bullish":
+            cross_50_html = '<span class="cross-badge bullish">🟢 SMA50 bullish crossover</span>'
+        elif ti.get("sma50_cross") == "bearish":
+            cross_50_html = '<span class="cross-badge bearish">🔴 SMA50 bearish crossover</span>'
+        if ti.get("sma200_cross") == "bullish":
+            cross_200_html = '<span class="cross-badge bullish">🟢 SMA200 bullish crossover</span>'
+        elif ti.get("sma200_cross") == "bearish":
+            cross_200_html = '<span class="cross-badge bearish">🔴 SMA200 bearish crossover</span>'
+
+    # Track record accuracy
+    acc_html = ""
+    if track_record:
+        voted = [r for r in track_record if r.get("vote") is not None]
+        if voted:
+            correct = sum(1 for r in voted if r["vote"])
+            total = len(voted)
+            acc_pct = (correct / total) * 100
+            bar_c = "good" if acc_pct >= 70 else "ok" if acc_pct >= 50 else "poor"
+            acc_html = f"""<div class="card">
+    <div class="card-title">📊 Signal Track Record</div>
+    <div class="acc-row">
+        <div class="acc-circle {bar_c}">{acc_pct:.0f}%</div>
+        <div>
+            <div class="acc-num">{correct}/{total} accurate</div>
+            <div class="acc-desc">Track record across {total} past signal{'s' if total != 1 else ''}</div>
+        </div>
+    </div>
+</div>"""
+
+    # FII/DII institutional flow
+    fii_html = ""
+    if fii_dii_data:
+        fi = fii_dii_data
+        comb = fi["combined_net"]
+        fii_html = f"""<div class="card">
+    <div class="card-title">🏦 Institutional Flow ({fi.get("date", "Latest")})</div>
+    <div class="fii-grid">
+        <div class="fii-item {'bearish' if fi['fii_net'] < 0 else ''}">
+            <div class="fii-label">FII / FPI</div>
+            <div class="fii-value">{fmt_large(fi['fii_net'])}</div>
+            <div class="fii-sub">{fi['fii_action']}</div>
+        </div>
+        <div class="fii-item {'bearish' if fi['dii_net'] < 0 else ''}">
+            <div class="fii-label">DII</div>
+            <div class="fii-value">{fmt_large(fi['dii_net'])}</div>
+            <div class="fii-sub">{fi['dii_action']}</div>
+        </div>
+        <div class="fii-item {'bearish' if comb < 0 else ''}">
+            <div class="fii-label">Combined Net</div>
+            <div class="fii-value">{fmt_large(comb)}</div>
+            <div class="fii-sub">{'🟢 Institutions net buying' if comb >= 0 else '🔴 Institutions net selling'}</div>
+        </div>
+    </div>
+</div>"""
 
     # Technical indicators
     ti_preview = ""
@@ -349,11 +439,61 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None):
     .ti-value {{ font-size: 1rem; font-weight: 700; display: block; margin-top: 0.15rem; }}
     .ti-sub {{ font-size: 0.75rem; color: #8891a0; display: block; margin-top: 0.1rem; }}
 
+    /* Cross-over badges */
+    .cross-badge {{
+        display: inline-block; padding: 0.25rem 0.65rem; border-radius: 6px;
+        font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-top: 0.5rem;
+    }}
+    .cross-badge.bullish {{ background: rgba(34,181,115,0.12); color: #2ecc71; border: 1px solid rgba(34,181,115,0.25); }}
+    .cross-badge.bearish {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.25); }}
+
+    /* Volume spike badges */
+    .spike-badge {{
+        display: inline-block; padding: 0.25rem 0.65rem; border-radius: 6px;
+        font-size: 0.75rem; font-weight: 600;
+    }}
+    .spike-badge.huge {{ background: rgba(248,81,73,0.15); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.3); }}
+    .spike-badge.high {{ background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }}
+    .spike-badge.mid {{ background: rgba(34,181,115,0.1); color: #2ecc71; border: 1px solid rgba(34,181,115,0.2); }}
+
+    /* Proximity badges */
+    .prox-badge {{
+        display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px;
+        font-size: 0.7rem; font-weight: 500; margin-top: 0.35rem;
+    }}
+    .prox-badge.high {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.2); }}
+    .prox-badge.mid {{ background: rgba(34,181,115,0.1); color: #2ecc71; border: 1px solid rgba(34,181,115,0.2); }}
+    .prox-badge.low {{ background: rgba(136,145,160,0.1); color: #8891a0; border: 1px solid rgba(136,145,160,0.2); }}
+
+    /* Track record accuracy */
+    .acc-row {{ display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }}
+    .acc-circle {{
+        width: 64px; height: 64px; border-radius: 50%; display: flex;
+        align-items: center; justify-content: center;
+        font-size: 1.05rem; font-weight: 800; flex-shrink: 0;
+    }}
+    .acc-circle.good {{ background: rgba(34,181,115,0.15); color: #2ecc71; border: 2px solid rgba(34,181,115,0.4); }}
+    .acc-circle.ok {{ background: rgba(245,158,11,0.15); color: #fbbf24; border: 2px solid rgba(245,158,11,0.4); }}
+    .acc-circle.poor {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 2px solid rgba(248,81,73,0.3); }}
+    .acc-num {{ font-weight: 600; font-size: 0.95rem; }}
+    .acc-desc {{ font-size: 0.8rem; color: #8891a0; }}
+
+    /* FII/DII grid */
+    .fii-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }}
+    .fii-item {{ padding: 0.75rem; text-align: center; border-radius: 8px; border: 1px solid #2a2e3a; background: #1a1d26; }}
+    .fii-item.bearish {{ border-color: rgba(248,81,73,0.25); }}
+    .fii-label {{ font-size: 0.7rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }}
+    .fii-value {{ font-size: 1.05rem; font-weight: 700; }}
+    .fii-item.bearish .fii-value {{ color: #ff6b6b; }}
+    .fii-item:not(.bearish) .fii-value {{ color: #2ecc71; }}
+    .fii-sub {{ font-size: 0.72rem; color: #8891a0; margin-top: 0.2rem; }}
+
     /* Responsive */
     @media (max-width: 640px) {{
         .price-grid {{ grid-template-columns: repeat(2, 1fr); }}
         .stats-grid {{ grid-template-columns: repeat(2, 1fr); }}
         .ti-grid {{ grid-template-columns: repeat(2, 1fr); }}
+        .fii-grid {{ grid-template-columns: 1fr; }}
         .sentiment-row {{ grid-template-columns: 1fr; text-align: center; }}
         .card {{ padding: 0.85rem; }}
     }}
@@ -368,7 +508,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None):
         <div class="company-header">
             <div>
                 <div class="company-name">{company_name}</div>
-                <div class="company-ticker">{ticker} \u00b7 NSE</div>
+                <div class="company-ticker">{ticker} · NSE</div>
+                {f'<span class="prox-badge {proximity_class}">{proximity_msg}</span>' if proximity_msg else ''}
             </div>
         </div>
         <div class="price-grid">
@@ -382,7 +523,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None):
                 <div class="value" style="font-size:0.9rem">{day_range}</div>
             </div>
             <div class="price-cell">
-                <div class="label">Volume</div>
+                <div class="label">Volume{vol_spike_html}</div>
                 <div class="value" style="font-size:1rem">{volume}</div>
             </div>
             <div class="price-cell">
@@ -439,10 +580,15 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None):
 
     <!-- ═══ TECHNICAL INDICATORS ═══ -->
     <div class="card">
-        <div class="card-title">\U0001f4c8 Technical Indicators</div>
+        <div class="card-title">📈 Technical Indicators</div>
         {ti_section}
         {ti_rows}
+        <div style="margin-top:0.5rem">{cross_50_html}{cross_200_html}</div>
     </div>
+
+{acc_html}
+
+{fii_html}
 
 </div>
 </body>

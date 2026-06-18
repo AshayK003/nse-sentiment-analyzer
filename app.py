@@ -15,6 +15,7 @@ from sentiment import get_sia, analyze_headline_sentiment, get_overall_signal, g
 from indicators import get_technical_indicators
 from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record
 from render import render_dashboard
+from market_data import get_fii_dii_flow
 
 # ─── Page config ───
 st.set_page_config(
@@ -234,16 +235,20 @@ if final_ticker and final_ticker != "":
         # ─── PRICE CARD ───
         # Compute technical indicators
         ti = get_technical_indicators(final_ticker)
+        records = load_track_record()
+        fii_data = get_fii_dii_flow()
 
         # Render premium HTML dashboard via custom component
         st.components.v1.html(
-            render_dashboard(result, final_ticker, company_name, technical_indicators=ti),
+            render_dashboard(result, final_ticker, company_name,
+                             technical_indicators=ti,
+                             track_record=records,
+                             fii_dii_data=fii_data),
             height=3000,
             scrolling=True,
         )
 
         # Track record voting (Streamlit buttons outside the iframe)
-        records = load_track_record()
         last_rec = records[-1] if records else None
         if last_rec and last_rec["ticker"] == final_ticker and last_rec.get("vote") is None:
             st.markdown("##### Was this signal accurate?")

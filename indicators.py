@@ -4,6 +4,7 @@ RSI(14), SMA 50/200, MACD(12,26,9) from 1yr daily data.
 """
 
 import yfinance as yf
+import pandas as pd
 import time
 import streamlit as st
 
@@ -45,14 +46,42 @@ def get_technical_indicators(ticker):
         signal_line = macd_line.ewm(span=9).mean()
         macd_hist = macd_line - signal_line
 
+        # SMA crossover detection — compare today vs yesterday
+        close_now = float(close.iloc[-1])
+        close_prev = float(close.iloc[-2]) if len(close) > 1 else close_now
+        sma50_now = float(sma_50.iloc[-1]) if not pd.isna(sma_50.iloc[-1]) else None
+        sma50_prev = float(sma_50.iloc[-2]) if not pd.isna(sma_50.iloc[-2]) else None
+        sma200_now = float(sma_200.iloc[-1]) if not pd.isna(sma_200.iloc[-1]) else None
+        sma200_prev = float(sma_200.iloc[-2]) if not pd.isna(sma_200.iloc[-2]) else None
+
+        sma50_cross = None
+        sma200_cross = None
+        if sma50_now and sma50_prev:
+            if close_prev < sma50_prev and close_now > sma50_now:
+                sma50_cross = "bullish"
+            elif close_prev > sma50_prev and close_now < sma50_now:
+                sma50_cross = "bearish"
+        if sma200_now and sma200_prev:
+            if close_prev < sma200_prev and close_now > sma200_now:
+                sma200_cross = "bullish"
+            elif close_prev > sma200_prev and close_now < sma200_now:
+                sma200_cross = "bearish"
+
+        # Volume spike — 50-day average volume
+        avg_vol_50 = float(hist["Volume"].rolling(50).mean().iloc[-1]) if len(hist) >= 50 else None
+
         return {
             "rsi": float(rsi.iloc[-1]),
-            "sma_50": float(sma_50.iloc[-1]),
-            "sma_200": float(sma_200.iloc[-1]),
-            "close": float(close.iloc[-1]),
+            "sma_50": sma50_now,
+            "sma_200": sma200_now,
+            "close": close_now,
+            "close_prev": close_prev,
             "macd_line": float(macd_line.iloc[-1]),
             "macd_signal": float(signal_line.iloc[-1]),
             "macd_hist": float(macd_hist.iloc[-1]),
+            "sma50_cross": sma50_cross,
+            "sma200_cross": sma200_cross,
+            "avg_volume_50": avg_vol_50,
         }
     except Exception:
         return None
