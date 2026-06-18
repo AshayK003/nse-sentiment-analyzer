@@ -2,81 +2,114 @@
 
 # 📊 NSE Stock Sentiment Analyzer
 
-Enter any NSE ticker & get live price + multi-source weighted sentiment + technical indicators in one dashboard.
+**Multi-source sentiment + technical indicators for NSE equities & ETFs, in one dashboard.**
 
 [![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red)](https://github.com/AshayK003/nse-sentiment-analyzer)
-[![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://github.com/AshayK003/nse-sentiment-analyzer)
+[![Tests](https://img.shields.io/badge/tests-68%20passing-brightgreen)](#-testing)
+[![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 
 <p align="center">
-  <b>🇮🇳 India-focused</b> &nbsp;·&nbsp; <b>🆓 No API costs</b> &nbsp;·&nbsp; <b>🔌 No API keys</b> &nbsp;·&nbsp; <b>📡 Live data</b>
+  <b>🇮🇳 India-focused</b> &nbsp;·&nbsp; <b>🆓 Zero API costs</b> &nbsp;·&nbsp; <b>🔌 No API keys required</b> &nbsp;·&nbsp; <b>📡 Live data</b>
 </p>
 
 </div>
 
 ---
 
-## ✨ Features
+## Table of Contents
 
-- **Live price data** — Current price, day change %, day range, volume, PE ratio for any NSE stock or ETF
-- **Multi-source news** — Fetches from Google News + Moneycontrol + Economic Times + LiveMint + NDTV Profit RSS feeds (DuckDuckGo fallback)
-- **Reddit community chatter** — Local-only source via `rdt-cli`, brings retail conversation into the signal
-- **Source-weighted scoring** — Each source has a confidence weight (1.0 ET → 0.4 Reddit). Blended score = weighted average across sources
-- **VADER + Financial Lexicon** — 38 domain-specific financial terms tuned for Indian markets
-- **BUY / HOLD / CAUTION signal** — Weighted across sources, with per-source breakdown in the UI
-|- **Technical indicators** — RSI(14), SMA 50/200 trend, MACD histogram. Works with 26+ days of data (newer stocks still get RSI + MACD).
-- **News source health** — See which sources returned results at a glance
-- **Clickable news links** — Every headline opens the original article
-- **Headline breakdown** — See exactly which news is driving sentiment positive or negative
-- **Portfolio mode** — Add stocks to a watchlist and scan all at once
-- **Track record** — Rate signals as accurate/wrong and track your accuracy over time
-- **Dark-themed UI** — Premium dark theme with card-based layout, sentiment badges, and responsive design
-- **Loading states** — Visual feedback during data fetches so you're never staring at a blank screen
-- **No API keys** — Works out of the box, zero configuration
-- **Free & open-source** — MIT license, self-host or use the hosted version
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Environment Variables](#-environment-variables)
+- [Local Development](#-local-development)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
-## 🚀 Hosted Version
+## 📋 Overview
 
-**Want to use it without touching a terminal?**
+Enter any NSE ticker and get:
 
-👉 **[Launch NSE Sentiment Analyzer](https://nse-sentiment-analyzer.streamlit.app)**
+- **Live market data** — price, change %, volume, PE ratio via Yahoo Finance
+- **Multi-source news sentiment** — RSS feeds from Moneycontrol, Economic Times, LiveMint, NDTV Profit, Google News, with DuckDuckGo fallback
+- **Source-weighted scoring** — each source has a confidence weight; the blended score is a weighted average
+- **Technical indicators** — RSI(14), SMA crossover (50/200), MACD from 1-year history
+- **Portfolio mode** — scan multiple tickers at once with a single run
+- **Track record** — vote on signal accuracy and track precision over time
 
-One click, zero setup. ₹199 one-time on [Gumroad](https://gumroad.com). No subscription, no API keys, no terminal.
-
-> **Note:** The hosted version runs RSS-based sources only. Reddit is a local-only source (requires `rdt-cli` auth).
+All data sources are **free and public**. No API keys required.
 
 ---
 
-## 🛠️ How It Works
+## 🏗️ Architecture
+
+### Module Dependency Map
 
 ```
-You type "RELIANCE"
-        ↓
- yfinance → Live price, PE, volume, 52W range, 1yr history
-        ↓
- RSS Feeds → Google News + Moneycontrol + ET + LiveMint + NDTV Profit
-        ↓
- DuckDuckGo → Fallback when RSS returns < 3 articles
-        ↓
- Reddit (local) → rdt-cli search for community chatter (⚡ badge in UI)
-        ↓
- VADER + Financial Lexicon → Per-headline sentiment scores (38 finance terms)
-        ↓
- Source-Weighted Blending → ET(1.0) + MC(0.9) + LM(0.8) + NDTV(0.7) + Google(0.6) + DDG(0.5) + Reddit(0.4)
-        ↓
- yfinance 1yr history → RSI, SMA 50/200, MACD
-        ↓
- Dashboard → Weighted signal + source breakdown + sentiment distribution + technicals
+app.py ───────────────────── (entry point, Streamlit UI)
+  │
+  ├── render.py ──────────── (HTML/CSS dashboard template via st.components)
+  │
+  ├── sentiment.py ───────── (VADER + financial lexicon, source-weighted scoring)
+  │
+  ├── data_fetcher.py ────── (stock info, RSS news, DuckDuckGo, Reddit)
+  │     ├── yfinance        → stock price, info, 1yr history
+  │     ├── feedparser      → RSS from 5 financial sources
+  │     ├── duckduckgo_search → fallback when RSS < 3 articles
+  │     └── requests/rdt-cli → Reddit (OAuth or local CLI)
+  │
+  ├── indicators.py ──────── (RSI, SMA crossover, MACD from OHLCV history)
+  │
+  ├── market_data.py ─────── (FII/DII flow data, optional)
+  │
+  └── persistence.py ─────── (JSON-based portfolio, track record, cache)
 ```
 
-### Source Weighting Logic
+### Data Flow
 
-Each news source has a **confidence weight** based on editorial reliability:
+```
+Ticker Input
+    │
+    ▼
+┌─────────────────────────────────────────────────────┐
+│  analyze_ticker(ticker, company)                    │
+│                                                     │
+│  ┌─────────────┐   ┌──────────┐   ┌─────────────┐  │
+│  │ get_stock_   │   │ search_  │   │ get_techni- │  │
+│  │ info()       │   │ news()   │   │ cal_indica- │  │
+│  │ • yfinance   │   │ • 5 RSS  │   │ tors()      │  │
+│  │ • 1yr hist   │   │ • DDG    │   │ • RSI(14)   │  │
+│  │              │   │ • Reddit │   │ • SMA 50/200│  │
+│  └──────┬──────┘   └────┬─────┘   │ • MACD      │  │
+│         │               │         └──────┬───────┘  │
+│         ▼               ▼                ▼          │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ sentiment.py: source-weighted blending      │    │
+│  │ VADER + financial lexicon (38 terms)        │    │
+│  │ → BULLISH / NEUTRAL / BEARISH               │    │
+│  └─────────────────────┬───────────────────────┘    │
+│                        │                            │
+└────────────────────────┼────────────────────────────┘
+                         │
+                         ▼
+         ┌───────────────────────────────────┐
+         │       render_dashboard()          │
+         │   Dark-themed HTML via streamlit  │
+         └───────────────────────────────────┘
+```
+
+### Source Weights
+
+Each news source carries a confidence weight for the blended scoring:
 
 | Source | Weight | Type | Available on Cloud |
 |--------|--------|------|--------------------|
@@ -86,116 +119,249 @@ Each news source has a **confidence weight** based on editorial reliability:
 | NDTV Profit | 0.7 | RSS | ✅ |
 | Google News | 0.6 | RSS | ✅ |
 | DuckDuckGo | 0.5 | Web search (fallback) | ✅ |
-| Reddit | 0.4 | CLI (`rdt-cli`) | ❌ Local only |
+| Reddit * | 0.5 | OAuth / `rdt-cli` | ⚡ Local only |
 
-The **blended score** is a weighted average:
-```
-Blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
-```
+*Reddit requires OAuth env vars (`REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET`) or the `rdt-cli` tool. Falls back with weight 0.5 if not set up.
 
-The final signal (BULLISH/NEUTRAL/BEARISH) is determined from the blended score, with per-source breakdown shown in the UI.
+The **blended score** is:
+```
+blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
+```
 
 ---
 
-## 📦 Local Quick Start
+## ✨ Features
+
+- **Live price data** — Current price, day change %, day range, volume, PE ratio for any NSE stock or ETF
+- **Multi-source news** — Google News + Moneycontrol + Economic Times + LiveMint + NDTV Profit RSS feeds (DuckDuckGo fallback)
+- **Reddit community chatter** — OAuth API or local `rdt-cli`. Brings retail conversation into the sentiment pipeline
+- **Source-weighted scoring** — Each source has a confidence weight. Blended score = weighted average across active sources
+- **VADER + Financial Lexicon** — 38 domain-specific financial terms tuned for Indian markets
+- **BULLISH / NEUTRAL / BEARISH signal** — Weighted across sources, with per-source breakdown in the UI
+- **Technical indicators** — RSI(14), SMA 50/200 crossover, MACD histogram. Works with 26+ days of data
+- **News source health** — See which sources returned results at a glance
+- **Clickable news links** — Every headline opens the original article
+- **Headline breakdown** — See which headlines are driving sentiment positive / negative
+- **Portfolio mode** — Add stocks to a watchlist and scan all at once
+- **Track record** — Rate each signal as accurate or wrong; track your precision over time
+- **Dark-themed UI** — Card-based layout, sentiment badges, responsive design
+- **Zero API keys** — Works out of the box
+- **Free & open-source** — MIT license
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- `pip` or `uv` (recommended)
+
+### Install & Run
 
 ```bash
-# Clone the repo
+# Clone
 git clone https://github.com/AshayK003/nse-sentiment-analyzer.git
 cd nse-sentiment-analyzer
 
-# Install dependencies (Python 3.11+)
+# Install
 pip install -r requirements.txt
+# or
+uv pip install -r requirements.txt
 
-# Run the app
+# Run
 streamlit run app.py
 ```
 
-Open **http://localhost:8501** in your browser and start analyzing.
+Open **http://localhost:8501** in your browser.
 
 ### Local-Only Features
 
-The following features require CLI tools on your machine and are **not available** on the hosted Streamlit Cloud version:
+These features require additional CLI tools on your machine:
 
-- **Reddit** — Requires `rdt-cli` with Reddit auth cookies. Install: `uv tool install rdt-cli && rdt login`
-- **Twitter/X** — Architecture-ready. Install `twitter-cli` and set `TWITTER_AUTH_TOKEN` + `TWITTER_CT0` env vars.
+- **Reddit (local fallback)** — `uv tool install rdt-cli && rdt login`
+- **FII/DII data** — `pip install nsepython` (lazy-loaded, app works without it)
 
-These sources show a ⚡ badge in the UI when active on your local setup.
-
----
-
-## 🧰 Tech Stack
-
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| **UI** | [Streamlit](https://streamlit.io) + custom CSS dark theme | Card-based layout, skeleton loading, source badges, responsive breakpoints |
-| **Market Data** | [yfinance](https://github.com/ranaroussi/yfinance) | Free Yahoo Finance API (`.NS` suffix for NSE) |
-| **News (RSS)** | [feedparser](https://github.com/kurtmckee/feedparser) | Google News + Moneycontrol + ET + LiveMint + NDTV Profit |
-| **News (fallback)** | [duckduckgo_search](https://github.com/deedy5/duckduckgo_search) | Used when RSS returns < 3 articles |
-| **Reddit** | [rdt-cli](https://github.com/rdt-cli/rdt-cli) | Local-only, community sentiment via CLI |
-| **Sentiment** | [VADER](https://github.com/cjhutto/vaderSentiment) + custom financial lexicon (38 terms) | Domain-tuned for Indian market terminology |
-| **Scoring** | Source-weighted average | Per-source confidence blending |
-| **Indicators** | [pandas](https://pandas.pydata.org) rolling/EWM | RSI(14), SMA 50/200, MACD(12,26,9) from 1yr history |
-| **Hosting** | [Streamlit Community Cloud](https://streamlit.io/cloud) | Free deploy from GitHub |
-
-**Zero API key costs.** Everything uses free/public data sources.
+Items with a ⚡ badge in the UI indicate active local-only sources.
 
 ---
 
-## 📋 Supported Tickers
+## 🌐 Environment Variables
 
-100+ NSE-listed equities and ETFs built into the selector. Any other NSE ticker can be typed in the custom input.
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `REDDIT_CLIENT_ID` | No | Reddit OAuth app client ID (requires `REDDIT_CLIENT_SECRET` too) |
+| `REDDIT_CLIENT_SECRET` | No | Reddit OAuth app client secret |
 
-**Nifty 50:** RELIANCE, HDFCBANK, TCS, INFY, ICICIBANK, SBIN, BHARTIARTL, ITC, LT, AXISBANK, BAJFINANCE, WIPRO, TITAN, MARUTI, HINDUNILVR, TATAMOTORS, TATASTEEL, ADANIENT, M&M, TATAPOWER, HINDALCO, BEL, and more.
+When both Reddit env vars are set, the app uses Reddit's OAuth API (works on Streamlit Cloud). Without them, it falls back to local `rdt-cli` if available.
 
-**Banks & Finance:** KOTAKBANK, INDUSINDBK, BANKBARODA, PNB, YESBANK, IDFCFIRSTB, PFC, RECLTD, BAJAJFINSV, SBILIFE, HDFCLIFE
-
-**Pharma:** SUNPHARMA, DIVISLAB, CIPLA, DRREDDY, TORNTPHARM, APOLLOHOSP, LUPIN, BIOCON
-
-**Tech:** INFY, WIPRO, HCLTECH, TECHM, LTIM, DIXON
-
-**Consumption:** ITC, NESTLEIND, DMART, BRITANNIA, DABUR, MARICO, GODREJCP, VBL, JUBLFOOD, TATACONSUM
-
-**Auto:** MARUTI, TATAMOTORS, BAJAJ-AUTO, EICHERMOT, HEROMOTOCO, TVSMOTOR
-
-**Infra & Industrials:** LT, ULTRACEMCO, GRASIM, ABB, SIEMENS, POLYCAB, PIDILITIND, HAVELLS, ASTRAL
-
-**Energy:** ONGC, COALINDIA, IOC, BPCL, ADANIPOWER, ADANIGREEN, ADANITRANS, NHPC
-
-**Special Situations:** IRFC, RVNL, IRCTC, IEX, DLF, INDIGO, HAL
-
-**ETFs:** NIFTYBEES, GOLDBEES, NEXT50IETF, MIDCAPETF, MODEFENCE, MAKEINDIA, ENERGY, METALETF
-
-**Custom:** Type any NSE ticker not in the list (e.g., NYKAA, ZOMATO, PWL, GROWW)
+No other env vars are needed. All data sources are free and public.
 
 ---
 
-## ❤️ Support the Project
+## 💻 Local Development
 
-If you find this useful:
+### Project Structure
 
-<div align="center">
-  <a href="https://chai4.me/darkcharon3301">
-    <img src="https://chai4.me/icons/wordmark.png" alt="Support on Chai4Me" height="36"/>
-  </a>
-  <br/>
-  <a href="https://gumroad.com">Buy the hosted version →</a>
-</div>
+```
+nse-sentiment-analyzer/
+├── app.py                  # Streamlit entry point, UI logic
+├── data_fetcher.py         # Stock info, RSS news, Reddit, DuckDuckGo
+├── sentiment.py            # VADER + financial lexicon, source-weighted scoring
+├── indicators.py           # RSI, SMA crossover, MACD
+├── market_data.py          # FII/DII flow (optional, nsepython)
+├── persistence.py          # JSON file I/O: portfolio, track record, cache
+├── render.py               # Dark-themed HTML dashboard via st.components
+├── requirements.txt
+├── pyproject.toml          # Pytest config, coverage
+├── .streamlit/
+│   └── config.toml         # Theme + client settings
+└── tests/
+    ├── conftest.py         # Fixtures (tmp dir, mock stock data)
+    ├── test_data_fetcher.py
+    ├── test_indicators.py
+    ├── test_persistence.py
+    ├── test_render.py
+    └── test_sentiment.py
+```
+
+### Adding a New News Source
+
+1. **Fetch function** — Add a fetcher in `data_fetcher.py`. Return items as `{"title", "body", "url", "date", "source"}`.
+2. **Register weight** — Add the source to `sentiment.py:SOURCE_WEIGHTS` dict.
+3. **Wire into pipeline** — Add the fetcher call in `data_fetcher.py:search_news()`.
+4. **Test** — Add test cases in `tests/test_data_fetcher.py`.
+
+### Adding a New Technical Indicator
+
+1. Add the indicator function in `indicators.py:get_technical_indicators()`.
+2. Add display in `render.py:render_dashboard()`.
+3. Add tests in `tests/test_indicators.py`.
+
+### Code Style
+
+- Follow existing patterns (pandas for data, ThreadPoolExecutor for parallelism)
+- No async (sync-first design using `concurrent.futures`)
+- Use `cache_get`/`cache_set` from `persistence.py` for API caches
+- All external APIs must be mockable in tests
+- Profile: Ponytail (YAGNI) — prefer deletion over abstraction
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests (68 tests, mocked APIs, no network)
+python -m pytest tests/ -v -q
+
+# Run with coverage
+python -m pytest tests/ --cov
+
+# Run a specific test file
+python -m pytest tests/test_sentiment.py -v
+
+# Run a specific test
+python -m pytest tests/test_sentiment.py::TestSentiment::test_bullish_headline -v
+```
+
+### Test Design
+
+- **All external APIs are mocked** — tests run offline
+- **Fixtures** in `conftest.py` provide a `tmp_data_dir` for isolated file I/O + a `sample_hist` DataFrame for indicators
+- **68 tests** across 5 modules (sentiment, indicators, data_fetcher, persistence, render)
+- **No network calls** — `yfinance`, `feedparser`, `duckduckgo_search`, `requests`, and `rdt-cli` are all patched with `pytest-mock`
+
+### Test Markers
+
+Defined in `pyproject.toml`:
+
+| Marker | Purpose |
+|--------|---------|
+| `slow` | Tests that hit real APIs — not run by default |
+| `regression` | Tests for previously-fixed bugs |
+
+---
+
+## 🚢 Deployment
+
+### Streamlit Community Cloud (Free)
+
+1. Push to a GitHub repository
+2. Go to [streamlit.io/cloud](https://streamlit.io/cloud)
+3. Click **"New app"** → select repo → branch → `app.py`
+4. For Reddit OAuth: add `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` in **Advanced Settings → Secrets**
+5. Deploy
+
+The app runs at `https://<your-app>.streamlit.app`.
+
+**Notes:**
+- The filesystem is ephemeral on Streamlit Cloud — portfolio and track records are session-only
+- RSS + DuckDuckGo + Reddit OAuth work on the cloud
+- `rdt-cli` and `nsepython` are local-only tools (not available on Streamlit Cloud)
+- `yfinance` can be throttled if you run too many tickers in rapid succession
+
+### Resetting Cached Data
+
+```bash
+# Clear the JSON cache file
+rm -f ~/.nse_sentiment_cache.json
+```
+
+Or click the "Cache: … entries" button in the app sidebar.
+
+---
+
+## 🔧 Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `ModuleNotFoundError: No module named 'nsepython'` | Optional dep for FII/DII data | `pip install nsepython` (app works without it) |
+| Reddit ⚡ badge missing / no Reddit results | `rdt-cli` not installed or not logged in | `uv tool install rdt-cli && rdt login` |
+| `yfinance` returns no data for a ticker | Ticker may be delisted, suspended, or not on Yahoo Finance | Try the `.NS` suffix manually in custom input |
+| RSS feeds return empty results | Rate-limiting or transient network issue | DuckDuckGo fallback kicks in automatically |
+| Dashboard shows stale data | Cache TTL hasn't expired (default: 15 min) | Click cache button to clear, or wait |
+| Streamlit Cloud "Module not found" | Missing dependency | Verify it's in `requirements.txt` |
+| Duplicate track records | Fixed in commit `ecb5cc1` | Update to latest version |
+
+### Getting Help
+
+- Open a [GitHub Issue](https://github.com/AshayK003/nse-sentiment-analyzer/issues)
+- Check existing closed issues for similar problems
 
 ---
 
 ## 🤝 Contributing
 
-- **Issues:** Found a bug? Open an issue.
-- **PRs:** Feature ideas, better lexicon, UI improvements — all welcome.
-- **Tickers:** Know a missing NSE stock? Send a PR to update `NSE_TICKERS` in `data_fetcher.py`.
-- **New sources:** Add a fetcher function in `data_fetcher.py`, register its weight in `sentiment.py:SOURCE_WEIGHTS`, and it slots into the pipeline automatically.
+### What We Need
+
+- **Better financial lexicon** — More Indian-market-specific terms for VADER
+- **New news sources** — Wire up additional Indian financial RSS feeds
+- **NSE ticker updates** — Mispelled tickers, delisted stocks, new listings
+- **UI improvements** — Accessibility, mobile layout, i18n
+- **Bug fixes** — Open an issue before submitting a PR
+- **Tests** — Higher coverage on edge cases (empty results, partial data)
+
+### PR Workflow
+
+1. **Open an issue** describing the change (bug → reproduction steps; feature → use case)
+2. **Fork and branch** from `master`
+3. **Write tests first** for any new logic
+4. **Run the full suite** — `python -m pytest tests/ -v -q` should pass
+5. **Keep diffs small** — one logical change per PR
+6. **Commit messages** — concise, prefixed by type: `fix:`, `feat:`, `test:`, `docs:`, `refactor:`
+
+### Avoid
+
+- Adding new dependencies without a strong reason
+- Introducing async patterns (the project is sync-first)
+- Patching symptoms instead of root causes (see [Karpathy Guidelines](https://e2eml.school/karpathy_guidelines))
+- Proposing features that require paid APIs or API keys
 
 ---
 
 ## 📜 License
 
-MIT © [Ashay Kushwaha](https://github.com/AshayK003)
+MIT &mdash; see [LICENSE](LICENSE).
 
 ---
 
