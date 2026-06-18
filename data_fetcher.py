@@ -7,6 +7,8 @@ import yfinance as yf
 import feedparser
 import time
 import streamlit as st
+import subprocess
+import re
 from datetime import datetime
 from duckduckgo_search import DDGS
 from persistence import cache_get, cache_set
@@ -224,6 +226,7 @@ INDIA_RSS_FEEDS = [
     ("Economic Times Markets", "https://economictimes.indiatimes.com/markets/stocks/rssfeeds/2146842.cms"),
     ("Economic Times Company", "https://economictimes.indiatimes.com/news/company/rssfeeds/2143429.cms"),
     ("LiveMint Markets", "https://www.livemint.com/rss/markets"),
+    ("NDTV Profit", "https://feeds.feedburner.com/ndtvprofit-latest"),
 ]
 
 SOURCE_LABELS = {
@@ -234,8 +237,44 @@ SOURCE_LABELS = {
     "economic times markets": "Economic Times",
     "economic times company": "Economic Times",
     "livemint markets": "LiveMint",
+    "ndtv profit": "NDTV Profit",
     "duckduckgo": "DuckDuckGo",
+    "reddit": "Reddit",
 }
+
+
+def fetch_reddit_news(ticker, company_name, max_results=5):
+    """Fetch stock-related Reddit posts via rdt-cli (local-only, silently skipped if unavailable)."""
+    try:
+        query = f"{ticker} NSE stock"
+        result = subprocess.run(
+            ["rdt", "search", query, "--limit", str(max_results)],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode != 0:
+            return []
+        posts = []
+        for line in result.stdout.split("\n"):
+            # rdt-cli outputs lines like: "Title | Score | URL"
+            if "|" not in line:
+                continue
+            parts = line.split("|")
+            title = parts[0].strip()
+            if not title or len(title) < 5:
+                continue
+            if not _relevant(ticker, company_name, title, ""):
+                continue
+            url = parts[-1].strip() if len(parts) > 2 else ""
+            posts.append({
+                "title": title,
+                "body": "",
+                "date": "",
+                "url": url,
+                "source": "Reddit",
+            })
+        return posts
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+        return []
 
 
 def search_news(ticker, company_name, max_results=10):
@@ -267,6 +306,7 @@ def search_news(ticker, company_name, max_results=10):
                         "body": entry.get("summary", ""),
                         "date": _parse_date(entry.get("published_parsed")),
                         "url": link,
+                        "source": "Google News",
                     })
                     source_stats["Google News"] = source_stats.get("Google News", 0) + 1
         except Exception:
@@ -288,6 +328,7 @@ def search_news(ticker, company_name, max_results=10):
                         "body": body,
                         "date": _parse_date(entry.get("published_parsed")),
                         "url": link,
+                        "source": label,
                     })
                     source_stats[label] = source_stats.get(label, 0) + 1
         except Exception:
@@ -316,6 +357,7 @@ def search_news(ticker, company_name, max_results=10):
                                 "body": r.get("body", ""),
                                 "date": r.get("date", ""),
                                 "url": url,
+                                "source": "DuckDuckGo",
                             })
                             source_stats["DuckDuckGo"] = source_stats.get("DuckDuckGo", 0) + 1
                     time.sleep(0.3)
@@ -323,6 +365,15 @@ def search_news(ticker, company_name, max_results=10):
                         break
         except Exception:
             pass
+
+    # Local-only: Reddit via rdt-cli
+    reddit_posts = fetch_reddit_news(ticker, company_name, max_results=3)
+    for post in reddit_posts:
+        url = post.get("url", "")
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            all_results.append(post)
+            source_stats["Reddit"] = source_stats.get("Reddit", 0) + 1
 
     all_results.sort(key=lambda x: x["date"], reverse=True)
     cache_set(f"news_{ticker}", (all_results, source_stats))

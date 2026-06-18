@@ -84,6 +84,69 @@ class TestSentiment:
         assert "NEUTRAL" in signal or "BULLISH" in signal  # depends on weights
 
 
+# ─── Weighted Signal Tests ───
+
+
+from sentiment import get_weighted_signal, SOURCE_WEIGHTS, LOCAL_ONLY_SOURCES
+
+
+class TestWeightedSignal:
+    def test_empty_scores(self):
+        signal, compound, emoji, breakdown = get_weighted_signal([])
+        assert signal == "NEUTRAL ⚪"
+        assert compound == 0.0
+
+    def test_single_source(self):
+        scores = [{"compound": 0.8, "source": "Economic Times"},
+                  {"compound": 0.6, "source": "Economic Times"}]
+        signal, compound, emoji, breakdown = get_weighted_signal(scores)
+        assert compound > 0.5
+        assert len(breakdown) == 1
+        assert breakdown[0]["source"] == "Economic Times"
+
+    def test_weighted_blend(self):
+        """High-weight optimistic source should dominate low-weight pessimistic one."""
+        scores = [{"compound": 0.8, "source": "Economic Times"},   # weight 1.0
+                  {"compound": -0.8, "source": "DuckDuckGo"}]      # weight 0.5
+        signal, compound, emoji, breakdown = get_weighted_signal(scores)
+        # Weighted: (1.0 * 0.8 + 0.5 * -0.8) / 1.5 = 0.267 → positive
+        assert compound > 0
+        assert "BULLISH" in signal or "NEUTRAL" in signal
+
+    def test_weighted_blend_negative(self):
+        """Low-weight positive source should not overpower high-weight negative one."""
+        scores = [{"compound": -0.7, "source": "Economic Times"},  # weight 1.0
+                  {"compound": 0.9, "source": "DuckDuckGo"}]       # weight 0.5
+        signal, compound, emoji, breakdown = get_weighted_signal(scores)
+        # Weighted: (1.0 * -0.7 + 0.5 * 0.9) / 1.5 = -0.167 → slightly negative/neutral
+        assert compound < 0
+
+    def test_missing_source_defaults(self):
+        scores = [{"compound": 0.5, "source": "Unknown Source"},
+                  {"compound": -0.5, "source": "Unknown Source"}]
+        signal, compound, emoji, breakdown = get_weighted_signal(scores)
+        assert len(breakdown) == 1
+        # Unknown sources get weight 0.5
+        assert breakdown[0]["weight"] == 0.5
+
+    def test_source_breakdown_order(self):
+        """Breakdown should be sorted by weight descending."""
+        scores = [{"compound": 0.1, "source": "DuckDuckGo"},
+                  {"compound": 0.2, "source": "Economic Times"},
+                  {"compound": 0.3, "source": "Reddit"}]
+        signal, compound, emoji, breakdown = get_weighted_signal(scores)
+        weights = [s["weight"] for s in breakdown]
+        assert weights == sorted(weights, reverse=True), "Breakdown not sorted by weight"
+
+    def test_local_only_sources_defined(self):
+        assert "Reddit" in LOCAL_ONLY_SOURCES
+        assert len(LOCAL_ONLY_SOURCES) > 0
+
+    def test_source_weights_defined(self):
+        for src in ["Economic Times", "Moneycontrol", "LiveMint", "DuckDuckGo", "Reddit"]:
+            assert src in SOURCE_WEIGHTS, f"Missing weight for {src}"
+
+
 # ─── Data / Formatting Tests ───
 
 

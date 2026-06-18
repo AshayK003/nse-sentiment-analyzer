@@ -50,6 +50,23 @@ FINANCIAL_BOOSTERS = {
     "52-week low": -1.5,
 }
 
+# ─── Source weights (0.0–1.0) ───
+# Confidence that a source's sentiment signal is reliable.
+# Financial news > aggregators > social.
+SOURCE_WEIGHTS = {
+    "Economic Times": 1.0,
+    "Moneycontrol": 0.9,
+    "LiveMint": 0.8,
+    "NDTV Profit": 0.7,
+    "Google News": 0.6,
+    "DuckDuckGo": 0.5,
+    "Reddit": 0.4,
+}
+
+# Local-only sources (require CLI tools, only available when running locally)
+LOCAL_ONLY_SOURCES = {"Reddit"}
+
+
 
 @st.cache_resource
 def get_sia():
@@ -59,11 +76,14 @@ def get_sia():
     return sia
 
 
-def analyze_headline_sentiment(headline, body, sia):
+def analyze_headline_sentiment(headline, body, sia, source=None):
     """Score a headline using VADER + financial lexicon."""
     text = f"{headline}. {body}" if body else headline
     vader = sia.polarity_scores(text)
-    return {"compound": vader["compound"], "vader": vader}
+    result = {"compound": vader["compound"], "vader": vader}
+    if source:
+        result["source"] = source
+    return result
 
 
 def get_overall_signal(headline_scores):
@@ -89,3 +109,57 @@ def get_sentiment_emoji(compound):
     elif compound <= -0.3:
         return "🔴"
     return "⚪"
+
+
+def get_weighted_signal(headline_scores):
+    """Compute source-weighted blended signal.
+
+    headline_scores: list of {"compound": float, "source": str}
+    Returns (signal, blended_compound, emoji, per_source_breakdown).
+
+    per_source_breakdown: list of {"source": str, "weight": float, "avg": float, "count": int}
+    """
+    if not headline_scores:
+        return "NEUTRAL ⚪", 0.0, "⚪", []
+
+    # Group by source
+    from collections import defaultdict
+    by_source = defaultdict(list)
+    for s in headline_scores:
+        src = s.get("source", "Unknown")
+        by_source[src].append(s["compound"])
+
+    # Compute per-source averages
+    source_avgs = []
+    total_weight = 0.0
+    weighted_sum = 0.0
+    for src, compounds in by_source.items():
+        avg = sum(compounds) / len(compounds)
+        weight = SOURCE_WEIGHTS.get(src, 0.5)
+        source_avgs.append({
+            "source": src,
+            "weight": weight,
+            "avg": avg,
+            "count": len(compounds),
+        })
+        weighted_sum += weight * avg
+        total_weight += weight
+
+    blended = weighted_sum / total_weight if total_weight > 0 else 0.0
+    source_avgs.sort(key=lambda x: x["weight"], reverse=True)
+
+    # Determine signal from blended score
+    pos_count = sum(1 for s in headline_scores if s["compound"] >= 0.3)
+    neg_count = sum(1 for s in headline_scores if s["compound"] <= -0.3)
+
+    if blended >= 0.2 and pos_count > neg_count:
+        signal = "BULLISH 🟢"
+        emoji = "🟢"
+    elif blended <= -0.2 and neg_count > pos_count:
+        signal = "BEARISH 🔴"
+        emoji = "🔴"
+    else:
+        signal = "NEUTRAL ⚪"
+        emoji = "⚪"
+
+    return signal, blended, emoji, source_avgs

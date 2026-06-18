@@ -13,7 +13,7 @@ from data_fetcher import (
     NSE_TICKERS, get_stock_info, search_news,
     format_price, format_large_num,
 )
-from sentiment import get_sia, analyze_headline_sentiment, get_overall_signal, get_sentiment_emoji
+from sentiment import get_sia, analyze_headline_sentiment, get_overall_signal, get_sentiment_emoji, get_weighted_signal, LOCAL_ONLY_SOURCES
 from indicators import get_technical_indicators
 from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record
 
@@ -62,8 +62,9 @@ def analyze_ticker(ticker, company_name):
         return None
     sia = get_sia()
     news_items, source_stats = search_news(ticker, company_name)
-    headline_scores = [analyze_headline_sentiment(n["title"], n["body"], sia) for n in news_items]
+    headline_scores = [analyze_headline_sentiment(n["title"], n["body"], sia, source=n.get("source")) for n in news_items]
     signal, avg_compound, signal_emoji = get_overall_signal(headline_scores)
+    weighted_signal, blended_compound, weighted_emoji, source_breakdown = get_weighted_signal(headline_scores)
     return {
         "stock_data": stock_data,
         "news_items": news_items,
@@ -71,6 +72,10 @@ def analyze_ticker(ticker, company_name):
         "signal": signal,
         "avg_compound": avg_compound,
         "signal_emoji": signal_emoji,
+        "weighted_signal": weighted_signal,
+        "blended_compound": blended_compound,
+        "weighted_emoji": weighted_emoji,
+        "source_breakdown": source_breakdown,
         "num_articles": len(news_items),
         "source_stats": source_stats,
     }
@@ -197,31 +202,57 @@ if final_ticker and final_ticker != "":
         st.markdown("---")
         st.subheader("📰 News Sentiment Analysis")
 
+        # Use weighted signal as primary, show flat average for comparison
+        primary_signal = result.get("weighted_signal", signal)
+        primary_compound = result.get("blended_compound", avg_compound)
+        primary_emoji = result.get("weighted_emoji", signal_emoji)
+        source_breakdown = result.get("source_breakdown", [])
+        confidence = abs(primary_compound)
+
         col_s1, col_s2, col_s3 = st.columns(3)
         with col_s1:
-            st.markdown(f"### {signal_emoji} {signal}")
-            st.caption(f"Based on {len(news_items)} news articles · 📐 VADER + Financial Lexicon")
+            st.markdown(f"### {primary_emoji} {primary_signal}")
+            st.caption(f"Based on {len(news_items)} articles · Weighted across {len(source_breakdown)} sources")
 
         with col_s2:
             confidence_pct = min(confidence * 100, 99)
             st.markdown(f"### {confidence_pct:.0f}%")
-            st.caption("Confidence Score")
+            st.caption("Weighted Confidence Score")
 
         with col_s3:
-            if "🟢" in signal:
+            if "🟢" in str(primary_signal):
                 rec = "✅ BUY / HOLD — Positive sentiment dominates"
                 st.success(rec)
-            elif "🔴" in signal:
+            elif "🔴" in str(primary_signal):
                 rec = "⚠️ CAUTION / SELL — Negative sentiment detected"
                 st.warning(rec)
             else:
                 rec = "💤 HOLD — Mixed or neutral sentiment"
                 st.info(rec)
 
+        # Per-source sentiment breakdown
+        if source_breakdown:
+            st.markdown("##### Source Breakdown")
+            src_cols = st.columns(len(source_breakdown))
+            for i, src in enumerate(source_breakdown):
+                with src_cols[i]:
+                    emoji = "🟢" if src["avg"] >= 0.3 else "🔴" if src["avg"] <= -0.3 else "⚪"
+                    local_badge = " ⚡" if src["source"] in LOCAL_ONLY_SOURCES else ""
+                    st.markdown(f"**{src['source']}{local_badge}**")
+                    st.markdown(f"{emoji} `{src['avg']:.2f}`")
+                    st.caption(f"w={src['weight']:.1f} · {src['count']} articles")
+
         # News source health indicator
         if source_stats:
-            sources_str = " · ".join(f"{s} ({n})" for s, n in sorted(source_stats.items()))
+            # Mark local-only sources with ⚡
+            parts = []
+            for s, n in sorted(source_stats.items()):
+                icon = "⚡" if s in LOCAL_ONLY_SOURCES else ""
+                parts.append(f"{s} ({n}){icon}")
+            sources_str = " · ".join(parts)
             st.caption(f"📡 Sources: {sources_str}")
+            if any(s in LOCAL_ONLY_SOURCES for s in source_stats):
+                st.caption("⚡ = local-only (not available on Streamlit Cloud)")
 
         # Thumbs up/down for track record
         records = load_track_record()
