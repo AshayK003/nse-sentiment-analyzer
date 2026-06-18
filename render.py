@@ -4,8 +4,24 @@ Replaces Streamlit display widgets with a custom premium template
 rendered via st.components.v1.html().
 """
 
+import html
 import json
+import secrets
 from datetime import datetime
+
+
+def h(s):
+    """Escape a string for safe HTML output."""
+    if s is None:
+        return ""
+    return html.escape(str(s), quote=True)
+
+
+def h_attr(s):
+    """Escape a string for safe insertion into an HTML attribute value."""
+    if s is None:
+        return ""
+    return html.escape(str(s), quote=True)
 
 
 def fmt_price(val):
@@ -221,8 +237,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     # Additional stats
     stats_rows = f"""
     <div class="stats-grid">
-        <div class="stat-item"><span class="stat-label">Sector</span><span class="stat-value">{stock.get("sector", "N/A")}</span></div>
-        <div class="stat-item"><span class="stat-label">Industry</span><span class="stat-value">{stock.get("industry", "N/A")}</span></div>
+        <div class="stat-item"><span class="stat-label">Sector</span><span class="stat-value">{h(stock.get("sector", "N/A"))}</span></div>
+        <div class="stat-item"><span class="stat-label">Industry</span><span class="stat-value">{h(stock.get("industry", "N/A"))}</span></div>
         <div class="stat-item"><span class="stat-label">Market Cap</span><span class="stat-value">{fmt_large(stock.get("market_cap"))}</span></div>
         <div class="stat-item"><span class="stat-label">52W High</span><span class="stat-value">{fmt_price(stock.get("52w_high"))}</span></div>
         <div class="stat-item"><span class="stat-label">52W Low</span><span class="stat-value">{fmt_price(stock.get("52w_low"))}</span></div>
@@ -269,21 +285,21 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
             s_class = "neutral"
 
         title_html = (
-            f'<a href="{item["url"]}" target="_blank" rel="noopener">{item["title"]}</a>'
+            f'<a href="{h_attr(item.get("url", ""))}" target="_blank" rel="noopener">{h(item.get("title", ""))}</a>'
             if item.get("url")
-            else item["title"]
+            else h(item.get("title", ""))
         )
         meta_parts = []
         if item.get("source"):
-            meta_parts.append(f"\U0001f4e1 {item['source']}")
+            meta_parts.append(f"\U0001f4e1 {h(item['source'])}")
         if item.get("date"):
-            meta_parts.append(f"\U0001f4c5 {item['date'][:10]}")
+            meta_parts.append(f"\U0001f4c5 {h(item['date'][:10])}")
         if item.get("source") == "Reddit" and item.get("author"):
-            sub = f"r/{item['subreddit']}/" if item.get("subreddit") else ""
-            meta_parts.append(f"by u/{item['author']} on {sub}Reddit")
+            sub = f"r/{h(item['subreddit'])}/" if item.get("subreddit") else ""
+            meta_parts.append(f"by u/{h(item['author'])} on {sub}Reddit")
         body = ""
         if item.get("source") != "Reddit" and item.get("body"):
-            body = item["body"][:200]
+            body = h(item["body"][:200])
 
         news_html += f"""
         <div class="news-item">
@@ -300,9 +316,11 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     source_health = f'<div class="source-health">📡 Sources: {sources_str}</div>' if sources_str else ""
     ti_section = f'<div class="ti-preview">{ti_preview}</div>' if ti_preview else ""
 
-    # ponytail: auto-height iframe script, extracted from f-string to avoid brace conflicts
-    auto_height_script = """<script>
-(function(){function h(){var d=document.body.scrollHeight;parent.postMessage({type:'streamit:setFrameHeight',height:d},'*');}window.addEventListener('load',h);window.addEventListener('resize',h);})();
+    # ponytail: random CSP nonce for the auto-height script blocks
+    # any injected inline scripts from RSS/Reddit content
+    _nonce = secrets.token_urlsafe(16)
+    auto_height_script = f"""<script nonce="{_nonce}">
+(function(){{var o=document.referrer?new URL(document.referrer).origin:'*';function h(){{var d=document.body.scrollHeight;parent.postMessage({{type:'streamit:setFrameHeight',height:d}},o);}}window.addEventListener('load',h);window.addEventListener('resize',h);}})();
 </script>"""
 
     return f"""<!DOCTYPE html>
@@ -310,6 +328,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'nonce-{_nonce}'; style-src 'unsafe-inline'; font-src fonts.gstatic.com fonts.googleapis.com; img-src *; connect-src *;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -516,14 +535,14 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         <div class="card-title">\U0001f4c8 Live Price</div>
         <div class="company-header">
             <div>
-                <div class="company-name">{company_name}</div>
-                <div class="company-ticker">{ticker} · NSE</div>
-                {f'<span class="prox-badge {proximity_class}">{proximity_msg}</span>' if proximity_msg else ''}
+                <div class="company-name">{h(company_name)}</div>
+                <div class="company-ticker">{h(ticker)} · NSE</div>
+                {f'<span class="prox-badge {proximity_class}">{h(proximity_msg)}</span>' if proximity_msg else ''}
             </div>
         </div>
         <div class="price-grid">
             <div class="price-cell">
-                <div class="label">{ticker[:6]}</div>
+                <div class="label">{h(ticker[:6])}</div>
                 <div class="value">{fmt_price(price)}</div>
                 <div class="delta {'up' if isinstance(change_val, (int, float)) and change_val >= 0 else 'down' if isinstance(change_val, (int, float)) else 'neutral'}">{fmt_delta(change_val) if isinstance(change_val, (int, float)) else "N/A"} ({fmt_delta(change_pct) if isinstance(change_pct, (int, float)) else "N/A"}%)</div>
             </div>
