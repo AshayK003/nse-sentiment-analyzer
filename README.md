@@ -27,7 +27,7 @@ Enter any NSE ticker & get live price + multi-source weighted sentiment + techni
 - **Source-weighted scoring** — Each source has a confidence weight (1.0 ET → 0.4 Reddit). Blended score = weighted average across sources
 - **VADER + Financial Lexicon** — 38 domain-specific financial terms tuned for Indian markets
 - **BUY / HOLD / CAUTION signal** — Weighted across sources, with per-source breakdown in the UI
-- **Technical indicators** — RSI(14), SMA 50/200 trend, MACD histogram
+|- **Technical indicators** — RSI(14), SMA 50/200 trend, MACD histogram. Works with 26+ days of data (newer stocks still get RSI + MACD).
 - **News source health** — See which sources returned results at a glance
 - **Clickable news links** — Every headline opens the original article
 - **Headline breakdown** — See exactly which news is driving sentiment positive or negative

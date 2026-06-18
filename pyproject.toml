@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+markers = [
+    "slow: tests that hit real APIs (yfinance, RSS) — not run by default",
+    "regression: tests for previously-fixed bugs",
+]
+
+[tool.coverage.run]
+source = ["sentiment", "indicators", "data_fetcher", "persistence", "render", "market_data"]
+omit = ["tests/*", "app.py"]

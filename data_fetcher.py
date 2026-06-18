@@ -252,7 +252,7 @@ def _relevant(ticker, company_name, title, body):
     """Check if a headline is relevant to the given ticker/company."""
     text = (title + " " + (body or "")).lower()
     words = set(ticker.lower().split()) | set(company_name.lower().split())
-    return any(w in text for w in words if len(w) > 2)
+    return any(re.search(r'\b' + re.escape(w) + r'\b', text) for w in words if len(w) > 2)
 
 
 # ─── RSS Feeds ───

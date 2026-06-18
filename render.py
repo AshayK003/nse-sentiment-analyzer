@@ -84,9 +84,12 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 
     # Sentiment distribution
     n = len(headline_scores)
-    pos_pct = sum(1 for s in headline_scores if s["compound"] >= 0.3) / n * 100
-    neg_pct = sum(1 for s in headline_scores if s["compound"] <= -0.3) / n * 100
-    neu_pct = 100 - pos_pct - neg_pct
+    if n > 0:
+        pos_pct = sum(1 for s in headline_scores if s["compound"] >= 0.3) / n * 100
+        neg_pct = sum(1 for s in headline_scores if s["compound"] <= -0.3) / n * 100
+        neu_pct = 100 - pos_pct - neg_pct
+    else:
+        pos_pct = neg_pct = neu_pct = 0.0
 
     # Price vars
     price = stock["current_price"]
@@ -516,7 +519,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
             <div class="price-cell">
                 <div class="label">{ticker[:6]}</div>
                 <div class="value">{fmt_price(price)}</div>
-                <div class="delta {'up' if change_val >= 0 else 'down'}">{fmt_delta(change_val)} ({fmt_delta(change_pct)}%)</div>
+                <div class="delta {'up' if isinstance(change_val, (int, float)) and change_val >= 0 else 'down' if isinstance(change_val, (int, float)) else 'neutral'}">{fmt_delta(change_val) if isinstance(change_val, (int, float)) else "N/A"} ({fmt_delta(change_pct) if isinstance(change_pct, (int, float)) else "N/A"}%)</div>
             </div>
             <div class="price-cell">
                 <div class="label">Day Range</div>

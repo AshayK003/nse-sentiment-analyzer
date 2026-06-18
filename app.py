@@ -61,7 +61,7 @@ st.markdown("""
 
 
 
-def delta_str(val):
+def delta_str(val):  # ponytail: dead code — callers use inline formatting
     """Format change value with +/- sign."""
     if not isinstance(val, (int, float)):
         return "N/A"
@@ -69,21 +69,17 @@ def delta_str(val):
     return f"{sign}{val:.2f}"
 
 
-def delta_color(val):
+def delta_color(val):  # ponytail: dead code — HTML dashboard handles colors
     """Return Streamlit delta color based on sign."""
     if isinstance(val, (int, float)):
         return "normal" if val >= 0 else "inverse"
     return "off"
 
 
-def fmt_price(val):
-    """Format price or return N/A."""
-    if isinstance(val, (int, float)):
-        return f"₹{val:.2f}"
-    return "N/A"
+# ponytail: fmt_price inlined at the single call site (line ~299) — was 5 lines for one use
 
 
-def fmt_metric(val, suffix=""):
+def fmt_metric(val, suffix=""):  # ponytail: dead code — track record uses st.metric directly
     """Format a number with optional suffix, return N/A if missing."""
     if isinstance(val, (int, float)):
         return f"{val:,.0f}{suffix}"
@@ -297,7 +293,8 @@ elif st.session_state.get("run_briefing"):
                 change_str = f"{'+' if sd['change'] >= 0 else ''}{sd['change']:.2f}" if isinstance(sd['change'], (int, float)) else "N/A"
                 with st.container(border=True):
                     cols = st.columns([2, 1, 1])
-                    cols[0].markdown(f"**{t}** — {fmt_price(sd['current_price'])}")
+                    price_str = f"₹{sd['current_price']:,.2f}" if isinstance(sd['current_price'], (int, float)) else "N/A"
+                    cols[0].markdown(f"**{t}** — {price_str}")
                     cols[0].caption(f"{sd['name'][:40]}")
                     cols[1].markdown(f"Change: {change_str}")
                     cols[2].markdown(f"{r['signal_emoji']} {r['signal']}")
