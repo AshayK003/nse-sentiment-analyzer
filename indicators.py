@@ -6,23 +6,26 @@ RSI(14), SMA 50/200, MACD(12,26,9) from 1yr daily data.
 import yfinance as yf
 import pandas as pd
 import time
-import streamlit as st
 
 
-@st.cache_data(ttl=3600)
-def get_technical_indicators(ticker):
-    """Compute RSI, SMA, MACD from 1yr daily data. Retries on rate limit."""
+def get_technical_indicators(ticker, hist=None):
+    """Compute RSI, SMA, MACD from 1yr daily data. Accepts pre-fetched hist to avoid duplicate yfinance calls."""
     try:
-        # Retry history with backoff on any transient failure
-        hist = None
-        for attempt in range(3):
-            try:
-                hist = yf.Ticker(f"{ticker}.NS").history(period="1y")
-                if hist is not None and not hist.empty:
-                    break
-            except Exception:
-                time.sleep(2 ** attempt + 1)
-                continue
+        # Use supplied hist, or check data_fetcher's in-memory cache, or fetch fresh
+        if hist is None:
+            # ponytail: check _hist_cache from data_fetcher to reuse get_stock_info's 1y fetch
+            from data_fetcher import _hist_cache
+            hist = _hist_cache.pop(ticker, None)
+        if hist is None:
+            # Fallback: own yfinance fetch with retry
+            for attempt in range(3):
+                try:
+                    hist = yf.Ticker(f"{ticker}.NS").history(period="1y")
+                    if hist is not None and not hist.empty:
+                        break
+                except Exception:
+                    time.sleep(2 ** attempt + 1)
+                    continue
 
         if hist is None or hist.empty or len(hist) < 26:  # ponytail: 26 = minimum for MACD(12,26,9); RSI(14) works too; SMAs return NaN naturally
             return None

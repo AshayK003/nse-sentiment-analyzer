@@ -5,7 +5,6 @@ Built with Streamlit + yfinance + VADER + custom financial lexicon.
 """
 
 import streamlit as st
-import time
 from datetime import datetime
 
 from data_fetcher import (
@@ -131,6 +130,7 @@ with st.sidebar:
             else:
                 portfolio.append(t)
                 save_portfolio(portfolio)
+                st.session_state._skip_reanalysis = True
                 st.rerun()
 
     if portfolio:
@@ -140,6 +140,7 @@ with st.sidebar:
             if c2.button("✕", key=f"del_{t}"):
                 portfolio.remove(t)
                 save_portfolio(portfolio)
+                st.session_state._skip_reanalysis = True
                 st.rerun()
 
         if st.button("📡 Run Portfolio Briefing", type="primary", use_container_width=True):
@@ -205,8 +206,18 @@ if final_ticker and final_ticker != "":
     final_ticker = final_ticker.replace(".NS", "")
     company_name = NSE_TICKERS.get(final_ticker, final_ticker)
 
-    with st.spinner(f"Fetching price data for {final_ticker}..."):
-        result = analyze_ticker(final_ticker, company_name)
+    # ponytail: skip re-analysis when user voted/edited portfolio (instant re-render from cache)
+    if (st.session_state.get("_skip_reanalysis")
+            and st.session_state.get("_last_ticker") == final_ticker
+            and st.session_state.get("_last_result")):
+        st.session_state._skip_reanalysis = False
+        result = st.session_state._last_result
+    else:
+        with st.spinner(f"Fetching data for {final_ticker}..."):
+            result = analyze_ticker(final_ticker, company_name)
+        if result:
+            st.session_state._last_ticker = final_ticker
+            st.session_state._last_result = result
     if result:
         stock_data = result["stock_data"]
         news_items = result["news_items"]
@@ -254,12 +265,14 @@ if final_ticker and final_ticker != "":
                     last_rec["vote"] = True
                     save_track_record(records)
                     st.toast("Signal logged as accurate ✅", icon="👍")
+                    st.session_state._skip_reanalysis = True
                     st.rerun()
             with vd:
                 if st.button("👎 No", key="vote_down", use_container_width=True):
                     last_rec["vote"] = False
                     save_track_record(records)
                     st.toast("Signal logged as inaccurate ❌", icon="👎")
+                    st.session_state._skip_reanalysis = True
                     st.rerun()
         elif last_rec and last_rec.get("vote") is not None:
             st.caption(f"You marked this signal as {'✅ accurate' if last_rec['vote'] else '❌ inaccurate'}")
@@ -278,12 +291,17 @@ elif st.session_state.get("run_briefing"):
         st.subheader(f"📡 Portfolio Briefing — {len(portfolio)} stocks")
         results = []
         progress = st.progress(0, text="Starting...")
-        for i, t in enumerate(portfolio):
-            progress.progress((i) / len(portfolio), text=f"Analyzing {t} ({i+1}/{len(portfolio)})...")
-            r = analyze_ticker(t, NSE_TICKERS.get(t, t))
-            if r:
-                results.append((t, r))
-            time.sleep(0.5)
+        # ponytail: parallel portfolio briefing with ThreadPoolExecutor;
+        # 3 max workers to avoid yfinance rate limits
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=min(len(portfolio), 3)) as pool:
+            futures = {pool.submit(analyze_ticker, t, NSE_TICKERS.get(t, t)): t for t in portfolio}
+            for i, future in enumerate(as_completed(futures)):
+                t = futures[future]
+                progress.progress((i + 1) / len(portfolio), text=f"Analyzing {t} ({i+1}/{len(portfolio)})...")
+                r = future.result()
+                if r:
+                    results.append((t, r))
         progress.empty()
 
         if results:

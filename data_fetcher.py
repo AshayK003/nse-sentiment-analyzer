@@ -11,6 +11,7 @@ import streamlit as st
 import subprocess
 import re
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from duckduckgo_search import DDGS
 from persistence import cache_get, cache_set
@@ -132,6 +133,10 @@ NSE_TICKERS = {
     "RECLTD": "REC Ltd",
 }
 
+# ponytail: in-memory 1y price history cache, populated by get_stock_info,
+# consumed by get_technical_indicators to avoid duplicate yfinance calls
+_hist_cache = {}
+
 
 def _is_numeric(v):
     """Check if value is a number (int or float, not bool, not None)."""
@@ -194,7 +199,7 @@ def get_stock_info(ticker):
         hist = None
         for attempt in range(3):
             try:
-                hist = stock.history(period="5d")
+                hist = stock.history(period="1y")
                 if hist is not None:
                     break
             except Exception as e:
@@ -203,6 +208,8 @@ def get_stock_info(ticker):
                 continue
 
         if hist is not None and not hist.empty:
+            # ponytail: cache 1y hist for get_technical_indicators to reuse
+            _hist_cache[ticker] = hist
             current_price = float(hist["Close"].iloc[-1])
             prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
             change = float(current_price - prev_close)
@@ -465,27 +472,39 @@ def search_news(ticker, company_name, max_results=10):
         except Exception:
             continue
 
-    # Indian market RSS feeds (filtered by relevance)
-    for source_name, url in INDIA_RSS_FEEDS:
+    # Indian market RSS feeds (filtered by relevance) — fetched concurrently
+    def _parse_rss_feed(source_name, url):
+        """Parse one RSS feed in a worker thread — no shared state mutation."""
         label = SOURCE_LABELS.get(source_name.lower().replace("_", " "), source_name)
+        items = []
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:7]:
                 link = entry.get("link", "")
                 title = entry.get("title", "")
                 body = entry.get("summary", "")
-                if link and link not in seen_urls and _relevant(ticker, company_name, title, body):
-                    seen_urls.add(link)
-                    all_results.append({
+                if link and _relevant(ticker, company_name, title, body):
+                    items.append({
                         "title": title,
                         "body": body,
                         "date": _parse_date(entry.get("published_parsed")),
                         "url": link,
                         "source": label,
                     })
-                    source_stats[label] = source_stats.get(label, 0) + 1
         except Exception:
-            continue
+            pass
+        return items, label
+
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(_parse_rss_feed, name, url): name for name, url in INDIA_RSS_FEEDS}
+        for future in as_completed(futures):
+            items, label = future.result()
+            for item in items:
+                link = item["url"]
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    all_results.append(item)
+                    source_stats[label] = source_stats.get(label, 0) + 1
 
     # Fallback: DuckDuckGo when RSS returns little
     if len(all_results) < 3:

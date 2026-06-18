@@ -70,10 +70,26 @@ def save_track_record(records):
 # ─── Cache ───
 
 def load_cache():
-    return _load_json(CACHE_FILE, {})
+    """Return cache dict, lazy-loading from file and detecting external changes via mtime."""
+    cache_mtime = st.session_state.get("_cache_mtime", -1)
+    try:
+        current_mtime = CACHE_FILE.stat().st_mtime
+    except OSError:
+        current_mtime = -1
+
+    if current_mtime > cache_mtime or "_cache_data" not in st.session_state:
+        st.session_state._cache_data = _load_json(CACHE_FILE, {})
+        st.session_state._cache_mtime = current_mtime
+    return st.session_state._cache_data
 
 
 def save_cache(cache):
+    """Write cache to disk + sync in-memory copy."""
+    st.session_state._cache_data = cache
+    try:
+        st.session_state._cache_mtime = CACHE_FILE.stat().st_mtime
+    except OSError:
+        pass
     _save_json(CACHE_FILE, cache)
 
 

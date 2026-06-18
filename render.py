@@ -300,6 +300,11 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     source_health = f'<div class="source-health">📡 Sources: {sources_str}</div>' if sources_str else ""
     ti_section = f'<div class="ti-preview">{ti_preview}</div>' if ti_preview else ""
 
+    # ponytail: auto-height iframe script, extracted from f-string to avoid brace conflicts
+    auto_height_script = """<script>
+(function(){function h(){var d=document.body.scrollHeight;parent.postMessage({type:'streamit:setFrameHeight',height:d},'*');}window.addEventListener('load',h);window.addEventListener('resize',h);})();
+</script>"""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -312,6 +317,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-display: swap;
         background: #0a0b0f; color: #f0f2f5;
         padding: 0; line-height: 1.5;
     }}
@@ -594,5 +600,6 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 {fii_html}
 
 </div>
+{auto_height_script}
 </body>
 </html>"""
