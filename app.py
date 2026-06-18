@@ -25,46 +25,187 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ─── Inline CSS (dark theme, cards, animations, responsive) ───
+# ─── Premium CSS (glassmorphism, Inter font, custom widgets) ───
 st.markdown("""
 <style>
-    /* ── Card containers ── */
-    .card {
-        background: var(--secondary-background-color, #13151a);
-        border: 1px solid #1e2028;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    /* ── Hide Streamlit chrome ── */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stAppToolbar {display: none;}
+    header {visibility: hidden;}
+
+    /* ── Custom scrollbar ── */
+    ::-webkit-scrollbar {width: 6px;}
+    ::-webkit-scrollbar-track {background: #0a0b0f;}
+    ::-webkit-scrollbar-thumb {background: #1e2028; border-radius: 3px;}
+    ::-webkit-scrollbar-thumb:hover {background: #2a2d35;}
+
+    /* ── Refined palette ── */
+    :root {
+        --accent: #22b573;
+        --accent-dim: #0d9488;
+        --bg-deep: #0a0b0f;
+        --bg-card: #13151a;
+        --border: #1e2028;
+        --text-primary: #e4e6eb;
+        --text-muted: #6b7280;
+        --red: #f85149;
+    }
+
+    /* ── Glassmorphism cards ── */
+    .card, [data-testid="stVerticalBlock"] > .stContainer {
+        background: rgba(19, 21, 26, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(30, 32, 40, 0.8);
         border-radius: 12px;
         padding: 1.25rem;
         margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
+    [data-testid="stVerticalBlock"] > .stContainer:hover {
+        border-color: rgba(34, 181, 115, 0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    /* ── Card title ── */
     .card-title {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #868e96;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
         margin-bottom: 0.75rem;
     }
 
-    /* ── Metric cards ── */
+    /* ── Metric containers ── */
     [data-testid="metric-container"] {
-        background: var(--secondary-background-color, #13151a);
-        border: 1px solid #1e2028;
+        background: rgba(19, 21, 26, 0.6);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border);
         border-radius: 10px;
         padding: 0.75rem 1rem;
+        transition: border-color 0.2s ease;
+    }
+    [data-testid="metric-container"]:hover {
+        border-color: rgba(34, 181, 115, 0.2);
+    }
+    /* Override default Streamlit metric red/green */
+    [data-testid="metric-container"] [data-testid="stMetricDelta"] svg {
+        display: none;
+    }
+
+    /* ── Sentiment hero (gradient text) ── */
+    .sentiment-hero {
+        font-size: 1.75rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+    }
+    .sentiment-hero.bullish {
+        background: linear-gradient(135deg, #22b573, #0d9488);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .sentiment-hero.bearish {
+        background: linear-gradient(135deg, #f85149, #da3633);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .sentiment-hero.neutral {
+        background: linear-gradient(135deg, #868e96, #6b7280);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* ── Confidence number ── */
+    .confidence-num {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        background: linear-gradient(135deg, #22b573, #0d9488);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
     /* ── Progress bars ── */
+    .stProgress > div > div {
+        background: var(--border) !important;
+        border-radius: 4px;
+        height: 8px !important;
+    }
     .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #22b573, #0d9488) !important;
+        background: linear-gradient(90deg, var(--accent), var(--accent-dim)) !important;
         border-radius: 4px;
     }
 
-    /* ── Focus ring (WCAG 2.4.7) ── */
-    *:focus-visible {
-        outline: 2px solid #22b573 !important;
-        outline-offset: 2px !important;
-        border-radius: 4px;
+    /* ── Selectbox ── */
+    .stSelectbox [data-baseweb="select"] {
+        border-radius: 8px !important;
+        border: 1px solid var(--border) !important;
+        background: rgba(19, 21, 26, 0.6) !important;
+        transition: border-color 0.2s ease;
     }
+    .stSelectbox [data-baseweb="select"]:focus-within {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px rgba(34, 181, 115, 0.1) !important;
+    }
+
+    /* ── Text input ── */
+    .stTextInput input {
+        border-radius: 8px !important;
+        border: 1px solid var(--border) !important;
+        background: rgba(19, 21, 26, 0.6) !important;
+        color: var(--text-primary) !important;
+        transition: border-color 0.2s ease;
+    }
+    .stTextInput input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px rgba(34, 181, 115, 0.1) !important;
+    }
+
+    /* ── Buttons ── */
+    .stButton button {
+        border-radius: 8px !important;
+        border: 1px solid var(--border) !important;
+        background: rgba(19, 21, 26, 0.6) !important;
+        color: var(--text-primary) !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+    .stButton button:hover {
+        border-color: rgba(34, 181, 115, 0.3) !important;
+        background: rgba(34, 181, 115, 0.08) !important;
+    }
+
+    /* ── Source badges ── */
+    .source-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 100px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,0.03);
+        margin: 0.15rem;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+    .source-badge:hover { transform: translateY(-1px); }
+    .source-badge.bullish { border-color: rgba(34,181,115,0.3); color: #22b573; }
+    .source-badge.bearish { border-color: rgba(255,75,75,0.3); color: #ff4b4b; }
+    .source-badge.neutral { border-color: rgba(255,255,255,0.1); color: var(--text-muted); }
 
     /* ── Skeleton shimmer ── */
     @keyframes shimmer {
@@ -83,53 +224,17 @@ st.markdown("""
     .skeleton-metric { height: 3rem; width: 100%; }
     .skeleton-news { height: 2.5rem; width: 100%; }
 
-    /* ── Responsive: collapse columns on mobile ── */
+    /* ── Focus ring (WCAG 2.4.7) ── */
+    *:focus-visible {
+        outline: 2px solid var(--accent) !important;
+        outline-offset: 2px !important;
+        border-radius: 4px;
+    }
+
+    /* ── Responsive ── */
     @media (max-width: 640px) {
-        /* Stack 4-col layouts to 2-col */
-        div.row-widget.stHorizontal > div {
-            min-width: 50% !important;
-        }
-        /* Full-width news items */
-        [data-testid="column"] .card {
-            padding: 0.75rem;
-        }
-    }
-
-    /* ── Source badge pill ── */
-    .source-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.2rem 0.6rem;
-        border-radius: 100px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        border: 1px solid #1e2028;
-        background: rgba(255,255,255,0.03);
-        margin: 0.15rem;
-        white-space: nowrap;
-    }
-    .source-badge.bullish { border-color: rgba(34,181,115,0.3); color: #22b573; }
-    .source-badge.bearish { border-color: rgba(255,75,75,0.3); color: #ff4b4b; }
-    .source-badge.neutral { border-color: rgba(255,255,255,0.1); color: #868e96; }
-
-    /* ── Sentiment hero ── */
-    .sentiment-hero {
-        font-size: 1.75rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        line-height: 1.2;
-    }
-    .sentiment-hero.bullish { color: #22b573; }
-    .sentiment-hero.bearish { color: #ff4b4b; }
-    .sentiment-hero.neutral { color: #868e96; }
-
-    /* ── Confidence number ── */
-    .confidence-num {
-        font-size: 2rem;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        line-height: 1;
+        div.row-widget.stHorizontal > div { min-width: 50% !important; }
+        [data-testid="column"] .card { padding: 0.75rem; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -237,8 +342,30 @@ with st.sidebar:
 
 # ─── Main UI ───
 
-st.title("📊 NSE Stock Sentiment Analyzer")
-st.markdown("Enter an NSE stock ticker to see **live price + news sentiment** in one place.")
+# ─── Premium header ───
+st.markdown(f"""
+<div style="display:flex;align-items:center;justify-content:space-between;
+    padding:0.5rem 0 1.5rem 0;border-bottom:1px solid #1e2028;margin-bottom:1.5rem;">
+    <div>
+        <div style="font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;
+            background:linear-gradient(135deg,#22b573,#0d9488);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+            background-clip:text;">NSE Sentiment Analyzer</div>
+        <div style="font-size:0.8rem;color:#6b7280;margin-top:0.15rem;">
+            Live price · Multi-source sentiment · Technical indicators</div>
+    </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;">
+        <a href="https://github.com/AshayK003/nse-sentiment-analyzer" target="_blank"
+            style="color:#6b7280;text-decoration:none;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.3rem;
+            border:1px solid #1e2028;border-radius:8px;padding:0.35rem 0.75rem;transition:all 0.2s ease;"
+            onmouseover="this.style.borderColor='rgba(34,181,115,0.3)';this.style.color='#e4e6eb'"
+            onmouseout="this.style.borderColor='#1e2028';this.style.color='#6b7280'">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+        </a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # Ticker input — popular picker + custom override
 ticker = st.selectbox(
