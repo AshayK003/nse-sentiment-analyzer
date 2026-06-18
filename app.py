@@ -172,7 +172,7 @@ st.markdown(f"""
         <div style="font-size:0.8rem;color:#6b7280;margin-top:0.15rem;">
             Live price · Multi-source sentiment · Technical indicators</div>
     </div>
-</div>"""
+</div>
 """, unsafe_allow_html=True)
 
 # Ticker input — popular picker + custom override
