@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSE Sentiment Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#000000',
+                        dark: '#050505',
+                        primary: '#00ff88',
+                        'primary-dark': '#00cc6a',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap');
+        
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Subtle green ambient glows */
+        .ambient-glow {
+            position: absolute;
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, rgba(0,255,136,0.07) 0%, rgba(0,0,0,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .glass-panel {
+            background: rgba(10, 10, 10, 0.4);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-panel-hover:hover {
+            border-color: rgba(0, 255, 136, 0.3);
+            background: rgba(15, 15, 15, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 255, 136, 0.05);
+        }
+        
+        .transition-smooth {
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .btn-glow {
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+        .btn-glow:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.4), inset 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col relative">
+    <!-- Ambient Background -->
+    <div class="ambient-glow top-[-20vw] left-[-10vw]"></div>
+    <div class="ambient-glow bottom-10 right-[-20vw]"></div>
+
+    <!-- Navbar -->
+    <nav class="glass-panel sticky top-0 z-50 px-6 py-4 flex justify-between items-center border-b border-white/5">
+        <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+            <span class="font-bold tracking-widest uppercase text-sm text-gray-300" data-gumroad-field="name">NSE Sentiment</span>
+        </div>
+        <button data-gumroad-action="buy" class="text-primary hover:text-white border border-primary/30 hover:border-primary px-5 py-2 rounded-full text-sm font-semibold transition-smooth glass-panel">
+            Access Now
+        </button>
+    </nav>
+
+    <!-- Hero -->
+    <main class="flex-grow z-10">
+        <section class="max-w-5xl mx-auto px-6 pt-32 pb-24 text-center">
+            <h1 class="text-6xl md:text-8xl font-black mb-6 tracking-tighter leading-tight">
+                Trade with <br/>
+                <span class="gradient-text">Absolute Clarity.</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-400 font-light mb-14 tracking-wide max-w-2xl mx-auto">
+                The institutional AI edge, built natively for the NSE.
+            </p>
+            <div class="flex justify-center">
+                <button data-gumroad-action="buy" class="bg-primary text-black hover:bg-primary-dark px-10 py-5 rounded-full font-bold text-lg tracking-wide transition-smooth btn-glow flex items-center justify-center gap-3">
+                    Unlock Lifetime Access <span class="opacity-40 font-normal">|</span> <span data-gumroad-field="price"></span>
+                </button>
+            </div>
+            
+            <div class="mt-28 relative">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10 h-full w-full pointer-events-none"></div>
+                <img src="https://public-files.gumroad.com/dw610g80jndofb84j4c1qwnaarp8" alt="Dashboard Preview" class="rounded-xl border border-white/5 shadow-2xl mx-auto w-full max-w-4xl object-cover opacity-90 transition-smooth hover:opacity-100 hover:border-primary/20" />
+            </div>
+        </section>
+
+        <!-- Expanded Features Grid -->
+        <section class="max-w-5xl mx-auto px-6 py-24 border-t border-white/5 relative">
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div class="glass-panel glass-panel-hover transition-smooth p-8 rounded-2xl group">
+                    <div class="text-primary mb-6 opacity-70 group-hover:opacity-100 transition-smooth">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-3 tracking-wide">Multi-Source Intelligence</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light">Aggregates and filters financial news from Moneycontrol, ET, LiveMint, and NDTV Profit.</p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="glass-panel glass-panel-hover transition-smooth p-8 rounded-2xl group">
+                    <div class="text-primary mb-6 opacity-70 group-hover:opacity-100 transition-smooth">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-3 tracking-wide">Technical Overlays</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light">Built-in RSI(14), SMA 50/200 crossover, and MACD histograms applied to 1-year history.</p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="glass-panel glass-panel-hover transition-smooth p-8 rounded-2xl group">
+                    <div class="text-primary mb-6 opacity-70 group-hover:opacity-100 transition-smooth">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-3 tracking-wide">Source-Weighted Scoring</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light">Advanced VADER sentiment algorithm weights news impact based on publisher confidence.</p>
+                </div>
+                <!-- Feature 4 -->
+                <div class="glass-panel glass-panel-hover transition-smooth p-8 rounded-2xl group">
+                    <div class="text-primary mb-6 opacity-70 group-hover:opacity-100 transition-smooth">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-3 tracking-wide">Portfolio Scanner</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light">Add multiple NSE tickers to your watchlist and scan the entire board simultaneously.</p>
+                </div>
+                <!-- Feature 5 -->
+                <div class="glass-panel glass-panel-hover transition-smooth p-8 rounded-2xl group">
+                    <div class="text-primary mb-6 opacity-70 group-hover:opacity-100 transition-smooth">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-3 tracking-wide">Track Record Engine</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light">Rate every signal as accurate or wrong to backtest the algorithm's precision over time.</p>
+                </div>
+                <!-- Feature 6 -->
+                <div class="glass-panel glass-panel-hover transition-smooth p-8 rounded-2xl group">
+                    <div class="text-primary mb-6 opacity-70 group-hover:opacity-100 transition-smooth">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-3 tracking-wide">Zero External APIs</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light">Runs completely standalone. No hidden subscriptions, no API keys, and zero limits.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final CTA -->
+        <section class="max-w-3xl mx-auto px-6 py-24 text-center">
+            <h2 class="text-3xl font-bold mb-10 tracking-tight">Stop guessing the market.</h2>
+            <button data-gumroad-action="buy" class="w-full sm:w-auto bg-white text-black hover:bg-gray-200 px-12 py-5 rounded-full font-bold text-lg transition-smooth shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(255,255,255,0.2)]">
+                Get Instant Access
+            </button>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-10 text-center text-gray-700 text-xs font-light tracking-wider">
+        <p>NOT FINANCIAL ADVICE &mdash; DO YOUR OWN RESEARCH</p>
+    </footer>
+</body>
+</html>
