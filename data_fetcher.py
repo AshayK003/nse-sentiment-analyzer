@@ -168,12 +168,17 @@ def get_stock_info(ticker):
         stock = yf.Ticker(f"{ticker}.NS")
 
         # Retry info with backoff (this is the heaviest yfinance call)
+        # Yahoo sometimes returns empty {} even without 429 — retry those too
         info = None
         for attempt in range(3):
             try:
                 info = stock.info
-                if info:
+                if info and len(info) > 10:
                     break
+                # Empty or near-empty response — wait and retry
+                wait = 2 ** attempt
+                time.sleep(wait)
+                info = None
             except Exception as e:
                 if "Too Many" in str(e) or "429" in str(e):
                     wait = 2 ** attempt
@@ -184,18 +189,17 @@ def get_stock_info(ticker):
         if not info:
             raise Exception("Empty response from Yahoo Finance")
 
-        # Retry history up to 2 times with backoff if rate-limited
+        # Retry history with backoff on any transient failure
         hist = None
         for attempt in range(3):
             try:
                 hist = stock.history(period="5d")
-                break
+                if hist is not None:
+                    break
             except Exception as e:
-                if "Too Many" in str(e) or "429" in str(e):
-                    wait = 2 ** attempt
-                    time.sleep(wait)
-                    continue
-                raise
+                wait = 2 ** attempt + 1
+                time.sleep(wait)
+                continue
 
         if hist is not None and not hist.empty:
             current_price = float(hist["Close"].iloc[-1])
