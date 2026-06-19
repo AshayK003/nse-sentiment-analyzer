@@ -415,7 +415,7 @@ with st.expander("🔒 Privacy & Data Policy"):
 
 # ─── FOOTER ───
 st.markdown("---")
-st.caption("Built with Streamlit + yfinance + VADER + Financial Lexicon | Data from Yahoo Finance + RSS News")
+st.caption("Built with Streamlit + yfinance + VADER · FinBERT · Bayesian Calibration · Financial Lexicon | Data from Yahoo Finance + RSS News")
 st.caption("📌 Not financial advice. Always do your own research.")
 st.markdown(
     '<div style="display:flex;justify-content:center;margin-top:12px">'
