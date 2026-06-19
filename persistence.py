@@ -99,14 +99,18 @@ def cache_get(key):
     entry = cache.get(key)
     if entry:
         age = (datetime.now() - datetime.fromisoformat(entry["cached_at"])).total_seconds()
-        if age < CACHE_TTL:
+        ttl = entry.get("ttl", CACHE_TTL)
+        if age < ttl:
             return entry["data"]
     return None
 
 
-def cache_set(key, data):
+def cache_set(key, data, ttl=None):
     cache = load_cache()
-    cache[key] = {"data": data, "cached_at": datetime.now().isoformat()}
+    entry = {"data": data, "cached_at": datetime.now().isoformat()}
+    if ttl is not None:
+        entry["ttl"] = ttl
+    cache[key] = entry
     save_cache(cache)
 
 

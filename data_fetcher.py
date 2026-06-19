@@ -305,6 +305,20 @@ def get_stock_info(ticker):
             if hist is not None:
                 break  # found valid history
 
+        # ── Phase 2b: retry info if it failed (rate-limit may have cleared
+        #    during the history phase which took ~3-6s) ──
+        if info is None and hist is not None:
+            for suffix in suffixes:
+                stock = yf.Ticker(f"{ticker}{suffix}")
+                try:
+                    raw = stock.info
+                    if raw and isinstance(raw, dict) and len(raw) > 10:
+                        info = raw
+                        name_fallback = info.get("longName", info.get("shortName", ticker))
+                        break
+                except Exception:
+                    continue
+
         # ── Build result dict ──
         if hist is not None and not hist.empty:
             _hist_cache[ticker] = hist
@@ -346,7 +360,11 @@ def get_stock_info(ticker):
             "52w_high": info.get("fiftyTwoWeekHigh") if info else None,
             "52w_low": info.get("fiftyTwoWeekLow") if info else None,
         }
-        cache_set(f"stock_{ticker}", result)
+        if info:
+            cache_set(f"stock_{ticker}", result)
+        else:
+            # Info failed — use shorter TTL so next call retries metadata
+            cache_set(f"stock_{ticker}", result, ttl=120)  # 2 min
         return result
 
     except Exception as e:
