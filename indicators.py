@@ -17,15 +17,19 @@ def get_technical_indicators(ticker, hist=None):
             from data_fetcher import _hist_cache
             hist = _hist_cache.get(ticker)
         if hist is None:
-            # Fallback: own yfinance fetch with retry
-            for attempt in range(3):
-                try:
-                    hist = yf.Ticker(f"{ticker}.NS").history(period="1y")
-                    if hist is not None and not hist.empty:
-                        break
-                except Exception:
-                    time.sleep(2 ** attempt + 1)
-                    continue
+            # Fallback: own yfinance fetch with retry, trying .NS → .BO → bare
+            for suffix in [".NS", ".BO", ""]:
+                stock = yf.Ticker(f"{ticker}{suffix}")
+                for attempt in range(3):
+                    try:
+                        hist = stock.history(period="1y")
+                        if hist is not None and not hist.empty:
+                            break
+                    except Exception:
+                        time.sleep(2 ** attempt + 1)
+                        continue
+                if hist is not None and not hist.empty:
+                    break
 
         if hist is None or hist.empty or len(hist) < 26:  # ponytail: 26 = minimum for MACD(12,26,9); RSI(14) works too; SMAs return NaN naturally
             return None
