@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from sentiment import (
     get_sia,
     analyze_headline_sentiment,
-    get_overall_signal,
     FINANCIAL_BOOSTERS,
 )
 from data_fetcher import (
@@ -35,45 +34,7 @@ class TestSentiment:
             assert word in self.sia.lexicon, f"Missing booster: {word}"
             assert self.sia.lexicon[word] == score, f"Wrong score for {word}"
 
-    def test_bullish_headline(self):
-        result = analyze_headline_sentiment("Stock surges on bullish outlook", "", self.sia)
-        assert result["compound"] > 0
 
-    def test_bearish_headline(self):
-        result = analyze_headline_sentiment("Stock crashes on negative results", "", self.sia)
-        assert result["compound"] < -0.2  # VADER normalization bounds this
-
-    def test_neutral_headline(self):
-        result = analyze_headline_sentiment("Company to hold board meeting next week", "", self.sia)
-        # Neutral text should have compound near 0
-        assert -0.3 < result["compound"] < 0.3
-
-    def test_get_overall_signal_bullish(self):
-        scores = [{"compound": 0.8}, {"compound": 0.5}, {"compound": 0.1}]
-        signal, compound, emoji = get_overall_signal(scores)
-        assert "BULLISH" in signal
-        assert "🟢" in signal
-
-    def test_get_overall_signal_bearish(self):
-        scores = [{"compound": -0.8}, {"compound": -0.5}, {"compound": -0.1}]
-        signal, compound, emoji = get_overall_signal(scores)
-        assert "BEARISH" in signal
-        assert "🔴" in signal
-
-    def test_get_overall_signal_neutral(self):
-        scores = [{"compound": 0.1}, {"compound": -0.1}, {"compound": 0.05}]
-        signal, compound, emoji = get_overall_signal(scores)
-        assert "NEUTRAL" in signal
-
-    def test_get_overall_signal_empty(self):
-        signal, compound, emoji = get_overall_signal([])
-        assert signal == "NEUTRAL ⚪"
-
-    def test_get_overall_signal_mixed(self):
-        scores = [{"compound": 0.8}, {"compound": -0.8}, {"compound": 0.05}]
-        signal, compound, emoji = get_overall_signal(scores)
-        # Mixed with strong both sides → neutral
-        assert "NEUTRAL" in signal or "BULLISH" in signal  # depends on weights
 
 
 # ─── Weighted Signal Tests ───

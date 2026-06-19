@@ -6,6 +6,7 @@ rendered via st.components.v1.html().
 
 import html
 import secrets
+import itertools
 
 # ─── Inline SVG icons (Heroicons-style, stroke-based) ───
 # ponytail: handcrafted SVGs avoid a 100KB+ icon library for ~15 icons
@@ -25,13 +26,16 @@ _ICON["target"] = _svg('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" 
 _ICON["check"] = _svg('<polyline points="20 6 9 17 4 12"/>')
 _ICON["alert"] = _svg('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>')
 _ICON["minus"] = _svg('<line x1="5" y1="12" x2="19" y2="12"/>')
-_ICON["dot_green"] = _svg('<circle cx="12" cy="12" r="6" fill="#22b573" stroke="none"/>')
-_ICON["dot_red"] = _svg('<circle cx="12" cy="12" r="6" fill="#f85149" stroke="none"/>')
-_ICON["dot_grey"] = _svg('<circle cx="12" cy="12" r="6" fill="#8891a0" stroke="none"/>')
+_ICON["dot_green"] = _svg('<circle cx="12" cy="12" r="4" fill="#22b573" stroke="none"/>')
+_ICON["dot_red"] = _svg('<circle cx="12" cy="12" r="4" fill="#f85149" stroke="none"/>')
+_ICON["dot_grey"] = _svg('<circle cx="12" cy="12" r="4" fill="#8891a0" stroke="none"/>')
 _ICON["arrow_up"] = _svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>')
 _ICON["arrow_down"] = _svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>')
 _ICON["wifi"] = _svg('<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/>')
 _ICON["layout"] = _svg('<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>')
+
+# ponytail: counter for unique sparkline gradient IDs (avoids id() which can collide across renders)
+_sparkline_counter = itertools.count()
 
 
 def h(s):
@@ -108,7 +112,7 @@ def render_sparkline(values, width=160, height=32, color="#22b573"):
         points.append(f"{x:.1f},{y:.1f}")
 
     # Gradient from latest (right side) to oldest (left)
-    grad_id = f"spark-{id(values)}"
+    grad_id = f"spark-{next(_sparkline_counter)}"
     return f"""<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}"
     style="vertical-align:middle;display:inline-block;">
     <defs>
@@ -211,14 +215,16 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     cross_200_html = ""
     if technical_indicators:
         ti = technical_indicators
+        _up_icon = _ICON["arrow_up"]
+        _down_icon = _ICON["arrow_down"]
         if ti.get("sma50_cross") == "bullish":
-            cross_50_html = '<span class="cross-badge bullish">{_ICON["arrow_up"]} SMA50 bullish crossover</span>'
+            cross_50_html = '<span class="cross-badge bullish">' + _up_icon + ' SMA50 bullish crossover</span>'
         elif ti.get("sma50_cross") == "bearish":
-            cross_50_html = '<span class="cross-badge bearish">{_ICON["arrow_down"]} SMA50 bearish crossover</span>'
+            cross_50_html = '<span class="cross-badge bearish">' + _down_icon + ' SMA50 bearish crossover</span>'
         if ti.get("sma200_cross") == "bullish":
-            cross_200_html = '<span class="cross-badge bullish">{_ICON["arrow_up"]} SMA200 bullish crossover</span>'
+            cross_200_html = '<span class="cross-badge bullish">' + _up_icon + ' SMA200 bullish crossover</span>'
         elif ti.get("sma200_cross") == "bearish":
-            cross_200_html = '<span class="cross-badge bearish">{_ICON["arrow_down"]} SMA200 bearish crossover</span>'
+            cross_200_html = '<span class="cross-badge bearish">' + _down_icon + ' SMA200 bearish crossover</span>'
 
     # Track record accuracy
     acc_html = ""

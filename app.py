@@ -10,7 +10,7 @@ from datetime import datetime
 from data_fetcher import (
     NSE_TICKERS, get_stock_info, search_news,
 )
-from sentiment import get_sia, analyze_headline_sentiment, get_overall_signal, get_weighted_signal
+from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
 from event_classifier import classify_headline, adjust_with_event
 from indicators import get_technical_indicators
 from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history
@@ -60,31 +60,6 @@ st.markdown("""
 
 
 
-def delta_str(val):  # ponytail: dead code — callers use inline formatting
-    """Format change value with +/- sign."""
-    if not isinstance(val, (int, float)):
-        return "N/A"
-    sign = "+" if val >= 0 else ""
-    return f"{sign}{val:.2f}"
-
-
-def delta_color(val):  # ponytail: dead code — HTML dashboard handles colors
-    """Return Streamlit delta color based on sign."""
-    if isinstance(val, (int, float)):
-        return "normal" if val >= 0 else "inverse"
-    return "off"
-
-
-# ponytail: fmt_price inlined at the single call site (line ~299) — was 5 lines for one use
-
-
-def fmt_metric(val, suffix=""):  # ponytail: dead code — track record uses st.metric directly
-    """Format a number with optional suffix, return N/A if missing."""
-    if isinstance(val, (int, float)):
-        return f"{val:,.0f}{suffix}"
-    return "N/A"
-
-
 def analyze_ticker(ticker, company_name):
     """Run full analysis pipeline for a ticker. Returns dict or None."""
     stock_data = get_stock_info(ticker)
@@ -124,17 +99,16 @@ def analyze_ticker(ticker, company_name):
             "smartscore": str(ss_result["smartscore"]),
         })
 
-    # Keep existing signal computation (backward compat — render uses it)
-    signal, avg_compound, signal_emoji = get_overall_signal(headline_scores)
+    # Use weighted signal as the primary (and only) signal
     weighted_signal, blended_compound, weighted_emoji, source_breakdown = get_weighted_signal(headline_scores)
 
     return {
         "stock_data": stock_data,
         "news_items": news_items,
         "headline_scores": headline_scores,
-        "signal": signal,
-        "avg_compound": avg_compound,
-        "signal_emoji": signal_emoji,
+        "signal": weighted_signal,
+        "avg_compound": blended_compound,
+        "signal_emoji": weighted_emoji,
         "weighted_signal": weighted_signal,
         "blended_compound": blended_compound,
         "weighted_emoji": weighted_emoji,
@@ -253,15 +227,25 @@ if final_ticker and final_ticker != "":
         if result:
             st.session_state._last_ticker = final_ticker
             st.session_state._last_result = result
-            # Save to track record
+            # Save to track record (dedup: update last unvoted entry for same ticker, else append)
             recs = load_track_record()
-            recs.append({
+            now_iso = datetime.now().isoformat(timespec="minutes")
+            existing_idx = None
+            for i, rec in enumerate(reversed(recs)):
+                if rec.get("ticker") == final_ticker and rec.get("vote") is None:
+                    existing_idx = len(recs) - 1 - i
+                    break
+            entry = {
                 "ticker": final_ticker,
-                "datetime": datetime.now().isoformat(timespec="minutes"),
+                "datetime": now_iso,
                 "compound": result["avg_compound"],
                 "signal": result["signal"],
                 "vote": None,
-            })
+            }
+            if existing_idx is not None:
+                recs[existing_idx] = entry
+            else:
+                recs.append(entry)
             save_track_record(recs)
     if result:
         stock_data = result["stock_data"]

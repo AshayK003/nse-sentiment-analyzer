@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-[![Tests](https://img.shields.io/badge/tests-114%20passing-brightgreen)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-112%20passing-brightgreen)](#-testing)
 [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 
 <p align="center">
@@ -61,7 +61,7 @@ app.py ───────────────────── (entry po
   │
   ├── render.py ──────────── (HTML/CSS dashboard template via st.components)
   │
-  ├── sentiment.py ───────── (VADER + financial lexicon, source-weighted scoring)
+  ├── sentiment.py ───────── (VADER + financial lexicon, source-weighted scoring (sole signal, supersedes simple averaging))
   │     └── event_classifier.py ── (14 event types: earnings, litigation,
   │                                  order wins, buybacks, regulatory, etc.)
   │
@@ -157,8 +157,9 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 - **Reddit community chatter** — OAuth API or local `rdt-cli`. Brings retail conversation into the sentiment pipeline
 - **Event-aware classification** — Headlines automatically tagged by event type: earnings beats/misses, order wins, litigation, regulatory actions, buybacks/dividends, debt stress, management changes, product launches, guidance changes, expansion. Each event type carries a signed sentiment bias that corrects VADER's blind spots
 - **SmartScore composite (0–100)** — A weighted index of 4 components: recency-weighted EWMA (45%), event-adjusted sentiment (25%), headline breadth (20%), and news volume (10%). The SmartScore replaces guesswork with a single, calibrated number
-- **Trend sparkline** — Visual history of SmartScore over recent sessions, showing sentiment momentum at a glance
-- **Source-weighted scoring** — Each source has a confidence weight. Blended score = weighted average across active sources
+- **Source-weighted scoring** — Each source has a confidence weight. Blended score = weighted average across active sources. This is the sole signal (supersedes simple unweighted averaging)
+- **SmartScore trend sparkline** — Visual history of SmartScore over recent sessions, showing sentiment momentum at a glance
+- **Track record dedup** — Repeated scans of the same ticker update the latest unvoted entry instead of creating duplicates
 - **VADER + Financial Lexicon** — 38 domain-specific financial terms tuned for Indian markets
 - **BULLISH / NEUTRAL / BEARISH signal** — Weighted across sources, with per-source breakdown in the UI
 - **Technical indicators** — RSI(14), SMA 50/200 crossover, MACD histogram. Works with 26+ days of data
@@ -236,7 +237,7 @@ No other env vars are needed. All data sources are free and public.
 nse-sentiment-analyzer/
 ├── app.py                  # Streamlit entry point, UI logic
 ├── data_fetcher.py         # Stock info, RSS news, Reddit, DuckDuckGo
-├── sentiment.py            # VADER + financial lexicon, source-weighted scoring
+├── sentiment.py            # VADER + financial lexicon, source-weighted scoring (sole signal, supersedes simple averaging)
 ├── event_classifier.py     # 14 event types: earnings, litigation, order wins, etc.
 ├── aggregate_sentiment.py  # SmartScore 0–100: EWMA, breadth, volume, events
 ├── indicators.py           # RSI, SMA crossover, MACD
@@ -247,9 +248,10 @@ nse-sentiment-analyzer/
 ├── pyproject.toml          # Pytest config, coverage
 ├── .streamlit/
 │   └── config.toml         # Theme + client settings
-└── tests/
-    ├── conftest.py         # Fixtures (tmp dir, mock stock data)
-    ├── test_data_fetcher.py
+├── tests/
+│   ├── conftest.py         # Fixtures (tmp dir, mock stock data)
+│   ├── test_analyze_ticker.py   # Integration: full pipeline end-to-end
+│   ├── test_data_fetcher.py
     ├── test_indicators.py
     ├── test_persistence.py
     ├── test_render.py
@@ -301,7 +303,8 @@ python -m pytest tests/test_sentiment.py::TestSentiment::test_bullish_headline -
 
 - **All external APIs are mocked** — tests run offline
 - **Fixtures** in `conftest.py` provide a `tmp_data_dir` for isolated file I/O + a `sample_hist` DataFrame for indicators
-- **114 tests** across 7 modules (sentiment, indicators, data_fetcher, persistence, render, event_classifier, aggregate_sentiment)
+- **112 tests** across 8 modules (sentiment, indicators, data_fetcher, persistence, render, event_classifier, aggregate_sentiment, plus integration tests for `analyze_ticker`)
+- **Integration tests** verify the full pipeline end-to-end at module boundaries (stock data → sentiment → event classification → SmartScore)
 - **No network calls** — `yfinance`, `feedparser`, `duckduckgo_search`, `requests`, and `rdt-cli` are all patched with `pytest-mock`
 
 ### Test Markers
@@ -355,7 +358,7 @@ Or click the "Cache: … entries" button in the app sidebar.
 | RSS feeds return empty results | Rate-limiting or transient network issue | DuckDuckGo fallback kicks in automatically |
 | Dashboard shows stale data | Cache TTL hasn't expired (default: 15 min) | Click cache button to clear, or wait |
 | Streamlit Cloud "Module not found" | Missing dependency | Verify it's in `requirements.txt` |
-| Duplicate track records | Fixed in commit `ecb5cc1` | Update to latest version |
+| Duplicate track records | Repeated searches of the same ticker created extra entries | Fixed: dedup updates the latest unvoted entry per ticker. Update to latest version |
 
 ### Getting Help
 

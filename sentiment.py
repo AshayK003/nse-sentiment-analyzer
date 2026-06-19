@@ -81,23 +81,6 @@ def analyze_headline_sentiment(headline, body, sia, source=None):
     return result
 
 
-def get_overall_signal(headline_scores):
-    """Determine overall signal from headline scores."""
-    if not headline_scores:
-        return "NEUTRAL ⚪", 0.0, "⚪"
-
-    avg_compound = sum(s["compound"] for s in headline_scores) / len(headline_scores)
-    pos_count = sum(1 for s in headline_scores if s["compound"] >= 0.3)
-    neg_count = sum(1 for s in headline_scores if s["compound"] <= -0.3)
-
-    if avg_compound >= 0.2 and pos_count > neg_count:
-        return "BULLISH 🟢", avg_compound, "🟢"
-    elif avg_compound <= -0.2 and neg_count > pos_count:
-        return "BEARISH 🔴", avg_compound, "🔴"
-    else:
-        return "NEUTRAL ⚪", avg_compound, "⚪"
-
-
 def get_weighted_signal(headline_scores):
     """Compute source-weighted blended signal.
 

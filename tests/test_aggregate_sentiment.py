@@ -74,8 +74,9 @@ class TestSmartScore:
         ]
         adjusted = [0.5, -0.4, 0.1, -0.2]
         result, history = compute_smartscore(scores, adjusted)
-        assert 30 <= result["smartscore"] <= 70
-        assert result["signal"] in ("BULLISH", "NEUTRAL", "BEARISH")
+        # Neutral to mildly positive — all headlines are 0.1/mixed
+        assert 35 <= result["smartscore"] <= 65
+        assert result["signal"] == "NEUTRAL"
 
     def test_volume_component_scales_with_count(self):
         """More headlines should increase S_volume."""
