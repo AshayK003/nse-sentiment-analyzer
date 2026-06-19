@@ -8,31 +8,31 @@ import html
 import secrets
 import itertools
 
-# ─── Inline SVG icons (Heroicons-style, stroke-based) ───
-# ponytail: handcrafted SVGs avoid a 100KB+ icon library for ~15 icons
+# ─── Inline SVG icons (Lucide, MIT-licensed, stroke-based) ───
+# ponytail: inline SVGs avoid a 100KB+ icon library for ~15 icons
 _ICON = {}
 
 def _svg(path, view_box="0 0 24 24"):
     """Build a 16x16 inline SVG icon with currentColor stroke."""
     return f'<svg class="icon" width="16" height="16" viewBox="{view_box}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{path}</svg>'
 
-_ICON["trending_up"] = _svg('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>')
-_ICON["newspaper"] = _svg('<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9a1 1 0 0 1 1-1h2"/>')
-_ICON["bar_chart"] = _svg('<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>')
-_ICON["file_text"] = _svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')
-_ICON["bank"] = _svg('<path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9 9-7 9 7"/><line x1="9" y1="21" x2="9" y2="15"/><line x1="15" y1="21" x2="15" y2="15"/>')
-_ICON["signal"] = _svg('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')
-_ICON["target"] = _svg('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>')
-_ICON["check"] = _svg('<polyline points="20 6 9 17 4 12"/>')
-_ICON["alert"] = _svg('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>')
-_ICON["minus"] = _svg('<line x1="5" y1="12" x2="19" y2="12"/>')
+_ICON["trending_up"] = _svg('<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>')
+_ICON["newspaper"] = _svg('<path d="M15 18h-5"/><path d="M18 14h-8"/><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="10" y="6" rx="1"/>')
+_ICON["bar_chart"] = _svg('<path d="M5 21v-6"/><path d="M12 21V3"/><path d="M19 21V9"/>')
+_ICON["file_text"] = _svg('<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>')
+_ICON["bank"] = _svg('<path d="M10 18v-7"/><path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/>')
+_ICON["signal"] = _svg('<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>')
+_ICON["target"] = _svg('<circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/>')
+_ICON["check"] = _svg('<path d="M20 6 9 17l-5-5"/>')
+_ICON["alert"] = _svg('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>')
+_ICON["minus"] = _svg('<path d="M5 12h14"/>')
 _ICON["dot_green"] = _svg('<circle cx="12" cy="12" r="4" fill="#22b573" stroke="none"/>')
 _ICON["dot_red"] = _svg('<circle cx="12" cy="12" r="4" fill="#f85149" stroke="none"/>')
 _ICON["dot_grey"] = _svg('<circle cx="12" cy="12" r="4" fill="#8891a0" stroke="none"/>')
-_ICON["arrow_up"] = _svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>')
-_ICON["arrow_down"] = _svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>')
-_ICON["wifi"] = _svg('<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/>')
-_ICON["layout"] = _svg('<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>')
+_ICON["arrow_up"] = _svg('<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>')
+_ICON["arrow_down"] = _svg('<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>')
+_ICON["wifi"] = _svg('<path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/>')
+_ICON["layout"] = _svg('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>')
 
 # ponytail: counter for unique sparkline gradient IDs (avoids id() which can collide across renders)
 _sparkline_counter = itertools.count()
