@@ -279,14 +279,21 @@ if final_ticker and final_ticker != "":
         records = load_track_record()
         fii_data = get_fii_dii_flow()
 
-        # Render premium HTML dashboard via custom component
+        # Render premium HTML dashboard — dynamic height to avoid iframe scrollbars
+        n_news = len(news_items)
+        n_sources = max(len(result.get("source_breakdown", [])), 1)
+        n_track = len(records) if records else 0
+        # ponytail: base ~250 header + 400 price/sentiment + 400 SmartScore/badges
+        # + 150 distribution + 100 per news item + 250 stats + 300 tech indicators
+        # + 150 FII/DII + 200 per 10 track records + 100 padding
+        dash_height = 1600 + n_news * 140 + min(n_track, 20) * 18
         st.components.v1.html(
             render_dashboard(result, final_ticker, company_name,
                              technical_indicators=ti,
                              track_record=records,
                              fii_dii_data=fii_data),
-            height=2000,
-            scrolling=True,
+            height=dash_height,
+            scrolling=False,
         )
 
         # Track record voting (Streamlit buttons outside the iframe)

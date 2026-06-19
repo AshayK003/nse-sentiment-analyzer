@@ -363,13 +363,48 @@ def get_stock_info(ticker):
         if info:
             cache_set(f"stock_{ticker}", result)
         else:
-            # Info failed — use shorter TTL so next call retries metadata
+            # ponytail: nsepython fallback for missing metadata fields
+            _fill_from_nse(result, ticker)
             cache_set(f"stock_{ticker}", result, ttl=120)  # 2 min
         return result
 
     except Exception as e:
         st.error(f"Could not fetch data for {ticker}: {e}")
         return None
+
+
+def _fill_from_nse(result, ticker):
+    """Fill missing metadata fields (sector, industry, PE, 52w, market cap)
+    from NSE's official API via nsepython. Non-blocking — silently skips
+    if nsepython not installed or NSE API unreachable."""
+    try:
+        from nsepython import nse_eq
+        data = nse_eq(ticker)
+        if not data or not isinstance(data, dict):
+            return
+    except Exception:
+        return
+
+    if result.get("sector") in (None, "N/A"):
+        result["sector"] = data.get("sector") or data.get("industry") or "N/A"
+    if result.get("industry") in (None, "N/A"):
+        result["industry"] = data.get("industry") or "N/A"
+    if result.get("market_cap") is None:
+        mc = data.get("marketCap") or data.get("marketCapFull")
+        if mc and isinstance(mc, (int, float)) and mc > 0:
+            result["market_cap"] = int(mc)
+    if result.get("pe_ratio") is None:
+        pe = data.get("pe") or data.get("priceToEarning")
+        if pe and isinstance(pe, (int, float)) and pe > 0:
+            result["pe_ratio"] = float(pe)
+    if result.get("52w_high") is None:
+        h52 = data.get("high52")
+        if h52 and isinstance(h52, (int, float)) and h52 > 0:
+            result["52w_high"] = float(h52)
+    if result.get("52w_low") is None:
+        l52 = data.get("low52")
+        if l52 and isinstance(l52, (int, float)) and l52 > 0:
+            result["52w_low"] = float(l52)
 
 
 def _parse_date(d):
