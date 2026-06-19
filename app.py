@@ -215,17 +215,27 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ─── Ticker Input — single text field (overrides selectbox) ───
-ticker_input = st.text_input(
-    "NSE Ticker Symbol",
-    placeholder="e.g., RELIANCE, HDFCBANK, TCS, NYKAA, ZOMATO",
-    max_chars=15,
-    label_visibility="collapsed",
-)
+# ─── Ticker Input — single text field + search button ───
+ticker_col, btn_col = st.columns([5, 1])
+with ticker_col:
+    ticker_input = st.text_input(
+        "NSE Ticker Symbol",
+        placeholder="e.g., RELIANCE, HDFCBANK, TCS, NYKAA, ZOMATO",
+        max_chars=15,
+        label_visibility="collapsed",
+    )
+with btn_col:
+    search_clicked = st.button("🔍", use_container_width=True, help="Search ticker")
 
-# Resolve final ticker: typed value wins, else session chip from quick-action buttons
 ticker_text = ticker_input.strip().upper().replace(".NS", "")
-final_ticker = ticker_text or st.session_state.pop("quick_ticker", "")
+# Trigger on Enter (via session state) OR button click
+if search_clicked and ticker_text:
+    st.session_state.manual_search = ticker_text
+    st.rerun()
+
+# Resolve final ticker: chip click (quick_action) trumps stale text, button click or Enter works too
+quick_ticker = st.session_state.pop("quick_ticker", "")
+final_ticker = quick_ticker or ticker_text or st.session_state.pop("manual_search", "")
 
 if final_ticker and final_ticker != "":
     final_ticker = final_ticker.replace(".NS", "")
