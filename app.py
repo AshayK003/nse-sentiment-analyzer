@@ -14,7 +14,7 @@ from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
 from event_classifier import classify_headline, adjust_with_event
 from indicators import get_technical_indicators
 from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history
-from render import render_dashboard, _ICON
+from render import render_dashboard, get_signal_icon
 from market_data import get_fii_dii_flow
 from aggregate_sentiment import compute_smartscore
 
@@ -333,7 +333,7 @@ elif st.session_state.get("run_briefing"):
                     cols[0].markdown(f"**{t}** — {price_str}")
                     cols[0].caption(f"{sd['name'][:40]}")
                     cols[1].markdown(f"Change: {change_str}")
-                    cols[2].markdown(f"""<span style="display:inline-flex;align-items:center;gap:4px">{_ICON.get({'🟢': 'bullish', '🔴': 'bearish'}.get(r.get('signal_emoji', ''), 'neutral'), _ICON['neutral'])} <span style="font-weight:600">{r['signal'].rstrip(' 🟢🔴⚪')}</span></span>""", unsafe_allow_html=True)
+                    cols[2].markdown(f"""<span style="display:inline-flex;align-items:center;gap:4px">{get_signal_icon(r.get('signal_emoji', ''))} <span style="font-weight:600">{r['signal'].rstrip(' 🟢🔴⚪')}</span></span>""", unsafe_allow_html=True)
 
         if st.button("← Back to Single View"):
             st.session_state.run_briefing = False

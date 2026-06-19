@@ -42,6 +42,19 @@ _ICON["neutral"] = _svg('<circle cx="12" cy="12" r="10" fill="#8891a0" stroke="n
 _sparkline_counter = itertools.count()
 
 
+def get_signal_icon(emoji):
+    """Return the 16x16 Lucide SVG icon for a signal emoji string.
+    
+    Used by app.py for Streamlit-native rendering (outside the iframe).
+    Maps emoji strings (🟢/🔴/⚪) to their SVG counterparts.
+    """
+    return {
+        "🟢": _ICON["bullish"],
+        "🔴": _ICON["bearish"],
+        "⚪": _ICON["neutral"],
+    }.get(emoji, _ICON["neutral"])
+
+
 def h(s):
     """Escape a string for safe HTML output."""
     if s is None:
