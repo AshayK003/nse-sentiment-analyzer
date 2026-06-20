@@ -368,6 +368,12 @@ This tool is for **educational and informational purposes only**. Nothing on thi
 
 ---
 
+## Support
+
+If this tool saves you a bad trade or helps you learn, [buy the developer a chai](https://chai4.me/darkcharon3301).
+
+---
+
 ## License
 
 **GNU AGPL v3** — see [LICENSE](LICENSE).
