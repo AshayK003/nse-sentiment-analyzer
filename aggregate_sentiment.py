@@ -102,9 +102,9 @@ def compute_smartscore(headline_scores, event_adjusted_scores, history=None):
     avg_event_adj = sum(event_adjusted_scores) / n
     s_events = _map_minus1_1_to_0_1(avg_event_adj)
 
-    # ── S_breadth: ratio of positive vs negative headlines ──
-    pos = sum(1 for s in headline_scores if s["compound"] >= 0.3)
-    neg = sum(1 for s in headline_scores if s["compound"] <= -0.3)
+    # ── S_breadth: ratio of positive vs negative headlines (event-adjusted) ──
+    pos = sum(1 for adj in event_adjusted_scores if adj >= 0.3)
+    neg = sum(1 for adj in event_adjusted_scores if adj <= -0.3)
     raw_breadth = (pos - neg) / n  # [-1, 1]
     s_breadth = _map_minus1_1_to_0_1(raw_breadth)
 
@@ -118,13 +118,14 @@ def compute_smartscore(headline_scores, event_adjusted_scores, history=None):
 
     if history:
         for h in history:
-            if h.get("avg_compound"):
+            avg_str = h.get("avg_compound")
+            if avg_str is not None and avg_str != "":
                 try:
                     d = datetime.strptime(h["date"], "%Y-%m-%d")
                     days_ago = (datetime.now() - d).days
                     # Only include if within reasonable range
                     if 0 < days_ago <= 30:
-                        daily_averages.append((days_ago, float(h["avg_compound"])))
+                        daily_averages.append((days_ago, float(avg_str)))
                 except (ValueError, TypeError):
                     continue
 
@@ -157,7 +158,7 @@ def compute_smartscore(headline_scores, event_adjusted_scores, history=None):
         history_scores = [
             float(h["smartscore"])
             for h in history
-            if h.get("smartscore")
+            if h.get("smartscore") is not None and h["smartscore"] != ""
         ]
     history_scores.append(round(smartscore, 1))
 
