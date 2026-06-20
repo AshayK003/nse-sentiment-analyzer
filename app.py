@@ -355,16 +355,68 @@ with st.sidebar:
 st.markdown(f"""
 <div style="display:flex;align-items:center;justify-content:space-between;
     padding:0.5rem 0 1.5rem 0;border-bottom:1px solid #1e2028;margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+        <div>
+            <div style="font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;
+                background:linear-gradient(135deg,#22b573,#0d9488);
+                -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                background-clip:text;">NSE Sentiment Analyzer</div>
+            <div style="font-size:0.8rem;color:#6b7280;margin-top:0.15rem;">
+                Live price · Multi-source sentiment · Technical indicators</div>
+        </div>
+    </div>
     <div>
-        <div style="font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;
-            background:linear-gradient(135deg,#22b573,#0d9488);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-            background-clip:text;">NSE Sentiment Analyzer</div>
-        <div style="font-size:0.8rem;color:#6b7280;margin-top:0.15rem;">
-            Live price · Multi-source sentiment · Technical indicators</div>
+        <button onclick="document.querySelector('[data-testid=\\'stSidebarCollapsedControl\\']')?.click()"
+                style="background:#1a1d26;border:1px solid #2a2e3a;color:#f0f2f5;border-radius:8px;
+                       padding:0.4rem 0.8rem;cursor:pointer;font-size:0.85rem;">
+            ☰ Reopen Sidebar
+        </button>
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ─── Fallback sidebar recovery in main page (when native sidebar is gone) ───
+if st.session_state.get("_sidebar_recovery", False):
+    with st.container():
+        st.markdown("---")
+        st.markdown("##### 📁 Sidebar Controls")
+        portfolio_fb = load_portfolio()
+        entry_prices_fb = load_entry_prices()
+
+        with st.expander("📁 Portfolio (add/edit holdings)", expanded=True):
+            ac1, ac2, ac3 = st.columns([2, 1, 1])
+            with ac1:
+                nt = st.text_input("Ticker", placeholder="RELIANCE", label_visibility="collapsed",
+                                   max_chars=15, key="recover_ticker")
+            with ac2:
+                ep = st.text_input("ATP", placeholder="₹2,800", label_visibility="collapsed",
+                                   max_chars=10, key="recover_atp")
+            with ac3:
+                if st.button("➕", use_container_width=True, key="recover_add") and nt.strip():
+                    t = nt.strip().upper().replace(".NS", "")
+                    if t.isalnum() and t not in portfolio_fb:
+                        portfolio_fb.append(t)
+                        save_portfolio(portfolio_fb)
+                        if ep.strip():
+                            try:
+                                save_entry_price(t, float(ep.strip().replace(",", "")))
+                            except ValueError:
+                                pass
+                        st.rerun()
+            if portfolio_fb:
+                st.caption("Holdings: " + ", ".join(portfolio_fb))
+        c1, c2, c3 = st.columns([1, 1, 1])
+        if c1.button("📡 Run Briefing", use_container_width=True):
+            st.session_state.run_briefing = True
+        if c2.button("↻ Reset Expanders", use_container_width=True):
+            for k in list(st.session_state.keys()):
+                if k.startswith("_exp_"):
+                    st.session_state[k] = True
+            st.rerun()
+        if c3.button("✕ Close", use_container_width=True):
+            st.session_state._sidebar_recovery = False
+            st.rerun()
+        st.markdown("---")
 
 # ─── Ticker Input — single text field + search button ───
 # ─── Shareable snapshot link: ?ticker=X bypasses normal input ───
