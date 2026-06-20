@@ -681,23 +681,36 @@ def get_stock_info(ticker):
                     continue
 
         # ── Build result dict ──
+        # ponytail: _nf = NaN-safe float extractor — returns None for NaN/None
+        def _nf(v):
+            if v is None:
+                return None
+            f = float(v)
+            return None if math.isnan(f) else f
+
         if hist is not None and not hist.empty:
             _hist_cache[ticker] = hist
-            current_price = float(hist["Close"].iloc[-1])
-            prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
-            change = float(current_price - prev_close)
-            change_pct = float((change / prev_close) * 100)
-            day_high = float(hist["High"].iloc[-1])
-            day_low = float(hist["Low"].iloc[-1])
-            volume = int(hist["Volume"].iloc[-1]) if not math.isnan(hist["Volume"].iloc[-1]) else 0
+            current_price = _nf(hist["Close"].iloc[-1])
+            prev_close = _nf(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
+            if current_price is not None and prev_close is not None:
+                change = float(current_price - prev_close)
+                change_pct = float((change / prev_close) * 100) if prev_close != 0 else 0.0
+            else:
+                change = None
+                change_pct = None
+            day_high = _nf(hist["High"].iloc[-1])
+            day_low = _nf(hist["Low"].iloc[-1])
+            vol_raw = hist["Volume"].iloc[-1]
+            volume = int(vol_raw) if not math.isnan(vol_raw) else 0
         elif info:
             # No history but info is available — use info fields for price
-            current_price = info.get("currentPrice") or info.get("regularMarketPrice")
-            change = info.get("regularMarketChange")
-            change_pct = info.get("regularMarketChangePercent")
-            day_high = info.get("dayHigh")
-            day_low = info.get("dayLow")
-            volume = info.get("volume")
+            current_price = _nf(info.get("currentPrice")) or _nf(info.get("regularMarketPrice"))
+            change = _nf(info.get("regularMarketChange"))
+            change_pct = _nf(info.get("regularMarketChangePercent"))
+            day_high = _nf(info.get("dayHigh"))
+            day_low = _nf(info.get("dayLow"))
+            vol_raw = info.get("volume")
+            volume = int(vol_raw) if vol_raw is not None and not math.isnan(float(vol_raw)) else 0
         else:
             # Neither info nor history — give up
             st.error(

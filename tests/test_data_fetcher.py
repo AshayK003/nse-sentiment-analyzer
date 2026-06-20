@@ -131,7 +131,6 @@ class TestStockInfo:
     def test_stock_info_handles_missing_fields(self, mocker):
         """Missing optional fields (sector, PE) should not crash."""
         from data_fetcher import get_stock_info
-
         info = {
             "longName": "Minimal Ltd",
             "shortName": "MINIMAL",
@@ -152,6 +151,47 @@ class TestStockInfo:
         assert result is not None
         assert result["sector"] == "N/A"   # missing -> "N/A"
         assert result["pe_ratio"] is None  # missing -> None
+
+    def test_stock_info_nan_prices_from_etf(self, mocker):
+        """ETFs with NaN price fields should return None for prices, not NaN."""
+        import math
+        from data_fetcher import get_stock_info
+        import pandas as pd
+
+        # ETF scenario: info has NaN prices, history is empty
+        nan_info = {
+            "longName": "Nippon India ETF Nifty 50",
+            "shortName": "NIFTYBEES",
+            "sector": "N/A",
+            "industry": "N/A",
+            "fiftyTwoWeekHigh": 302.25,
+            "fiftyTwoWeekLow": 251.70,
+            "trailingPE": 21.52,
+            # These fields are NaN for ETFs on yfinance
+            "currentPrice": float("nan"),
+            "regularMarketPrice": float("nan"),
+            "regularMarketChange": float("nan"),
+            "regularMarketChangePercent": float("nan"),
+            "dayHigh": float("nan"),
+            "dayLow": float("nan"),
+            "volume": float("nan"),
+        }
+        _mock_yfinance_ticker(mocker, info=nan_info, hist_df=pd.DataFrame())
+        mocker.patch("time.sleep")
+        mocker.patch("data_fetcher.cache_get", return_value=None)
+        mocker.patch("data_fetcher.cache_set")
+
+        result = get_stock_info("NIFTYBEES")
+        assert result is not None
+        # Prices should be None, not NaN
+        assert result["current_price"] is None or not math.isnan(result["current_price"])
+        assert result["change"] is None or not math.isnan(result["change"])
+        assert result["change_pct"] is None or not math.isnan(result["change_pct"])
+        assert result["day_high"] is None or not math.isnan(result["day_high"])
+        assert result["day_low"] is None or not math.isnan(result["day_low"])
+        # 52w data should still be present
+        assert result["52w_high"] == 302.25
+        assert result["52w_low"] == 251.70
 
 
 class TestRelevanceFilter:

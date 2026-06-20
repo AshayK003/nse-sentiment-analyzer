@@ -8,7 +8,7 @@
 | [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 | [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 | [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-| [![Tests](https://img.shields.io/badge/tests-108%20passing-brightgreen)](#-testing)|
+| [![Tests](https://img.shields.io/badge/tests-109%20passing-brightgreen)](#-testing)|
 | [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 |
 |<p align="center">
@@ -186,8 +186,18 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 **Other improvements:**
 - Event classifier ~80 lines richer with LITIGATION + REGULATORY body coverage
-- All 108 tests still pass — zero regressions from expansion
+- All 109 tests pass — zero regressions from expansion
 - Ticker alias matching now covers 504 common name forms and 20+ regulatory agencies
+
+### v2.1.2 — Bug fix: ETF NaN prices + audit pass (June 2026)
+
+**Critical bug fix:** ETFs (NIFTYBEES, GOLDBEES, MIDCAPETF, etc.) showed `₹nan` and `nan%` for price/change/day-range. Root cause: yfinance returns `NaN` for ETF price fields, and `float('nan')` is truthy in Python, so `or` fallbacks and `isinstance(val, float)` checks both passed NaN through to the renderer.
+
+- Added `_nf()` NaN-safe extractor in `data_fetcher.py:get_stock_info()` — returns `None` for NaN on all price fields
+- Added `_is_valid_num()` in `render.py` — rejects NaN/Inf in `fmt_price`, `fmt_delta`, `fmt_vol`, `fmt_large`, PE ratio, and HTML template ternary
+- Added `test_stock_info_nan_prices_from_etf` regression test (simulates yfinance returning NaN for all ETF fields)
+- Consolidated `from math import sqrt` → `import math` in render.py (eliminates redundant local import)
+- 109 tests passing (108 → 109 with new regression test)
 
 ### v2.1.1 — Audit cleanup: -22 lines, responsive layout, dynamic iframe height (June 2026)
 
@@ -364,7 +374,7 @@ nse-sentiment-analyzer/
 ## 🧪 Testing
 
 ```bash
-# Run all tests (112 tests, mocked APIs, no network)
+# Run all tests (109 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # Run with coverage
@@ -381,7 +391,7 @@ python -m pytest tests/test_sentiment.py::TestSentiment::test_bullish_headline -
 
 - **All external APIs are mocked** — tests run offline
 - **Fixtures** in `conftest.py` provide a `tmp_data_dir` for isolated file I/O + a `sample_hist` DataFrame for indicators
-- **108 tests** across 8 modules (sentiment, indicators, data_fetcher, persistence, render, event_classifier, aggregate_sentiment, plus integration tests for `analyze_ticker`)
+- **109 tests** across 8 modules (sentiment, indicators, data_fetcher, persistence, render, event_classifier, aggregate_sentiment, plus integration tests for `analyze_ticker`)
 - **Integration tests** verify the full pipeline end-to-end at module boundaries (stock data → sentiment → event classification → SmartScore)
 - **No network calls** — `yfinance`, `feedparser`, `duckduckgo_search`, `requests`, and `rdt-cli` are all patched with `pytest-mock`
 

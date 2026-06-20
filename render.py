@@ -5,9 +5,9 @@ rendered via st.components.v1.html().
 """
 
 import html
+import math
 import secrets
 import itertools
-from math import sqrt
 
 # ─── Bayesian source calibration ───
 # Shows per-source Beta distributions from user voting data.
@@ -68,14 +68,21 @@ def h(s):
     return html.escape(str(s), quote=True)
 
 
-def fmt_price(val):
+def _is_valid_num(val):
+    """Return True if val is a finite number (not NaN, not None)."""
     if isinstance(val, (int, float)):
+        return not math.isnan(val) and math.isfinite(val)
+    return False
+
+
+def fmt_price(val):
+    if _is_valid_num(val):
         return f"\u20b9{val:,.2f}"
     return "N/A"
 
 
 def fmt_vol(val):
-    if isinstance(val, (int, float)):
+    if _is_valid_num(val):
         if val >= 1e7:
             return f"{val/1e7:.1f}Cr"
         if val >= 1e5:
@@ -85,14 +92,14 @@ def fmt_vol(val):
 
 
 def fmt_delta(val):
-    if isinstance(val, (int, float)):
+    if _is_valid_num(val):
         sign = "+" if val >= 0 else ""
         return f"{sign}{val:.2f}"
     return "N/A"
 
 
 def fmt_large(val):
-    if isinstance(val, (int, float)):
+    if _is_valid_num(val):
         if val >= 1e7:
             return f"\u20b9{val/1e7:.1f}Cr"
         if val >= 1e5:
@@ -191,7 +198,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     )
     volume = fmt_vol(stock["volume"])
     pe = stock.get("pe_ratio")
-    pe_str = f"{pe:.2f}" if isinstance(pe, (int, float)) else "N/A"
+    pe_str = f"{pe:.2f}" if _is_valid_num(pe) else "N/A"
 
     # 52-week proximity badge
     price_now = stock["current_price"]
@@ -271,7 +278,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
                     b = dist.get("beta", 1)
                     total_votes = a + b - 10
                     pct = a / (a + b) * 100 if (a + b) > 0 else 50
-                    sd = sqrt((a * b) / ((a + b) ** 2 * (a + b + 1))) if (a + b > 1) else 0.5
+                    sd = math.sqrt((a * b) / ((a + b) ** 2 * (a + b + 1))) if (a + b > 1) else 0.5
                     ci_lo = max(0, (pct / 100 - 1.96 * sd) * 100)
                     ci_hi = min(100, (pct / 100 + 1.96 * sd) * 100)
                     acc_class = "good" if pct >= 65 else "ok" if pct >= 50 else "poor"
@@ -754,7 +761,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
             <div class="price-cell">
                 <div class="label">{h(ticker[:6])}</div>
                 <div class="value price-main">{fmt_price(price)}</div>
-                <div class="delta {'up' if isinstance(change_val, (int, float)) and change_val >= 0 else 'down' if isinstance(change_val, (int, float)) else 'neutral'}">{fmt_delta(change_val) if isinstance(change_val, (int, float)) else "N/A"} ({fmt_delta(change_pct) if isinstance(change_pct, (int, float)) else "N/A"}%)</div>
+                <div class="delta {'up' if _is_valid_num(change_val) and change_val >= 0 else 'down' if _is_valid_num(change_val) else 'neutral'}">{fmt_delta(change_val) if _is_valid_num(change_val) else "N/A"} ({fmt_delta(change_pct) if _is_valid_num(change_pct) else "N/A"}%)</div>
             </div>
             <div class="price-cell">
                 <div class="label">Day Range</div>
