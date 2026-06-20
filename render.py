@@ -195,6 +195,30 @@ def render_sparkline(values, width=160, height=32, color="#22b573"):
 </svg>"""
 
 
+def _render_pivot_html(pivot_data):
+    """Render pivot levels as a compact 3-column grid. Returns empty string if no data."""
+    if not pivot_data or pivot_data.get("pivot") is None:
+        return ""
+    return f"""
+    <div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid #2a2e3a;">
+        <div style="font-size:0.75rem;color:#8891a0;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.05em;">Pivot Levels</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+            <div style="background:#1a1d26;border-radius:6px;padding:4px 8px;text-align:center;">
+                <div style="font-size:0.65rem;color:#ef4444;text-transform:uppercase;">R1</div>
+                <div style="font-size:0.85rem;font-weight:600;">₹{pivot_data['resistance']:,.2f}</div>
+            </div>
+            <div style="background:#1a1d26;border-radius:6px;padding:4px 8px;text-align:center;">
+                <div style="font-size:0.65rem;color:#8891a0;text-transform:uppercase;">Pivot</div>
+                <div style="font-size:0.85rem;font-weight:600;">₹{pivot_data['pivot']:,.2f}</div>
+            </div>
+            <div style="background:#1a1d26;border-radius:6px;padding:4px 8px;text-align:center;">
+                <div style="font-size:0.65rem;color:#22b573;text-transform:uppercase;">S1</div>
+                <div style="font-size:0.85rem;font-weight:600;">₹{pivot_data['support']:,.2f}</div>
+            </div>
+        </div>
+    </div>"""
+
+
 def render_dashboard(result, ticker, company_name, technical_indicators=None,
                      track_record=None, fii_dii_data=None):
     """Return a complete premium HTML dashboard as a string."""
@@ -212,6 +236,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     primary_emoji_svg = get_signal_icon(primary_emoji)
     source_breakdown = result.get("source_breakdown", [])
     source_stats = result.get("source_stats", {})
+    vwap_data = result.get("vwap", {})
+    pivot_data = result.get("pivot_levels", {})
 
     # Sentiment class
     _sent_map = {
@@ -260,6 +286,17 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         pct_above_low = ((price_now - low_52) / low_52) * 100
         proximity_msg = f"{pct_above_low:.0f}% above 52W Low"
         proximity_class = "low" if pct_above_low < 10 else "mid"
+
+    # VWAP badge
+    vwap_html = ""
+    if vwap_data and vwap_data.get("vwap") is not None:
+        vwap_val = vwap_data["vwap"]
+        dev = vwap_data["deviation_pct"]
+        if dev is not None:
+            if dev >= 0:
+                vwap_html += f'<span class="vwap-badge bull">{_ICON["arrow_up"]} VWAP: ₹{vwap_val:,.2f} ({dev:+.2f}% above)</span>'
+            else:
+                vwap_html += f'<span class="vwap-badge bear">{_ICON["arrow_down"]} VWAP: ₹{vwap_val:,.2f} ({dev:+.2f}% below)</span>'
 
     # Volume spike badge
     vol_now = stock["volume"]
@@ -748,6 +785,12 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     .prox-badge.high {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.2); }}
     .prox-badge.mid {{ background: rgba(34,181,115,0.1); color: #2ecc71; border: 1px solid rgba(34,181,115,0.2); }}
     .prox-badge.low {{ background: rgba(136,145,160,0.1); color: #8891a0; border: 1px solid rgba(136,145,160,0.2); }}
+    .vwap-badge {{
+        display: inline-block; margin-top: 0.15rem; padding: 0.1rem 0.4rem;
+        border-radius: 4px; font-size: 0.7rem; font-weight: 600; line-height: 1.4;
+    }}
+    .vwap-badge.bull {{ background: rgba(34,181,115,0.1); color: #2ecc71; }}
+    .vwap-badge.bear {{ background: rgba(248,81,73,0.1); color: #ff6b6b; }}
 
     /* Source calibration rows */
     .cal-section {{ display: flex; flex-direction: column; gap: 0.4rem; padding: 0.5rem 0; }}
@@ -815,7 +858,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
             <div class="price-cell">
                 <div class="label">{h(ticker[:6])}</div>
                 <div class="value price-main">{fmt_price(price)}</div>
-                <div class="delta {'up' if _is_valid_num(change_val) and change_val >= 0 else 'down' if _is_valid_num(change_val) else 'neutral'}">{fmt_delta(change_val) if _is_valid_num(change_val) else "N/A"} ({fmt_delta(change_pct) if _is_valid_num(change_pct) else "N/A"}%)</div>
+                <div class="delta {'up' if _is_valid_num(change_val) and change_val >= 0 else 'down' if _is_valid_num(change_val) else 'neutral'}" style="margin-bottom:0.15rem">{fmt_delta(change_val) if _is_valid_num(change_val) else "N/A"} ({fmt_delta(change_pct) if _is_valid_num(change_pct) else "N/A"}%)</div>
+                {vwap_html}
             </div>
             <div class="price-cell">
                 <div class="label">Day Range</div>
@@ -884,6 +928,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         {ti_section}
         {ti_rows}
         <div style="margin-top:0.5rem">{cross_50_html}{cross_200_html}</div>
+        {_render_pivot_html(pivot_data)}
     </div>
 
 {acc_html}

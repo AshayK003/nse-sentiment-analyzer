@@ -19,6 +19,7 @@ from persistence import load_portfolio, save_portfolio, load_track_record, save_
 from render import render_dashboard, render_public_teaser, get_signal_icon, _is_valid_num
 from market_data import get_fii_dii_flow
 from aggregate_sentiment import compute_smartscore
+from intraday import compute_vwap, compute_pivot_levels, get_vix
 
 # ─── Page config ───
 st.set_page_config(
@@ -149,6 +150,9 @@ def analyze_ticker(ticker, company_name):
     # Use weighted signal as the primary (and only) signal
     weighted_signal, blended_compound, weighted_emoji, source_breakdown = get_weighted_signal(headline_scores)
 
+    # Intraday tools
+    vwap_data = compute_vwap(ticker)
+
     return {
         "stock_data": stock_data,
         "news_items": news_items,
@@ -169,6 +173,9 @@ def analyze_ticker(ticker, company_name):
         "smartscore_components": ss_result,
         "event_tags": event_tags,
         "smartscore_history": ss_history,
+        # Intraday trading data
+        "vwap": vwap_data,
+        "pivot_levels": None,  # set after TI fetch in main flow
     }
 
 
@@ -276,6 +283,22 @@ with st.sidebar:
         if st.button("📡 Run Portfolio Briefing", type="primary", use_container_width=True):
             st.session_state.run_briefing = True
             st.caption("Scans every ticker for live prices + sentiment signals")
+
+    # ─── India VIX ───
+    if "vix" not in st.session_state:
+        st.session_state.vix = get_vix()
+    vix_d = st.session_state.vix
+    if vix_d and vix_d.get("vix") is not None:
+        vix_dir = "⬆️" if vix_d["change"] >= 0 else "⬇️"
+        vix_color = {"High": "inverse", "Medium": "off", "Low": "normal"}.get(vix_d["level"], "normal")
+        st.markdown("---")
+        col1, col2 = st.columns([1, 1])
+        col1.metric("India VIX", f"{vix_d['vix']:.1f}", f"{vix_dir} {vix_d['change']:+.2f}")
+        col2.metric("Volatility", vix_d["level"])
+        if vix_d["level"] == "High":
+            st.caption("⚠️ High VIX (>20) — sharp reversals likely. Trade with caution.")
+        elif vix_d["level"] == "Low":
+            st.caption("✅ Low VIX (<15) — trending markets favored.")
 
     # ─── Track Record Stats ───
     st.markdown("---")
@@ -427,6 +450,10 @@ if final_ticker and final_ticker != "":
         # ─── PRICE CARD ───
         # Compute technical indicators
         ti = get_technical_indicators(final_ticker)
+        # Compute pivot levels from short OHLCV history
+        import yfinance as yf
+        _hist = yf.download(f"{final_ticker}.NS", period="5d", progress=False, auto_adjust=True)
+        result["pivot_levels"] = compute_pivot_levels(_hist)
         records = load_track_record()
         fii_data = get_fii_dii_flow()
 
