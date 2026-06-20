@@ -6,6 +6,7 @@ Built with Streamlit + yfinance + VADER + custom financial lexicon.
 
 import streamlit as st
 import os
+import pandas as pd
 from datetime import datetime
 
 from data_fetcher import (
@@ -139,7 +140,7 @@ def analyze_ticker(ticker, company_name):
         save_sentiment_history(ticker, {
             "headline_count": ss_result["headline_count"],
             "pos_count": ss_result["pos_count"],
-            "neg_count": ss_result["headline_count"] - ss_result["pos_count"] - ss_result["neg_count"],
+            "neg_count": ss_result["neg_count"],
             "avg_compound": sum(event_adjusted_scores) / len(event_adjusted_scores),
             "event_avg": ss_result["s_events"],
             "smartscore": ss_result["smartscore"],
@@ -468,7 +469,6 @@ if final_ticker and final_ticker != "":
         history = load_sentiment_history(final_ticker)
         if history:
             with st.expander("📈 Sentiment History"):
-                import pandas as pd
                 df = pd.DataFrame(history)
                 if "smartscore" in df.columns:
                     df["smartscore"] = pd.to_numeric(df["smartscore"], errors="coerce")

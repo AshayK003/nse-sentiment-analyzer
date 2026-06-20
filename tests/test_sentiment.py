@@ -38,7 +38,7 @@ class TestSentiment:
 # ─── Weighted Signal Tests ───
 
 
-from sentiment import get_weighted_signal, SOURCE_WEIGHTS
+from sentiment import get_weighted_signal
 
 
 class TestWeightedSignal:
@@ -90,8 +90,9 @@ class TestWeightedSignal:
         assert weights == sorted(weights, reverse=True), "Breakdown not sorted by weight"
 
     def test_source_weights_defined(self):
+        from persistence import SOURCE_WEIGHTS_PRIOR
         for src in ["Economic Times", "Moneycontrol", "LiveMint", "DuckDuckGo"]:
-            assert src in SOURCE_WEIGHTS, f"Missing weight for {src}"
+            assert src in SOURCE_WEIGHTS_PRIOR, f"Missing weight for {src}"
 
 
 # ─── Data / Formatting Tests ───

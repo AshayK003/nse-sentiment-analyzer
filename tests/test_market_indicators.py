@@ -1,4 +1,4 @@
-"""Tests for volume spike detection."""
+"""Tests for volume spike detection (detect_volume_spike)."""
 
 import pytest
 
@@ -42,39 +42,3 @@ class TestDetectVolumeSpike:
         result = detect_volume_spike(None, 500_000)
 
         assert result["spike"] is False
-
-
-class TestDetectStagnation:
-    """Tests for detect_stagnation()."""
-
-    def test_returns_stagnant_when_range_below_threshold(self):
-        from indicators import detect_stagnation
-
-        prices = [100.0, 100.5, 99.0, 100.0, 101.0, 100.0, 99.5, 100.2, 100.8, 100.1]
-        result = detect_stagnation(prices, threshold_pct=3.0)
-
-        assert result["stagnant"] is True
-        assert result["range_pct"] < 3.0
-
-    def test_returns_not_stagnant_when_range_above_threshold(self):
-        from indicators import detect_stagnation
-
-        prices = [100.0, 105.0, 110.0, 108.0, 112.0]
-        result = detect_stagnation(prices, threshold_pct=3.0)
-
-        assert result["stagnant"] is False
-        assert result["range_pct"] >= 3.0
-
-    def test_returns_not_stagnant_on_empty(self):
-        from indicators import detect_stagnation
-
-        result = detect_stagnation([])
-
-        assert result["stagnant"] is False
-
-    def test_returns_not_stagnant_on_none(self):
-        from indicators import detect_stagnation
-
-        result = detect_stagnation(None)
-
-        assert result["stagnant"] is False

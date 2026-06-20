@@ -53,29 +53,25 @@ FINANCIAL_BOOSTERS = {
 # ─── Source weights (0.0–1.0) ───
 # Confidence that a source's sentiment signal is reliable.
 # Financial news > aggregators > social.
-# Used as priors for Bayesian calibration from user votes.
-SOURCE_WEIGHTS = {
-    "Economic Times": 1.0,
-    "Moneycontrol": 0.9,
-    "LiveMint": 0.8,
-    "NDTV Profit": 0.7,
-    "Google News": 0.6,
-    "DuckDuckGo": 0.5,
-}
+# Bayesian-calibrated from user votes via persistence.SOURCE_WEIGHTS_PRIOR.
+# get_source_weights() loads the learned posterior weights at runtime.
 
 
 def get_source_weights():
     """Return learned source weights from Bayesian calibration.
-    Falls back to static defaults if calibration file missing or empty."""
+    Falls back to persistence.SOURCE_WEIGHTS_PRIOR defaults if calibration file missing or empty."""
     try:
-        from persistence import load_source_accuracy
+        from persistence import load_source_accuracy, SOURCE_WEIGHTS_PRIOR
         acc = load_source_accuracy()
-        return {
-            src: max(0.01, acc[src]["alpha"] / (acc[src]["alpha"] + acc[src]["beta"]))
-            for src in acc
-        }
+        if acc:
+            return {
+                src: max(0.01, acc[src]["alpha"] / (acc[src]["alpha"] + acc[src]["beta"]))
+                for src in acc
+            }
+        return dict(SOURCE_WEIGHTS_PRIOR)
     except Exception:
-        return dict(SOURCE_WEIGHTS)
+        from persistence import SOURCE_WEIGHTS_PRIOR
+        return dict(SOURCE_WEIGHTS_PRIOR)
 
 
 @st.cache_resource

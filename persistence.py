@@ -84,19 +84,6 @@ def calc_portfolio_pnl(entry_price, current_price, qty=1):
     return {"pnl_abs": round(pnl_abs, 2), "pnl_pct": round(pnl_pct, 2)}
 
 
-def find_portfolio_matches(news_items, portfolio):
-    """Check which portfolio tickers are mentioned in news headlines.
-    Returns {ticker: [headline_index, ...]} for each match.
-    """
-    matches = {}
-    for i, item in enumerate(news_items):
-        title = (item.get("title") or item.get("headline") or "").upper()
-        for t in portfolio:
-            if t.upper() in title:
-                matches.setdefault(t, []).append(i)
-    return matches
-
-
 # ─── Track Record ───
 
 def load_track_record():

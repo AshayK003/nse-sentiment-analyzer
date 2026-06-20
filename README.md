@@ -8,7 +8,7 @@
 | [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 | [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 | [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-| [![Tests](https://img.shields.io/badge/tests-137%20passing-brightgreen)](#-testing)|
+[![Tests](https://img.shields.io/badge/tests-130%20passing-brightgreen)](#-testing)
 | [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 |
 |<p align="center">
@@ -75,7 +75,7 @@ app.py ───────────────────── (entry po
   │     ├── yfinance        → stock price, info, 1yr history
   │     ├── feedparser      → RSS from 5 financial sources
   │     ├── duckduckgo_search → fallback when RSS < 3 articles
-  │     └── requests/rdt-cli → Reddit (OAuth or local CLI)
+  │     └── requests        → Reddit OAuth API (cloud-compatible)
   │
   ├── indicators.py ──────── (RSI, SMA crossover, MACD from OHLCV history)
   │
@@ -155,11 +155,11 @@ Each news source carries a confidence weight for the blended scoring.
 | NDTV Profit | Learned | RSS | ✅ |
 | Google News | Learned | RSS | ✅ |
 | DuckDuckGo | Learned | Web search (fallback) | ✅ |
-| Reddit * | Learned | OAuth / `rdt-cli` | ⚡ Local only |
+| Reddit * | Learned | OAuth API | ✅ |
 
 *Starts at hand-tuned priors, converges to your actual source accuracy over ~10-50 votes. Source weights persist across sessions.*
 
-*Reddit requires OAuth env vars (`REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET`) or the `rdt-cli` tool. Falls back with learned weight if not set up.*
+*Reddit requires OAuth env vars (`REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET`). Falls back with learned weight if not set up.*
 
 The **blended score** is:
 ```
@@ -170,9 +170,26 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 ## 🆕 What's New
 
-### v2.2.0 — Investonks-inspired: P&amp;L tracking, heatmap, news badges, volume &amp; stagnation flags (June 2026)
+### v2.2.1 — Ponytail cleanup: -101 lines, 130 tests (June 2026)
 
-**Five new features inspired by competitor analysis (investonks.com):**
+**Removed dead code for a leaner codebase:**
+- `find_portfolio_matches()` — was never called; portfolio badges computed inline
+- `_fill_from_nse()` — nsepython metadata fallback; yfinance covers 90%+
+- `_fetch_reddit_rdtcli()` — rdt-cli fallback only worked locally; Reddit now uses OAuth exclusively
+- `detect_stagnation()` — was never wired to any dashboard UI
+- `SOURCE_WEIGHTS` in sentiment.py — was a stale duplicate of `persistence.SOURCE_WEIGHTS_PRIOR`
+
+**Bug fix:** Sentiment history CSV stored neutral count as `neg_count` — now stores actual negative headline count. Field semantics corrected.
+
+**Wired:** `detect_volume_spike()` in `indicators.py` now powers the volume spike badges in the dashboard (was duplicated inline in render.py).
+
+**Housekeeping:** `import pandas` moved to module top in app.py. Orphaned `import subprocess` removed from data_fetcher.py.
+
+**Net: -101 lines of source code, 7 fewer tests (dead code removal), 130 total still passing.**
+
+### v2.2.0 — Investonks-inspired: P&amp;L tracking, heatmap, news badges, volume spike detection (June 2026)
+
+**Four new features inspired by competitor analysis (investonks.com):**
 
 **P&amp;L from Entry** — Add entry price when adding a stock to your portfolio. The sidebar shows live P&amp;L (₹ and %) for every holding, green for profit, red for loss.
 
@@ -182,9 +199,7 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 **Volume Spike Detection** — Flags holdings trading at abnormal volume (N× their 20-day average). Early warning for accumulation/distribution.
 
-**Stagnation Warnings** — Flags stocks stuck in a tight price range for 10+ days. Useful for capital efficiency — money sitting idle can be deployed elsewhere.
-
-**Technical** — 18 new tests, 137 total. detect_volume_spike/detect_stagnation in indicators.py. save_entry_price/load_entry_prices/calc_portfolio_pnl/find_portfolio_matches in persistence.py. All TDD: RED → GREEN before any implementation.
+**Technical** — 18 new tests, 137 total. detect_volume_spike/ in indicators.py. save_entry_price/load_entry_prices/calc_portfolio_pnl in persistence.py. All TDD: RED → GREEN before any implementation.
 
 **Bug fix** — Trend sparkline now shows a flat line + dot for single data points instead of rendering blank. Users see their SmartScore on first analysis.
 
@@ -263,7 +278,7 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 - **Live price data** — Current price, day change %, day range, volume, PE ratio for any NSE stock or ETF
 - **Multi-source news** — Google News + Moneycontrol + Economic Times + LiveMint + NDTV Profit RSS feeds (DuckDuckGo fallback)
-- **Reddit community chatter** — OAuth API or local `rdt-cli`. Brings retail conversation into the sentiment pipeline
+- **Reddit community chatter** — OAuth API (requires `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET`). Brings retail conversation into the sentiment pipeline
 - **Event-aware classification** — Headlines automatically tagged by event type: earnings beats/misses, order wins, litigation, regulatory actions, buybacks/dividends, debt stress, management changes, product launches, guidance changes, expansion, rating upgrades, joint ventures, fundraises, contract losses, divestments. Each event type carries a signed sentiment bias that corrects VADER's blind spots
 - **SmartScore composite (0–100)** — A weighted index of 4 components: recency-weighted EWMA (45%), event-adjusted sentiment (25%), headline breadth (20%), and news volume (10%). The SmartScore replaces guesswork with a single, calibrated number
 - **Source-weighted scoring** — Each source has a confidence weight. Blended score = weighted average across active sources. This is the sole signal (supersedes simple unweighted averaging)
@@ -290,7 +305,6 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 - **Portfolio P&amp;L tracking** — Entry price per holding, live P&amp;L (₹ and %) in sidebar
 - **Market heatmap** — Portfolio stocks color-coded by daily % change
 - **Volume spike detection** — Flags abnormal trading volume (N× average)
-- **Stagnation warnings** — Flags stocks stuck in a tight range for 10+ days
 - **Portfolio news badges** — 📌 highlights headlines matching your holdings
 - **Historical sentiment archive** — SmartScore time series + CSV export per ticker
 - **Public changelog** — Sidebar shows what's new; feature requests via email
@@ -329,7 +343,6 @@ Open **http://localhost:8501** in your browser.
 
 These features require additional CLI tools on your machine:
 
-- **Reddit (local fallback)** — `uv tool install rdt-cli && rdt login`
 - **FII/DII data** — `pip install nsepython` (lazy-loaded, app works without it)
 
 Items with a ⚡ badge in the UI indicate active local-only sources.
@@ -344,7 +357,7 @@ Items with a ⚡ badge in the UI indicate active local-only sources.
 | `REDDIT_CLIENT_SECRET` | No | Reddit OAuth app client secret |
 | `USE_FINBERT` | No | Set to `true` to enable FinBERT transformer model for financial sentiment (requires `transformers` + `torch` installed) |
 
-When both Reddit env vars are set, the app uses Reddit's OAuth API (works on Streamlit Cloud). Without them, it falls back to local `rdt-cli` if available.
+When both Reddit env vars are set, the app uses Reddit's OAuth API (works on Streamlit Cloud). Without them, Reddit is skipped.
 
 No other env vars are needed. All data sources are free and public.
 
@@ -389,8 +402,8 @@ nse-sentiment-analyzer/
     ├── test_public_teaser.py      # Shareable snapshot public card
     ├── test_changelog.py          # CHANGELOG.md infrastructure
     ├── test_history_export.py     # Sentiment archive CSV export
-    ├── test_market_indicators.py  # Volume spike + stagnation detection
-    ├── test_entry_prices.py       # Portfolio P&L, entry prices, news matching
+    ├── test_market_indicators.py  # Volume spike detection
+    ├── test_entry_prices.py       # Portfolio P&L, entry prices
 ```
 
 ### Adding a New News Source
@@ -419,7 +432,7 @@ nse-sentiment-analyzer/
 ## 🧪 Testing
 
 ```bash
-# Run all tests (137 tests, mocked APIs, no network)
+# Run all tests (130 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # Run with coverage
@@ -436,9 +449,9 @@ python -m pytest tests/test_sentiment.py::TestSentiment::test_bullish_headline -
 
 - **All external APIs are mocked** — tests run offline
 - **Fixtures** in `conftest.py` provide a `tmp_data_dir` for isolated file I/O + a `sample_hist` DataFrame for indicators
-- **137 tests** across 11 modules (sentiment, indicators, data_fetcher, persistence, render, event_classifier, aggregate_sentiment, plus integration tests for `analyze_ticker`)
+- **130 tests** across 11 modules (sentiment, indicators, data_fetcher, persistence, render, event_classifier, aggregate_sentiment, plus integration tests for `analyze_ticker`)
 - **Integration tests** verify the full pipeline end-to-end at module boundaries (stock data → sentiment → event classification → SmartScore)
-- **No network calls** — `yfinance`, `feedparser`, `duckduckgo_search`, `requests`, and `rdt-cli` are all patched with `pytest-mock`
+- **No network calls** — `yfinance`, `feedparser`, `duckduckgo_search`, and `requests` are all patched with `pytest-mock`
 
 ### Test Markers
 
@@ -467,7 +480,7 @@ The app runs at `https://<your-app>.streamlit.app`.
 - The filesystem is ephemeral on Streamlit Cloud — portfolio, track records, and sentiment history are session-only
 - SmartScore history resets on each deploy — the sparkline shows your current score as a flat line + dot even on the first analysis
 - RSS + DuckDuckGo + Reddit OAuth work on the cloud
-- `rdt-cli` and `nsepython` are local-only tools (not available on Streamlit Cloud)
+- `nsepython` is a local-only tool (not available on Streamlit Cloud)
 - `yfinance` can be throttled if you run too many tickers in rapid succession
 
 ### Resetting Cached Data
@@ -486,7 +499,6 @@ Or click the "Cache: … entries" button in the app sidebar.
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `ModuleNotFoundError: No module named 'nsepython'` | Optional dep for FII/DII data | `pip install nsepython` (app works without it) |
-| Reddit ⚡ badge missing / no Reddit results | `rdt-cli` not installed or not logged in | `uv tool install rdt-cli && rdt login` |
 | `yfinance` returns no data for a ticker | Ticker may be delisted, suspended, or not on Yahoo Finance | Try the `.NS` suffix manually in custom input |
 | RSS feeds return empty results | Rate-limiting or transient network issue | DuckDuckGo fallback kicks in automatically |
 | Dashboard shows stale data | Cache TTL hasn't expired (default: 15 min) | Click cache button to clear, or wait |

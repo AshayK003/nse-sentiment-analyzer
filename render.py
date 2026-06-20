@@ -13,6 +13,7 @@ import itertools
 # Shows per-source Beta distributions from user voting data.
 # Loaded once per dashboard render — no DB impact per ticker.
 from persistence import load_source_accuracy
+from indicators import detect_volume_spike
 
 # ─── Inline SVG icons (Lucide, MIT-licensed, stroke-based) ───
 # ponytail: inline SVGs avoid a 100KB+ icon library for ~15 icons
@@ -263,16 +264,17 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     # Volume spike badge
     vol_now = stock["volume"]
     vol_spike_html = ""
-    if technical_indicators and technical_indicators.get("avg_volume_50"):
-        avg_vol_50 = technical_indicators["avg_volume_50"]
-        if isinstance(vol_now, (int, float)) and avg_vol_50 > 0:
-            vol_ratio = vol_now / avg_vol_50
-            if vol_ratio >= 3:
+    if technical_indicators and isinstance(vol_now, (int, float)):
+        avg_vol_50 = technical_indicators.get("avg_volume_50")
+        spike_result = detect_volume_spike(vol_now, avg_vol_50, threshold=1.5)
+        if spike_result["spike"]:
+            ratio = spike_result["ratio"]
+            if ratio >= 3:
                 vol_spike_html = '<span class="spike-badge huge">🚨 3x volume surge!</span>'
-            elif vol_ratio >= 2:
-                vol_spike_html = f'<span class="spike-badge high">{vol_ratio:.1f}x normal volume</span>'
-            elif vol_ratio >= 1.5:
-                vol_spike_html = f'<span class="spike-badge mid">{vol_ratio:.1f}x avg volume</span>'
+            elif ratio >= 2:
+                vol_spike_html = f'<span class="spike-badge high">{ratio:.1f}x normal volume</span>'
+            else:
+                vol_spike_html = f'<span class="spike-badge mid">{ratio:.1f}x avg volume</span>'
 
     # SMA crossover badges
     cross_50_html = ""

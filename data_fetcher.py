@@ -9,7 +9,6 @@ import feedparser
 import html
 import time
 import streamlit as st
-import subprocess
 import re
 import os
 import random
@@ -737,48 +736,12 @@ def get_stock_info(ticker):
         if info:
             cache_set(f"stock_{ticker}", result)
         else:
-            # ponytail: nsepython fallback for missing metadata fields
-            _fill_from_nse(result, ticker)
             cache_set(f"stock_{ticker}", result, ttl=120)  # 2 min
         return result
 
     except Exception as e:
         st.error(f"Could not fetch data for {ticker}: {e}")
         return None
-
-
-def _fill_from_nse(result, ticker):
-    """Fill missing metadata fields (sector, industry, PE, 52w, market cap)
-    from NSE's official API via nsepython. Non-blocking — silently skips
-    if nsepython not installed or NSE API unreachable."""
-    try:
-        from nsepython import nse_eq
-        data = nse_eq(ticker)
-        if not data or not isinstance(data, dict):
-            return
-    except Exception:
-        return
-
-    if result.get("sector") in (None, "N/A"):
-        result["sector"] = data.get("sector") or data.get("industry") or "N/A"
-    if result.get("industry") in (None, "N/A"):
-        result["industry"] = data.get("industry") or "N/A"
-    if result.get("market_cap") is None:
-        mc = data.get("marketCap") or data.get("marketCapFull")
-        if mc and isinstance(mc, (int, float)) and mc > 0:
-            result["market_cap"] = int(mc)
-    if result.get("pe_ratio") is None:
-        pe = data.get("pe") or data.get("priceToEarning")
-        if pe and isinstance(pe, (int, float)) and pe > 0:
-            result["pe_ratio"] = float(pe)
-    if result.get("52w_high") is None:
-        h52 = data.get("high52")
-        if h52 and isinstance(h52, (int, float)) and h52 > 0:
-            result["52w_high"] = float(h52)
-    if result.get("52w_low") is None:
-        l52 = data.get("low52")
-        if l52 and isinstance(l52, (int, float)) and l52 > 0:
-            result["52w_low"] = float(l52)
 
 
 def _parse_date(d):
@@ -941,51 +904,12 @@ def _fetch_reddit_oauth(ticker, company_name, max_results=5):
 
 
 def fetch_reddit_news(ticker, company_name, max_results=5):
-    """Fetch Reddit posts for a stock ticker.
+    """Fetch Reddit posts for a stock ticker via OAuth API.
     
-    Uses OAuth API (cloud-compatible) when REDDIT_CLIENT_ID and 
-    REDDIT_CLIENT_SECRET env vars are set. Falls back to local rdt-cli.
+    Requires REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET env vars.
+    Returns [] if OAuth not configured or API unreachable — Reddit is optional.
     """
-    # Try OAuth API path (works on cloud and locally)
-    oauth_posts = _fetch_reddit_oauth(ticker, company_name, max_results)
-    if oauth_posts:
-        return oauth_posts
-
-    # Fall back to rdt-cli (local only)
-    return _fetch_reddit_rdtcli(ticker, company_name, max_results)
-
-
-def _fetch_reddit_rdtcli(ticker, company_name, max_results=5):
-    """Fetch Reddit posts via rdt-cli (local-only fallback)."""
-    try:
-        query = f"{ticker} NSE stock"
-        result = subprocess.run(
-            ["rdt", "search", query, "--limit", str(max_results)],
-            capture_output=True, text=True, timeout=15,
-        )
-        if result.returncode != 0:
-            return []
-        posts = []
-        for line in result.stdout.split("\n"):
-            if "|" not in line:
-                continue
-            parts = line.split("|")
-            title = parts[0].strip()
-            if not title or len(title) < 5:
-                continue
-            if not _relevant(ticker, company_name, title, ""):
-                continue
-            url = parts[-1].strip() if len(parts) > 2 else ""
-            posts.append({
-                "title": title,
-                "body": "",
-                "date": "",
-                "url": url,
-                "source": "Reddit",
-            })
-        return posts
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
-        return []
+    return _fetch_reddit_oauth(ticker, company_name, max_results)
 
 
 def search_news(ticker, company_name, max_results=10):

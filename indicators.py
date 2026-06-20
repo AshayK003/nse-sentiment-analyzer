@@ -16,16 +16,6 @@ def detect_volume_spike(current_vol, avg_vol, threshold=2.0):
     return {"spike": ratio >= threshold, "ratio": round(ratio, 2)}
 
 
-def detect_stagnation(prices, threshold_pct=3.0):
-    """Check if price range over period is within threshold_pct%. Returns {stagnant, range_pct, days}."""
-    if not prices or len(prices) < 2:
-        return {"stagnant": False, "range_pct": 0.0, "days": 0}
-    low = min(prices)
-    high = max(prices)
-    range_pct = ((high - low) / low) * 100 if low > 0 else 0
-    return {"stagnant": range_pct < threshold_pct, "range_pct": round(range_pct, 2), "days": len(prices)}
-
-
 def get_technical_indicators(ticker, hist=None):
     """Compute RSI, SMA, MACD from 1yr daily data. Accepts pre-fetched hist to avoid duplicate yfinance calls."""
     try:
