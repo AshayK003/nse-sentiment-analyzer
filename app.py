@@ -96,11 +96,40 @@ st.markdown("""
 
 
 
-def analyze_ticker(ticker, company_name):
-    """Run full analysis pipeline for a ticker. Returns dict or None."""
+def analyze_ticker(ticker, company_name, quick=False):
+    """Run full analysis pipeline for a ticker. Returns dict or None.
+    
+    When quick=True (briefing mode), skips expensive news search and sentiment
+    analysis — just returns stock data with a cached/neutral signal.
+    """
     stock_data = get_stock_info(ticker)
     if not stock_data:
         return None
+
+    if quick:
+        # Briefing mode: skip news-heavy pipeline, return price-only snapshot
+        return {
+            "stock_data": stock_data,
+            "news_items": [],
+            "headline_scores": [],
+            "signal": "NEUTRAL",
+            "avg_compound": 0.0,
+            "signal_emoji": "⚪",
+            "weighted_signal": "NEUTRAL",
+            "blended_compound": 0.0,
+            "weighted_emoji": "⚪",
+            "source_breakdown": [],
+            "num_articles": 0,
+            "source_stats": {},
+            "smartscore": 0.0,
+            "smartscore_signal": "NEUTRAL",
+            "smartscore_emoji": "⚪",
+            "smartscore_components": None,
+            "event_tags": [],
+            "smartscore_history": [],
+            "vwap": None,
+            "pivot_levels": None,
+        }
 
     use_finbert = os.environ.get("USE_FINBERT", "").strip().lower() in ("1", "true", "yes")
     pipe_finbert = None
@@ -633,13 +662,14 @@ elif st.session_state.get("run_briefing"):
         st.warning("No tickers in your portfolio. Add some from the sidebar.")
     else:
         st.subheader(f"📡 Portfolio Briefing — {len(portfolio)} stocks")
+        st.caption("Live prices · signals from previous analysis (news skipped for speed)")
         results = []
         progress = st.progress(0, text="Starting...")
         # ponytail: parallel portfolio briefing with ThreadPoolExecutor;
-        # 3 max workers to avoid yfinance rate limits
+        # 5 parallel workers for price-only briefing (lightweight, no news fetching)
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        with ThreadPoolExecutor(max_workers=min(len(portfolio), 3)) as pool:
-            futures = {pool.submit(analyze_ticker, t, NSE_TICKERS.get(t, t)): t for t in portfolio}
+        with ThreadPoolExecutor(max_workers=min(len(portfolio), 5)) as pool:
+            futures = {pool.submit(analyze_ticker, t, NSE_TICKERS.get(t, t), True): t for t in portfolio}
             for i, future in enumerate(as_completed(futures)):
                 t = futures[future]
                 progress.progress((i + 1) / len(portfolio), text=f"Analyzing {t} ({i+1}/{len(portfolio)})...")
