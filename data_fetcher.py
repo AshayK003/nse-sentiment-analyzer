@@ -558,27 +558,6 @@ ALIASES = {
     "DEFENCE ETF": "MODEFENCE", "MANUFACTURING ETF": "MAKEINDIA",
     "ENERGY ETF": "ENERGY", "METAL ETF": "METALETF",
     "LAKSHMI AI": "PWL", "GROWW": "GROWW",
-    # ── Indian Regulatory Bodies ──
-    "RBI": "SBIN", "RESERVE BANK": "SBIN",
-    "SEBI": "SBIN", "SECURITIES EXCHANGE BOARD": "SBIN",
-    "IRDAI": "SBILIFE", "INSURANCE REGULATORY": "SBILIFE",
-    "PFRDA": "SBILIFE", "PENSION FUND": "SBILIFE",
-    "DGCA": "INDIGO", "DIRECTORATE GENERAL CIVIL AVIATION": "INDIGO",
-    "TRAI": "BHARTIARTL", "TELECOM REGULATORY": "BHARTIARTL",
-    "CERC": "NTPC", "CENTRAL ELECTRICITY": "NTPC",
-    "DGGI": "ITC", "CGST": "ITC", "CBDT": "ITC", "INCOME TAX": "ITC",
-    "CDSCO": "SUNPHARMA", "DCGI": "SUNPHARMA", "DRUG CONTROLLER": "SUNPHARMA",
-    "FDA": "SUNPHARMA", "BIS": "SIEMENS", "BUREAU OF INDIAN STANDARDS": "SIEMENS",
-    "ED": "SBIN", "ENFORCEMENT DIRECTORATE": "SBIN",
-    "CBI": "SBIN", "CENTRAL BUREAU OF INVESTIGATION": "SBIN",
-    "NCLT": "SBIN", "NATIONAL COMPANY LAW": "SBIN", "NCLAT": "SBIN",
-    "SAT": "SBIN", "SECURITIES APPELLATE TRIBUNAL": "SBIN",
-    "RERA": "DLF", "REAL ESTATE REGULATORY": "DLF",
-    "NPCI": "HDFCBANK", "NATIONAL PAYMENTS CORP": "HDFCBANK",
-    "DGFT": "IOC", "DIRECTORATE GENERAL OF FOREIGN TRADE": "IOC",
-    "FSSAI": "NESTLEIND", "FOOD SAFETY": "NESTLEIND",
-    "COMPETITION COMMISSION": "ITC", "CCI": "ITC",
-    "ESG": "ADANIGREEN", "GREEN BOND": "ADANIGREEN", "CLIMATE BOND": "ADANIGREEN",
 }
 
 # ponytail: in-memory 1y price history cache, populated by get_stock_info,
@@ -1023,7 +1002,8 @@ def search_news(ticker, company_name, max_results=10):
             source_stats["Reddit"] = source_stats.get("Reddit", 0) + 1
 
     all_results.sort(key=lambda x: x["date"], reverse=True)
-    cache_set(f"news_{ticker}", (all_results, source_stats))
+    if all_results:
+        cache_set(f"news_{ticker}", (all_results, source_stats))
     if not all_results:
         st.info("ℹ️ News feed unavailable. Showing price data only.")
     return all_results[:max_results], source_stats

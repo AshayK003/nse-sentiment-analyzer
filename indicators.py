@@ -49,6 +49,8 @@ def get_technical_indicators(ticker, hist=None):
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
+        # Guard: if gain=loss=0 (flat), RSI=NaN → neutral 50; if loss=0 → RSI=100
+        rsi = rsi.replace([float('inf'), float('-inf')], 100.0).fillna(50.0)
 
         # SMA 50 & 200
         sma_50 = close.rolling(50).mean()
@@ -83,7 +85,8 @@ def get_technical_indicators(ticker, hist=None):
                 sma200_cross = "bearish"
 
         # Volume spike — 50-day average volume
-        avg_vol_50 = float(hist["Volume"].rolling(50).mean().iloc[-1]) if len(hist) >= 50 else None
+        avg_vol_raw = hist["Volume"].rolling(50).mean().iloc[-1] if len(hist) >= 50 else None
+        avg_vol_50 = None if avg_vol_raw is None or pd.isna(avg_vol_raw) else float(avg_vol_raw)
 
         return {
             "rsi": float(rsi.iloc[-1]),

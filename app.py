@@ -197,7 +197,7 @@ with st.sidebar:
     with add_c3:
         if st.button("➕", use_container_width=True, key="add_portfolio_btn", help="Add to portfolio") and new_t.strip():
             t = new_t.strip().upper().replace(".NS", "")
-            if not t.isalnum():
+            if not re.match(r'^[A-Z0-9&-]+$', t):
                 st.warning("Invalid ticker format")
             elif t in portfolio:
                 st.warning(f"{t} already in portfolio")
@@ -208,7 +208,7 @@ with st.sidebar:
                     try:
                         save_entry_price(t, float(ep_input.strip().replace(",", "")))
                     except ValueError:
-                        pass
+                        st.warning(f"Could not parse ATP '{ep_input.strip()}' — stock added without entry price")
                 st.session_state._skip_reanalysis = True
                 st.rerun()
 
@@ -277,8 +277,11 @@ with st.sidebar:
                 st.session_state._skip_reanalysis = True
                 st.rerun()
 
-        if st.button("📡 Run Portfolio Briefing", type="primary", use_container_width=True):
+        if st.button("📡 Run Portfolio Briefing", type="primary", use_container_width=True,
+                     disabled=st.session_state.get("_briefing_running", False)):
             st.session_state.run_briefing = True
+            st.session_state._briefing_running = True
+            st.rerun()
             st.caption("Scans every ticker for live prices + sentiment signals")
 
     # ─── India VIX ───
@@ -464,7 +467,7 @@ if final_ticker and final_ticker != "":
         if portfolio and news_items:
             for item in news_items:
                 item["in_portfolio"] = any(
-                    t in (item.get("title") or "").upper()
+                    re.search(rf'(?:\b|_){re.escape(t)}(?:\b|_)', (item.get("title") or "").upper())
                     for t in portfolio
                 )
 
@@ -502,7 +505,7 @@ if final_ticker and final_ticker != "":
                     st.toast("Signal logged as inaccurate ❌", icon="👎")
                     st.session_state._skip_reanalysis = True
                     st.rerun()
-        elif last_rec and last_rec.get("vote") is not None:
+        elif last_rec and last_rec["ticker"] == final_ticker and last_rec.get("vote") is not None:
             st.caption(f"You marked this signal as {'✅ accurate' if last_rec['vote'] else '❌ inaccurate'}")
 
         # Shareable link
@@ -548,11 +551,14 @@ if final_ticker and final_ticker != "":
             with ic:
                 if st.button(_PLUS, use_container_width=True, key="btm_add_btn") and _pt.strip():
                     t = _pt.strip().upper().replace(".NS", "")
-                    if t.isalnum() and t not in portfolio:
+                    if not re.match(r'^[A-Z0-9&-]+$', t):
+                        st.warning("Invalid ticker format")
+                    elif t not in portfolio:
                         portfolio.append(t); save_portfolio(portfolio)
                         if _pe.strip():
                             try: save_entry_price(t, float(_pe.strip().replace(",", "")))
-                            except ValueError: pass
+                            except ValueError:
+                                st.warning(f"Could not parse ATP '{_pe.strip()}' — stock added without entry price")
                         st.rerun()
             if portfolio:
                 hh = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin:4px 0;">'
@@ -577,7 +583,12 @@ if final_ticker and final_ticker != "":
                     ca.markdown(" · ".join(pts), help=f"P&L for {t}")
                     if cb.button(_X, key=f"btm_del_{t}"):
                         portfolio.remove(t); save_portfolio(portfolio); st.rerun()
-                st.button(f"{_ZAP} Briefing", type="primary", use_container_width=True, key="btm_brief", help="Run portfolio briefing")
+                if st.button(f"{_ZAP} Briefing", type="primary", use_container_width=True, key="btm_brief",
+                          help="Run portfolio briefing",
+                          disabled=st.session_state.get("_briefing_running", False)):
+                    st.session_state.run_briefing = True
+                    st.session_state._briefing_running = True
+                    st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
         with bc2:
@@ -654,6 +665,8 @@ elif st.session_state.get("run_briefing"):
         if st.button("← Back to Single View"):
             st.session_state.run_briefing = False
             st.rerun()
+
+    st.session_state._briefing_running = False
 
 else:
     # ─── Empty state: guided launchpad ───
