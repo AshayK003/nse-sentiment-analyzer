@@ -128,7 +128,10 @@ def cache_get(key):
     cache = load_cache()
     entry = cache.get(key)
     if entry:
-        age = (datetime.now() - datetime.fromisoformat(entry["cached_at"])).total_seconds()
+        try:
+            age = (datetime.now() - datetime.fromisoformat(entry["cached_at"])).total_seconds()
+        except (ValueError, KeyError, TypeError):
+            return None
         ttl = entry.get("ttl", CACHE_TTL)
         if age < ttl:
             return entry["data"]
@@ -251,7 +254,7 @@ def history_to_csv(ticker, records):
 SOURCE_WEIGHTS_PRIOR = {
     "Economic Times": 1.0, "Moneycontrol": 0.9, "LiveMint": 0.8,
     "NDTV Profit": 0.7, "Google News": 0.6, "DuckDuckGo": 0.5,
-    "Reddit": 0.5, "Unknown": 0.5,
+    "Unknown": 0.5,
 }
 ACCURACY_FILE = DATA_DIR / "source_accuracy.json"
 

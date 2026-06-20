@@ -25,10 +25,10 @@ class TestTechnicalIndicators:
         """Call get_technical_indicators with mocked yfinance and Streamlit cache."""
         # Bypass st.cache_data so it's a pass-through
         mocker.patch("streamlit.cache_data", lambda **kwargs: lambda f: f)
-        # Reload to pick up the patched decorator
+        # Reload to pick up the patched decorator — single import after reload
         import importlib
-        from indicators import get_technical_indicators
-        importlib.reload(importlib.import_module("indicators"))
+        mod = importlib.import_module("indicators")
+        importlib.reload(mod)
         from indicators import get_technical_indicators as gti
 
         mocker.patch("yfinance.Ticker", return_value=_make_ticker_mock(hist_df))

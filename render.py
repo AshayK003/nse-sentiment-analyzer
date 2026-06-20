@@ -555,11 +555,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
             meta_parts.append(f"{_ICON['wifi']} {h(item['source'])}")
         if item.get("date"):
             meta_parts.append(f"{h(item['date'][:10])}")
-        if item.get("source") == "Reddit" and item.get("author"):
-            sub = f"r/{h(item['subreddit'])}/" if item.get("subreddit") else ""
-            meta_parts.append(f"by u/{h(item['author'])} on {sub}Reddit")
         body = ""
-        if item.get("source") != "Reddit" and item.get("body"):
+        if item.get("body"):
             body = h(item["body"][:200])
 
         in_portfolio = item.get("in_portfolio", False)
@@ -580,7 +577,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     ti_section = f'<div class="ti-preview">{ti_preview}</div>' if ti_preview else ""
 
     # ponytail: random CSP nonce for the auto-height script blocks
-    # any injected inline scripts from RSS/Reddit content
+    # any injected inline scripts from RSS content
     _nonce = secrets.token_urlsafe(16)
     auto_height_script = f"""<script nonce="{_nonce}">
 (function(){{var o=document.referrer?new URL(document.referrer).origin:'*';function h(){{var d=document.body.scrollHeight;parent.postMessage({{type:'streamlit:setFrameHeight',height:d}},o);}}window.addEventListener('load',h);window.addEventListener('resize',h);}})();

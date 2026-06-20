@@ -1,5 +1,5 @@
 """
-Tests for data fetching -- stock info, news, and Reddit.
+Tests for data fetching -- stock info, news, and fallback chains.
 All external APIs (yfinance, feedparser, DuckDuckGo, requests) are mocked.
 """
 
@@ -247,7 +247,6 @@ class TestNewsCaching:
         # Patch all fetch functions to verify they are NOT called
         mock_feed = mocker.patch("feedparser.parse")
         mock_ddgs = mocker.patch("data_fetcher.DDGS")
-        mock_reddit = mocker.patch("data_fetcher.fetch_reddit_news")
         mocker.patch("data_fetcher.cache_set")
 
         articles, stats = search_news("RELIANCE", "Reliance Industries",
@@ -256,10 +255,9 @@ class TestNewsCaching:
         assert articles[0]["title"] == "Cached article"
         mock_feed.assert_not_called()
         mock_ddgs.assert_not_called()
-        mock_reddit.assert_not_called()
 
     def test_news_cache_miss_falls_through(self, mocker):
-        """Cache miss should proceed to fetch from RSS/DDG/Reddit."""
+        """Cache miss should proceed to fetch from RSS/DDG."""
         from data_fetcher import search_news
 
         mocker.patch("data_fetcher.cache_get", return_value=None)
@@ -269,57 +267,11 @@ class TestNewsCaching:
         mocker.patch("feedparser.parse", return_value=mock_feed)
         # Mock DDGS to raise
         mocker.patch("data_fetcher.DDGS", side_effect=Exception("No DDGS"))
-        # Mock Reddit to return empty
-        mocker.patch("data_fetcher.fetch_reddit_news", return_value=[])
         mocker.patch("data_fetcher.cache_set")
 
         articles, stats = search_news("RELIANCE", "Reliance Industries",
                                       max_results=5)
         assert articles == []
-
-
-class TestRedditFetch:
-    """Tests for Reddit news fetching (OAuth and rdt-cli fallback)."""
-
-    def test_reddit_oauth_empty_without_creds(self, mocker):
-        """Without REDDIT_CLIENT_ID, OAuth should return []."""
-        from data_fetcher import _fetch_reddit_oauth
-        mocker.patch.dict("os.environ", {}, clear=True)
-        result = _fetch_reddit_oauth("RELIANCE", "Reliance Industries")
-        assert result == []
-
-    def test_reddit_oauth_token_failure(self, mocker):
-        """If OAuth token request fails, should return []."""
-        from data_fetcher import _fetch_reddit_oauth
-
-        mocker.patch.dict("os.environ", {
-            "REDDIT_CLIENT_ID": "test_id",
-            "REDDIT_CLIENT_SECRET": "test_secret",
-        })
-        mock_post = mocker.MagicMock()
-        mock_post.status_code = 403
-        mocker.patch("requests.post", return_value=mock_post)
-
-        result = _fetch_reddit_oauth("RELIANCE", "Reliance Industries")
-        assert result == []
-
-    def test_fetch_reddit_news_falls_to_rdtcli(self, mocker):
-        """When OAuth returns empty, should try rdt-cli."""
-        from data_fetcher import fetch_reddit_news
-
-        mocker.patch("data_fetcher._fetch_reddit_oauth", return_value=[])
-        mock_subprocess = mocker.patch("subprocess.run")
-        mock_subprocess.return_value.returncode = 0
-        mock_subprocess.return_value.stdout = (
-            "Test post | https://reddit.com/r/test"
-        )
-        # Also patch cache to return None (fresh fetch)
-        mocker.patch("data_fetcher.cache_get", return_value=None)
-        mocker.patch("data_fetcher.cache_set")
-
-        result = fetch_reddit_news("RELIANCE", "Reliance Industries",
-                                   max_results=3)
-        assert isinstance(result, list)
 
 
 class TestFormatting:

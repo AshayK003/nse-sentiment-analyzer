@@ -209,6 +209,95 @@ def analyze_ticker(ticker, company_name, quick=False):
     }
 
 
+def _render_portfolio_list(portfolio, entry_prices, key_prefix="side",
+                            brief_btn_label="📡 Run Portfolio Briefing",
+                            heatmap_css=None):
+    """Shared portfolio heatmap + listing + delete component.
+
+    Used by sidebar and bottom card sections to avoid ~100 lines of
+    duplicated Streamlit widget code. The key_prefix ensures unique
+    widget keys per usage (e.g. 'side' → side_heat, 'btm' → btm_heat).
+    """
+    # ─── Market Heatmap (compact 3-col grid) ───
+    heat_parts = []
+    for t in portfolio:
+        sd_cache = st.session_state.get("_stock_price_cache", {}).get(t)
+        if sd_cache is not None:
+            chg = sd_cache.get("change_pct") or 0
+            color = "#22c55e" if chg >= 0 else "#ef4444"
+        else:
+            chg = 0
+            color = "#6b7280"
+        if heatmap_css:
+            heat_parts.append(
+                f'<div class="{heatmap_css}-item"><div class="{heatmap_css}-tick">{t}</div>'
+                f'<div style="color:{color};">{chg:+.1f}%</div></div>'
+            )
+        else:
+            heat_parts.append(
+                f'<div style="background:#1a1a2e;border-radius:6px;padding:4px;text-align:center;font-size:0.65rem;">'
+                f'<div style="font-weight:600;color:#e4e6eb;">{t}</div><div style="color:{color};">{chg:+.1f}%</div></div>'
+            )
+    if heat_parts:
+        h_class = f' class="{heatmap_css}"' if heatmap_css else ''
+        st.markdown(f'<div{h_class}>{"".join(heat_parts)}</div>', unsafe_allow_html=True)
+        if not heatmap_css:
+            st.caption("🟢 Day gain  🔴 Day loss  ⚫ No data")
+
+    # ─── Portfolio listing with P&L + delete ───
+    for t in portfolio:
+        c1, c2 = st.columns([3, 1] if key_prefix == "side" else [3, 0.6])
+        ep = entry_prices.get(t)
+        sd_cache = st.session_state.get("_stock_price_cache", {}).get(t)
+        cp = sd_cache.get("current_price") if sd_cache else None
+
+        if key_prefix == "side":
+            display_parts = [f"<strong>{t}</strong>"]
+            if _is_valid_num(cp):
+                display_parts.append(f'<span style="font-size:0.85rem;">₹{cp:,.2f}</span>')
+            elif sd_cache is not None:
+                display_parts.append(f'<span style="font-size:0.85rem;color:#6b7280;">Price N/A</span>')
+            if ep and _is_valid_num(cp):
+                pnl = calc_portfolio_pnl(ep, cp)
+                sign = "+" if pnl["pnl_pct"] >= 0 else ""
+                display_parts.append(
+                    f'<span style="font-size:0.8rem;color:{"#22c55e" if pnl["pnl_pct"] >= 0 else "#ef4444"};">'
+                    f'{sign}{pnl["pnl_pct"]:.1f}%</span>'
+                )
+                display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">ATP: ₹{ep:,.0f}</span>')
+            elif ep:
+                display_parts.append(f'<span style="font-size:0.75rem;color:#6b7280;">ATP: ₹{ep:,.0f}</span>')
+            elif cp:
+                display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">No ATP set</span>')
+            c1.markdown(
+                '<div style="line-height:1.5;">' + '<br>'.join(display_parts) + '</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            pts = [f"**{t}**"]
+            if _is_valid_num(cp):
+                pts.append(f"₹{cp:,.2f}")
+            if ep and _is_valid_num(cp):
+                pnl = calc_portfolio_pnl(ep, cp)
+                sn = "+" if pnl["pnl_pct"] >= 0 else ""
+                pts.append(f"{sn}{pnl['pnl_pct']:.1f}%")
+            c1.markdown(" · ".join(pts), help=f"P&L for {t}")
+
+        if c2.button("✕", key=f"{key_prefix}_del_{t}", help=f"Remove {t} from portfolio"):
+            portfolio.remove(t)
+            save_portfolio(portfolio)
+            st.session_state._skip_reanalysis = True
+            st.rerun()
+
+    # ─── Briefing button ───
+    if st.button(brief_btn_label, type="primary", use_container_width=True,
+                 key=f"{key_prefix}_brief",
+                 disabled=st.session_state.get("_briefing_running", False)):
+        st.session_state.run_briefing = True
+        st.session_state._briefing_running = True
+        st.rerun()
+
+
 # ─── Sidebar ───
 with st.sidebar:
     st.header("📁 My Portfolio")
@@ -251,68 +340,7 @@ with st.sidebar:
             st.caption(f"💡 Set ATP for {', '.join(missing_ep[:3])}{'…' if len(missing_ep) > 3 else ''}")
 
     if portfolio:
-        # ─── Market Heatmap (compact 3-col grid) ───
-        heatmap_html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin:0 0 4px 0;">'
-        for t in portfolio:
-            sd_cache = st.session_state.get("_stock_price_cache", {}).get(t)
-            if sd_cache is not None:
-                chg = sd_cache.get("change_pct") or 0
-                color = "#22c55e" if chg >= 0 else "#ef4444"
-            else:
-                chg = 0
-                color = "#6b7280"
-            heatmap_html += f'<div style="background:#1a1a2e;border-radius:6px;padding:4px;text-align:center;font-size:0.65rem;"><div style="font-weight:600;color:#e4e6eb;">{t}</div><div style="color:{color};">{chg:+.1f}%</div></div>'
-        heatmap_html += "</div>"
-        st.markdown(heatmap_html, unsafe_allow_html=True)
-        st.caption("🟢 Day gain  🔴 Day loss  ⚫ No data")
-
-        for t in portfolio:
-            c1, c2 = st.columns([3, 1])
-            ep = entry_prices.get(t)
-            sd_cache = st.session_state.get("_stock_price_cache", {}).get(t)
-            cp = sd_cache.get("current_price") if sd_cache else None
-
-            display_parts = [f"<strong>{t}</strong>"]
-            if _is_valid_num(cp):
-                display_parts.append(f'<span style="font-size:0.85rem;">₹{cp:,.2f}</span>')
-            elif sd_cache is not None:
-                display_parts.append(f'<span style="font-size:0.85rem;color:#6b7280;">Price N/A</span>')
-
-            if ep and _is_valid_num(cp):
-                pnl = calc_portfolio_pnl(ep, cp)
-                sign = "+" if pnl["pnl_pct"] >= 0 else ""
-                display_parts.append(
-                    f'<span style="font-size:0.8rem;color:{"#22c55e" if pnl["pnl_pct"] >= 0 else "#ef4444"};">'
-                    f'{sign}{pnl["pnl_pct"]:.1f}%</span>'
-                )
-                display_parts.append(
-                    f'<span style="font-size:0.7rem;color:#6b7280;">ATP: ₹{ep:,.0f}</span>'
-                )
-            elif ep:
-                display_parts.append(
-                    f'<span style="font-size:0.75rem;color:#6b7280;">ATP: ₹{ep:,.0f}</span>'
-                )
-            elif cp:
-                display_parts.append(
-                    f'<span style="font-size:0.7rem;color:#6b7280;">No ATP set</span>'
-                )
-
-            c1.markdown(
-                '<div style="line-height:1.5;">' + '<br>'.join(display_parts) + '</div>',
-                unsafe_allow_html=True,
-            )
-            if c2.button("✕", key=f"del_{t}", help=f"Remove {t} from portfolio"):
-                portfolio.remove(t)
-                save_portfolio(portfolio)
-                st.session_state._skip_reanalysis = True
-                st.rerun()
-
-        if st.button("📡 Run Portfolio Briefing", type="primary", use_container_width=True,
-                     disabled=st.session_state.get("_briefing_running", False)):
-            st.session_state.run_briefing = True
-            st.session_state._briefing_running = True
-            st.rerun()
-            st.caption("Scans every ticker for live prices + sentiment signals")
+        _render_portfolio_list(portfolio, entry_prices, key_prefix="side")
 
     # ─── India VIX ───
     st.markdown("---")
@@ -484,9 +512,10 @@ if final_ticker and final_ticker != "":
         # ─── PRICE CARD ───
         # Compute technical indicators
         ti = get_technical_indicators(final_ticker)
-        # Compute pivot levels from short OHLCV history
-        import yfinance as yf
-        _hist = yf.download(f"{final_ticker}.NS", period="5d", progress=False, auto_adjust=True)
+        # Compute pivot levels from cached OHLCV (avoids separate yfinance call)
+        from data_fetcher import get_cached_history
+        hist_cache = get_cached_history(final_ticker)
+        _hist = hist_cache.tail(5) if hist_cache is not None and len(hist_cache) >= 1 else None
         result["pivot_levels"] = compute_pivot_levels(_hist)
         records = load_track_record()
         fii_data = get_fii_dii_flow()
@@ -575,52 +604,10 @@ if final_ticker and final_ticker != "":
         with bc1:
             st.markdown(f'<div class="btm-card">', unsafe_allow_html=True)
             st.markdown(f'<div class="btm-title">{_FOLDER} Portfolio</div>', unsafe_allow_html=True)
-            ia, ib, ic = st.columns([2, 1, 0.5])
-            with ia:
-                _pt = st.text_input("Ticker", placeholder="RELIANCE", label_visibility="collapsed", max_chars=15, key="btm_add")
-            with ib:
-                _pe = st.text_input("ATP", placeholder="₹2,800", label_visibility="collapsed", max_chars=10, key="btm_ep")
-            with ic:
-                if st.button("+", use_container_width=True, key="btm_add_btn", help="Add to portfolio") and _pt.strip():
-                    t = _pt.strip().upper().replace(".NS", "")
-                    if not re.match(r'^[A-Z0-9&-]+$', t):
-                        st.warning("Invalid ticker format")
-                    elif t not in portfolio:
-                        portfolio.append(t); save_portfolio(portfolio)
-                        if _pe.strip():
-                            try: save_entry_price(t, float(_pe.strip().replace(",", "")))
-                            except ValueError:
-                                st.warning(f"Could not parse ATP '{_pe.strip()}' — stock added without entry price")
-                        st.rerun()
-            if portfolio:
-                hh = '<div class="btm-heat">'
-                for t in portfolio:
-                    sd = st.session_state.get("_stock_price_cache", {}).get(t, {})
-                    chg = sd.get("change_pct") or 0
-                    cc = "#22c55e" if chg >= 0 else "#ef4444"
-                    hh += f'<div class="btm-heat-item"><div class="btm-heat-tick">{t}</div><div style="color:{cc};">{chg:+.1f}%</div></div>'
-                hh += "</div>"
-                st.markdown(hh, unsafe_allow_html=True)
-                for t in portfolio:
-                    ca, cb = st.columns([3, 0.6])
-                    ep = eprices.get(t)
-                    sd2 = st.session_state.get("_stock_price_cache", {}).get(t)
-                    cp = sd2.get("current_price") if sd2 else None
-                    pts = [f"**{t}**"]
-                    if _is_valid_num(cp): pts.append(f"₹{cp:,.2f}")
-                    if ep and _is_valid_num(cp):
-                        pnl = calc_portfolio_pnl(ep, cp)
-                        sn = "+" if pnl["pnl_pct"] >= 0 else ""
-                        pts.append(f"{sn}{pnl['pnl_pct']:.1f}%")
-                    ca.markdown(" · ".join(pts), help=f"P&L for {t}")
-                    if cb.button("✕", key=f"btm_del_{t}", help=f"Remove {t}"):
-                        portfolio.remove(t); save_portfolio(portfolio); st.rerun()
-                if st.button("⚡ Briefing", type="primary", use_container_width=True, key="btm_brief",
-                          help="Run portfolio briefing",
-                          disabled=st.session_state.get("_briefing_running", False)):
-                    st.session_state.run_briefing = True
-                    st.session_state._briefing_running = True
-                    st.rerun()
+            with st.container():
+                _render_portfolio_list(portfolio, eprices, key_prefix="btm",
+                                       brief_btn_label="⚡ Briefing",
+                                       heatmap_css="btm-heat")
             st.markdown('</div>', unsafe_allow_html=True)
 
         with bc2:
@@ -749,7 +736,6 @@ with st.expander("🔒 Privacy & Data Policy"):
 
     **Third-party data sources:**
     - **Yahoo Finance** — live stock prices (public API)
-    - **Reddit** — public posts via Reddit's official API. Each Reddit post shown includes attribution (username, subreddit, link). [Reddit Privacy Policy](https://www.redditinc.com/policies/privacy-policy)
     - **RSS News feeds** — publicly available headlines from Google News, Moneycontrol, Economic Times, LiveMint, NDTV Profit
 
     **Data retention:**
@@ -768,7 +754,7 @@ with st.expander("⚠️ Disclaimer"):
 
     **No SEBI registration.** The creator is not a SEBI-registered investment advisor. All trading and investment decisions are solely your responsibility.
 
-    **Data accuracy.** Data is sourced from third-party public APIs (Yahoo Finance, RSS feeds, Reddit) and may be delayed, incomplete, or inaccurate. We do not guarantee the timeliness, accuracy, or completeness of any data displayed.
+    **Data accuracy.** Data is sourced from third-party public APIs (Yahoo Finance, RSS feeds) and may be delayed, incomplete, or inaccurate. We do not guarantee the timeliness, accuracy, or completeness of any data displayed.
 
     **No liability.** Under no circumstances shall the creator be liable for any direct, indirect, incidental, special, or consequential damages arising from your use of this tool, including but not limited to financial losses from trading or investment decisions made based on the data provided.
 

@@ -7,5 +7,7 @@ duckduckgo_search>=8.0.0
 requests>=2.31.0
 nsepython>=1.0.0
 # Optional: FinBERT for financial sentiment (USE_FINBERT=true)
-transformers>=4.30
-torch>=2.0
+# Uncomment these only if you need FinBERT:
+# pip install torch transformers
+# transformers>=4.30
+# torch>=2.0

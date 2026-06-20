@@ -8,7 +8,7 @@
 | [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 | [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 | [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-[![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen)](#-testing)
+|[![Tests](https://img.shields.io/badge/tests-140%20passing-brightgreen)](#-testing)
 | [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 |
 |<p align="center">
@@ -71,11 +71,10 @@ app.py ───────────────────── (entry po
   ├── aggregate_sentiment.py ── (SmartScore 0–100: EWMA recency, breadth,
   │                               volume, event-weighted components)
   │
-  ├── data_fetcher.py ────── (stock info, RSS news, DuckDuckGo, Reddit)
+  ├── data_fetcher.py ────── (stock info, RSS news, DuckDuckGo)
   │     ├── yfinance        → stock price, info, 1yr history
   │     ├── feedparser      → RSS from 5 financial sources
-  │     ├── duckduckgo_search → fallback when RSS < 3 articles
-  │     └── requests        → Reddit OAuth API (cloud-compatible)
+  │     └── duckduckgo_search → fallback when RSS < 3 articles
   │
   ├── indicators.py ──────── (RSI, SMA crossover, MACD from OHLCV history)
   │
@@ -96,11 +95,10 @@ Ticker Input
 │  analyze_ticker(ticker, company)                                  │
 │                                                                   │
 │  ┌─────────────┐   ┌──────────┐   ┌─────────────┐                │
-│  │ get_stock_   │   │ search_  │   │ get_techni- │                │
-│  │ info()       │   │ news()   │   │ cal_indica- │                │
-│  │ • yfinance   │   │ • 5 RSS  │   │ tors()      │                │
-│  │ • 1yr hist   │   │ • DDG    │   │ • RSI(14)   │                │
-│  │              │   │ • Reddit │   │ • SMA 50/200│                │
+│  │  │ search_     │   │ get_techni- │                │
+│  │  │ news()      │   │ cal_indica- │                │
+│  │  │ • 5 RSS  │   │ tors()      │                │
+│  │  │ • DDG    │   │ • RSI(14)   │                │
 │  └──────┬──────┘   └────┬─────┘   │ • MACD      │                │
 │         │               │         └──────┬───────┘                │
 │         ▼               ▼                ▼                        │
@@ -155,11 +153,8 @@ Each news source carries a confidence weight for the blended scoring.
 | NDTV Profit | Learned | RSS | ✅ |
 | Google News | Learned | RSS | ✅ |
 | DuckDuckGo | Learned | Web search (fallback) | ✅ |
-| Reddit * | Learned | OAuth API | ✅ |
 
 *Starts at hand-tuned priors, converges to your actual source accuracy over ~10-50 votes. Source weights persist across sessions.*
-
-*Reddit requires OAuth env vars (`REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET`). Falls back with learned weight if not set up.*
 
 The **blended score** is:
 ```
@@ -170,11 +165,25 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 ## 🆕 What's New
 
+### v2.3.2 — Cleaner code, no Reddit dependency, leaner install (June 2026)
+
+**Reddit removed as a news source** — Reddit OAuth (and the required `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` env vars) have been removed entirely. The app no longer depends on any API keys. All news comes from RSS feeds + DuckDuckGo fallback — zero configuration required.
+
+**Portfolio management refactored** — The sidebar and bottom-card portfolio sections used to duplicate ~100 lines of Streamlit widget code. Both now share a single `_render_portfolio_list()` helper. Adding a feature (or fixing a bug) in one place fixes both.
+
+**One fewer yfinance API call per analysis** — Pivot levels (R1/Pivot/S1) were fetched via a separate `yf.download()` call. Now they use the 1-year history already cached in memory from `get_stock_info()`. Lower rate-limit exposure.
+
+**Optional torch/transformers truly optional** — The `requirements.txt` no longer installs PyTorch and Transformers by default. Uncomment a line if you need FinBERT (enabled via `USE_FINBERT=true`). A fresh `pip install` saves ~2GB.
+
+**Corrupted cache files no longer crash the app** — `cache_get()` now wraps `datetime.fromisoformat()` in a try/except. A mangled manual edit of `cache.json` returns `None` instead of raising `ValueError`.
+
+**Internal cleanups** — `indicators.py` now imports `get_cached_history()` (a public API) instead of grabbing the private `_hist_cache` dict. Test helper in `test_indicators.py` simplified. 140 tests passing (−3 Reddit-specific tests removed).
+
 ### v2.3.1 — Bug fixes, briefing speed, cleaner UI (June 2026)
 
 **Briefing now actually runs** — The portfolio briefing button was silently ignored because stale ticker text in the search input hijacked the if/elif chain. Fixed: briefing clears stale ticker state when triggered.
 
-**Briefing is 5× faster** — Briefing mode skips news fetching (all 9 RSS feeds + DuckDuckGo + Reddit) since only price data is displayed. Per-ticker time dropped from ~9s to ~1.5s. A 14-stock portfolio briefs in ~6s instead of ~50s.
+**Briefing is 5× faster** — Briefing mode skips news fetching (all 9 RSS feeds + DuckDuckGo) since only price data is displayed. Per-ticker time dropped from ~9s to ~1.5s. A 14-stock portfolio briefs in ~6s instead of ~50s.
 
 **Fixed: BAJAJ-AUTO, M&M, J&KBANK can now be added to portfolio** — Ticker validation used `str.isalnum()` which rejects hyphens and ampersands. Replaced with `re.match(r'^[A-Z0-9&-]+$')`.
 
@@ -305,7 +314,6 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 - **Live price data** — Current price, day change %, day range, volume, PE ratio for any NSE stock or ETF
 - **Multi-source news** — Google News + Moneycontrol + Economic Times + LiveMint + NDTV Profit RSS feeds (DuckDuckGo fallback)
-- **Reddit community chatter** — OAuth API (requires `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET`). Brings retail conversation into the sentiment pipeline
 - **Event-aware classification** — Headlines automatically tagged by event type: earnings beats/misses, order wins, litigation, regulatory actions, buybacks/dividends, debt stress, management changes, product launches, guidance changes, expansion, rating upgrades, joint ventures, fundraises, contract losses, divestments. Each event type carries a signed sentiment bias that corrects VADER's blind spots
 - **SmartScore composite (0–100)** — A weighted index of 4 components: recency-weighted EWMA (45%), event-adjusted sentiment (25%), headline breadth (20%), and news volume (10%). The SmartScore replaces guesswork with a single, calibrated number
 - **Source-weighted scoring** — Each source has a confidence weight. Blended score = weighted average across active sources. This is the sole signal (supersedes simple unweighted averaging)
@@ -383,13 +391,9 @@ Items with a ⚡ badge in the UI indicate active local-only sources.
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `REDDIT_CLIENT_ID` | No | Reddit OAuth app client ID (requires `REDDIT_CLIENT_SECRET` too) |
-| `REDDIT_CLIENT_SECRET` | No | Reddit OAuth app client secret |
-| `USE_FINBERT` | No | Set to `true` to enable FinBERT transformer model for financial sentiment (requires `transformers` + `torch` installed) |
+| `USE_FINBERT` | No | Set to `true` to enable FinBERT transformer model for financial sentiment (requires `transformers` + `torch` installed, see `requirements.txt` for install instructions) |
 
-When both Reddit env vars are set, the app uses Reddit's OAuth API (works on Streamlit Cloud). Without them, Reddit is skipped.
-
-No other env vars are needed. All data sources are free and public.
+No env vars are needed. All data sources are free and public.
 
 ---
 
@@ -400,7 +404,7 @@ No other env vars are needed. All data sources are free and public.
 ```
 nse-sentiment-analyzer/
 ├── app.py                  # Streamlit entry point, UI logic
-├── data_fetcher.py         # Stock info, RSS news, Reddit, DuckDuckGo
+├── data_fetcher.py         # Stock info, RSS news, DuckDuckGo
 ├── sentiment.py            # VADER + financial lexicon, FinBERT integration, source-weighted scoring
 ├── event_classifier.py     # 18 event types: earnings, litigation, order wins, etc.
 ├── aggregate_sentiment.py  # SmartScore 0–100: EWMA, breadth, volume, events
@@ -463,7 +467,7 @@ nse-sentiment-analyzer/
 ## 🧪 Testing
 
 ```bash
-# Run all tests (143 tests, mocked APIs, no network)
+# Run all tests (140 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # Run with coverage
@@ -480,7 +484,7 @@ python -m pytest tests/test_sentiment.py::TestSentiment::test_bullish_headline -
 
 - **All external APIs are mocked** — tests run offline
 - **Fixtures** in `conftest.py` provide a `tmp_data_dir` for isolated file I/O + a `sample_hist` DataFrame for indicators
-- **143 tests across 12 modules**
+- **140 tests across 12 modules**
 - **Integration tests** verify the full pipeline end-to-end at module boundaries (stock data → sentiment → event classification → SmartScore)
 - **No network calls** — `yfinance`, `feedparser`, `duckduckgo_search`, and `requests` are all patched with `pytest-mock`
 
@@ -502,15 +506,14 @@ Defined in `pyproject.toml`:
 1. Push to a GitHub repository
 2. Go to [streamlit.io/cloud](https://streamlit.io/cloud)
 3. Click **"New app"** → select repo → branch → `app.py`
-4. For Reddit OAuth: add `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` in **Advanced Settings → Secrets**
-5. Deploy
+4. Deploy
 
 The app runs at `https://<your-app>.streamlit.app`.
 
 **Notes:**
 - The filesystem is ephemeral on Streamlit Cloud — portfolio, track records, and sentiment history are session-only
 - SmartScore history resets on each deploy — the sparkline shows your current score as a flat line + dot even on the first analysis
-- RSS + DuckDuckGo + Reddit OAuth work on the cloud
+- RSS + DuckDuckGo work on the cloud
 - `nsepython` is a local-only tool (not available on Streamlit Cloud)
 - `yfinance` can be throttled if you run too many tickers in rapid succession
 

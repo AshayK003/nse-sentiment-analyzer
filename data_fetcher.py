@@ -565,6 +565,16 @@ ALIASES = {
 _hist_cache = {}
 
 
+def get_cached_history(ticker):
+    """Return the in-memory cached 1y price history for a ticker, if available.
+
+    Populated by get_stock_info() to share the yfinance 1y OHLCV fetch with
+    get_technical_indicators() and compute_pivot_levels() — avoids duplicate
+    API calls that increase rate-limit exposure.
+    """
+    return _hist_cache.get(ticker)
+
+
 def _strip_html(text):
     """Strip HTML tags + unescape entities for clean text analysis & display."""
     if not text:
@@ -785,110 +795,8 @@ SOURCE_LABELS = {
     "livemint markets": "LiveMint",
     "ndtv profit": "NDTV Profit",
     "duckduckgo": "DuckDuckGo",
-    "reddit": "Reddit",
 }
 
-
-# ─── Reddit: OAuth API (cloud-compatible) + rdt-cli (local fallback) ───
-
-_REDDIT_TOKEN = None
-_REDDIT_TOKEN_EXPIRY = 0
-
-
-def _reddit_oauth_token(client_id, client_secret):
-    """Get a Reddit OAuth token with lazy refresh (tokens expire after 1 hour)."""
-    global _REDDIT_TOKEN, _REDDIT_TOKEN_EXPIRY
-    if _REDDIT_TOKEN and time.time() < _REDDIT_TOKEN_EXPIRY:
-        return _REDDIT_TOKEN
-    try:
-        auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
-        headers = {"User-Agent": "NSE-Sentiment-Analyzer/1.0 (by /u/AshayK003)"}
-        data = {"grant_type": "client_credentials", "scope": "read"}
-        resp = requests.post(
-            "https://www.reddit.com/api/v1/access_token",
-            auth=auth, headers=headers, data=data, timeout=10,
-        )
-        if resp.status_code != 200:
-            return None
-        token = resp.json().get("access_token")
-        if token:
-            _REDDIT_TOKEN = token
-            _REDDIT_TOKEN_EXPIRY = time.time() + 3300  # 55 min (tokens last 1 hr)
-        return token
-    except Exception:
-        return None
-
-
-def _fetch_reddit_oauth(ticker, company_name, max_results=5):
-    """Fetch Reddit posts via OAuth API (works on cloud)."""
-    client_id = os.environ.get("REDDIT_CLIENT_ID", "").strip()
-    client_secret = os.environ.get("REDDIT_CLIENT_SECRET", "").strip()
-    if not client_id or not client_secret:
-        return []
-
-    token = _reddit_oauth_token(client_id, client_secret)
-    if not token:
-        return []
-
-    headers = {
-        "Authorization": f"bearer {token}",
-        "User-Agent": "NSE-Sentiment-Analyzer/1.0 (by /u/AshayK003)",
-    }
-    queries = [
-        f"{ticker} NSE stock",
-        f"{company_name} stock",
-    ]
-
-    posts = []
-    seen_urls = set()
-    for query in queries:
-        try:
-            resp = requests.get(
-                "https://oauth.reddit.com/search",
-                params={"q": query, "limit": max_results, "sort": "new", "t": "week"},
-                headers=headers, timeout=10,
-            )
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            for child in data.get("data", {}).get("children", []):
-                item = child.get("data", {})
-                title = item.get("title", "")
-                if not title or len(title) < 5:
-                    continue
-                url = "https://www.reddit.com" + item.get("permalink", "")
-                if url in seen_urls:
-                    continue
-                if not _relevant(ticker, company_name, title, ""):
-                    continue
-                seen_urls.add(url)
-                posts.append({
-                    "title": title,
-                    "body": item.get("selftext", ""),
-                    "date": datetime.fromtimestamp(item.get("created_utc", 0)).strftime("%Y-%m-%d"),
-                    "url": url,
-                    "author": item.get("author", ""),
-                    "subreddit": item.get("subreddit", ""),
-                    "source": "Reddit",
-                })
-                if len(posts) >= max_results:
-                    break
-        except Exception:
-            continue
-        time.sleep(0.5)
-        if len(posts) >= max_results:
-            break
-
-    return posts
-
-
-def fetch_reddit_news(ticker, company_name, max_results=5):
-    """Fetch Reddit posts for a stock ticker via OAuth API.
-    
-    Requires REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET env vars.
-    Returns [] if OAuth not configured or API unreachable — Reddit is optional.
-    """
-    return _fetch_reddit_oauth(ticker, company_name, max_results)
 
 
 def search_news(ticker, company_name, max_results=10):
@@ -991,15 +899,6 @@ def search_news(ticker, company_name, max_results=10):
                         break
         except Exception:
             pass
-
-    # Local-only: Reddit via rdt-cli
-    reddit_posts = fetch_reddit_news(ticker, company_name, max_results=3)
-    for post in reddit_posts:
-        url = post.get("url", "")
-        if url and url not in seen_urls:
-            seen_urls.add(url)
-            all_results.append(post)
-            source_stats["Reddit"] = source_stats.get("Reddit", 0) + 1
 
     all_results.sort(key=lambda x: x["date"], reverse=True)
     if all_results:

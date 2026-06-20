@@ -21,9 +21,8 @@ def get_technical_indicators(ticker, hist=None):
     try:
         # Use supplied hist, or check data_fetcher's in-memory cache, or fetch fresh
         if hist is None:
-            # ponytail: check _hist_cache from data_fetcher to reuse get_stock_info's 1y fetch
-            from data_fetcher import _hist_cache
-            hist = _hist_cache.get(ticker)
+            from data_fetcher import get_cached_history
+            hist = get_cached_history(ticker)
         if hist is None:
             # Fallback: own yfinance fetch with retry, trying .NS → .BO → bare
             for suffix in [".NS", ".BO", ""]:

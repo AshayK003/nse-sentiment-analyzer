@@ -84,7 +84,7 @@ class TestWeightedSignal:
         """Breakdown should be sorted by weight descending."""
         scores = [{"compound": 0.1, "source": "DuckDuckGo"},
                   {"compound": 0.2, "source": "Economic Times"},
-                  {"compound": 0.3, "source": "Reddit"}]
+                  {"compound": 0.3, "source": "DuckDuckGo"}]
         signal, compound, emoji, breakdown = get_weighted_signal(scores)
         weights = [s["weight"] for s in breakdown]
         assert weights == sorted(weights, reverse=True), "Breakdown not sorted by weight"
