@@ -8,7 +8,7 @@
 | [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 | [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 | [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-[![Tests](https://img.shields.io/badge/tests-137%20passing-brightgreen)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen)](#-testing)
 | [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 |
 |<p align="center">
@@ -178,7 +178,7 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 **India VIX in Sidebar** — VIX level, daily change, and volatility bucket (Low/Medium/High) shown in the sidebar, fetched once per session. Caption tells you what the level means: *"⚠️ High VIX (>20) — sharp reversals likely"* or *"✅ Low VIX (<15) — trending markets favored"*.
 
-**13 new tests** — Full TDD: RED → GREEN before implementation. 137 total.
+**13 new tests** — Full TDD: RED → GREEN before implementation. 143 total.
 
 ### v2.2.2 — Smarter trend, clearer portfolio sidebar (June 2026)
 
@@ -447,7 +447,7 @@ nse-sentiment-analyzer/
 ## 🧪 Testing
 
 ```bash
-# Run all tests (137 tests, mocked APIs, no network)
+# Run all tests (143 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # Run with coverage
@@ -464,7 +464,7 @@ python -m pytest tests/test_sentiment.py::TestSentiment::test_bullish_headline -
 
 - **All external APIs are mocked** — tests run offline
 - **Fixtures** in `conftest.py` provide a `tmp_data_dir` for isolated file I/O + a `sample_hist` DataFrame for indicators
-- **137 tests across 12 modules**
+- **143 tests across 12 modules**
 - **Integration tests** verify the full pipeline end-to-end at module boundaries (stock data → sentiment → event classification → SmartScore)
 - **No network calls** — `yfinance`, `feedparser`, `duckduckgo_search`, and `requests` are all patched with `pytest-mock`
 
