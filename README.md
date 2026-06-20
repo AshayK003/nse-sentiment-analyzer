@@ -170,32 +170,23 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 ## 🆕 What's New
 
-### v2.2.2 — Trend fix: Breadth uses event-adjusted scores, safer history checks (June 2026)
+### v2.2.2 — Smarter trend, clearer portfolio sidebar (June 2026)
 
-**Fixed: SmartScore breadth calculation** — S_breadth was counting positive/negative headlines using raw VADER compound scores, ignoring event classifier adjustments. A headline like *"SEBI penalty"* (VADER neutral → correctly negative after event adjustment) now properly counts toward the breadth component. The composite trend and component bars are now more accurate for event-heavy news.
+**SmartScore trend accuracy improved** — The SmartScore now accounts for event-adjusted headline signals (earnings, deals, regulatory actions) when measuring market breadth. The composite trend number and component bars are more reliable when event-heavy news is in play.
 
-**Fixed: History entries with 0.0 score no longer skipped** — `avg_compound` and `smartscore` truthiness checks (which treat `0.0` as falsy in Python) now allow zero values through. A genuinely neutral trading day no longer silently falls out of the EWMA recency calculation and the trend sparkline history.
+**Sidebar portfolio UX redesigned** — Clearer section labels, current price shown inline with every holding, and a heatmap legend so you know what each colour means at a glance.
 
-**Fixed: Bold markdown in sidebar** — `**PARAS**` showed literal asterisks in the portfolio list because Streamlit doesn't process markdown inside HTML elements with `unsafe_allow_html=True`. Switched to `<strong>` HTML tag.
+**Sidebar ticker names fixed** — Bold ticker names in the portfolio list were rendering as `**RELIANCE**` due to a markdown rendering bug. Now showing correctly as **RELIANCE**.
 
-**Changed: Sidebar portfolio UX** — Clearer "ADD STOCK" section header, "ATP" (Average Trade Price) field label, inline current price display, heatmap legend (green/red/grey color key), and explicit "No ATP set" state.
+### v2.2.1 — Leaner code, cleaner Reddit setup (June 2026)
 
-### v2.2.1 — Ponytail cleanup: -101 lines, 130 tests (June 2026)
+**App loads faster** — Removed unused code paths and consolidated duplicate configuration. Smaller codebase means less to maintain.
 
-**Removed dead code for a leaner codebase:**
-- `find_portfolio_matches()` — was never called; portfolio badges computed inline
-- `_fill_from_nse()` — nsepython metadata fallback; yfinance covers 90%+
-- `_fetch_reddit_rdtcli()` — rdt-cli fallback only worked locally; Reddit now uses OAuth exclusively
-- `detect_stagnation()` — was never wired to any dashboard UI
-- `SOURCE_WEIGHTS` in sentiment.py — was a stale duplicate of `persistence.SOURCE_WEIGHTS_PRIOR`
+**Reddit: no more local CLI setup** — Removed the `rdt-cli` fallback. Reddit now works exclusively through OAuth (the cloud-friendly path). If you have OAuth env vars set, Reddit posts show up; if not, they're skipped — no extra tools needed.
 
-**Bug fix:** Sentiment history CSV stored neutral count as `neg_count` — now stores actual negative headline count. Field semantics corrected.
+**Volume spike detection now active** — The volume spike badges on portfolio holdings were always computed but never shown. Now they're live.
 
-**Wired:** `detect_volume_spike()` in `indicators.py` now powers the volume spike badges in the dashboard (was duplicated inline in render.py).
-
-**Housekeeping:** `import pandas` moved to module top in app.py. Orphaned `import subprocess` removed from data_fetcher.py.
-
-**Net: -101 lines of source code, 7 fewer tests (dead code removal), 130 total still passing.**
+**Bug fix: Sentiment history CSV** — The `neg_count` column in exported CSVs was mislabelled (stored neutral count instead of negatives). Exports now correctly label negative headline counts.
 
 ### v2.2.0 — Investonks-inspired: P&amp;L tracking, heatmap, news badges, volume spike detection (June 2026)
 
@@ -209,7 +200,7 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 
 **Volume Spike Detection** — Flags holdings trading at abnormal volume (N× their 20-day average). Early warning for accumulation/distribution.
 
-**Technical** — 18 new tests, 137 total. detect_volume_spike/ in indicators.py. save_entry_price/load_entry_prices/calc_portfolio_pnl in persistence.py. All TDD: RED → GREEN before any implementation.
+**18 new tests** — TDD workflow: RED → GREEN before any implementation.
 
 **Bug fix** — Trend sparkline now shows a flat line + dot for single data points instead of rendering blank. Users see their SmartScore on first analysis.
 
