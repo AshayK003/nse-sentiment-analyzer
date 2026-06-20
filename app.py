@@ -287,11 +287,12 @@ if final_ticker and final_ticker != "":
         fii_data = get_fii_dii_flow()
 
         # Render premium HTML dashboard — estimate height dynamically
-        # Base: price(230) + sentiment+smartscore(360) + dist(120) + stats(180)
-        #       + techs(280) + fiidii(130) + track+cal(250) + padding(80) = ~1630
-        # Each news item ≈ 95px; auto-height postMessage script refines after load
+        # Section heights (desktop):
+        #   price(280) + sentiment+smartscore(450) + dist(130) + stats(200)
+        #   + techs(290) + track(180) + fiidii(200) + cal(270) + buffer(200)
+        # Each news item ≈ 120px (title + meta + body text wrapping)
         n_news = len(news_items)
-        dash_height = min(1630 + n_news * 95, 5000)
+        dash_height = min(2200 + n_news * 120, 6000)
         st.components.v1.html(
             render_dashboard(result, final_ticker, company_name,
                              technical_indicators=ti,
