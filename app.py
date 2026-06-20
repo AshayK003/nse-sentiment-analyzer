@@ -25,7 +25,7 @@ from intraday import compute_vwap, compute_pivot_levels, get_vix
 # ─── Page config ───
 st.set_page_config(
     page_title="NSE Sentiment Analyzer",
-    page_icon="📊",
+    page_icon="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%2322b573' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='12' y1='20' x2='12' y2='10'/><line x1='18' y1='20' x2='18' y2='4'/><line x1='6' y1='20' x2='6' y2='16'/></svg>",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
@@ -242,7 +242,16 @@ def _render_portfolio_list(portfolio, entry_prices, key_prefix="side",
         h_class = f' class="{heatmap_css}"' if heatmap_css else ''
         st.markdown(f'<div{h_class}>{"".join(heat_parts)}</div>', unsafe_allow_html=True)
         if not heatmap_css:
-            st.caption("🟢 Day gain  🔴 Day loss  ⚫ No data")
+            st.markdown(
+                '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+                '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22b573" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/></svg>'
+                ' Day gain'
+                '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f85149" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/></svg>'
+                ' Day loss'
+                '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/></svg>'
+                ' No data</span>',
+                unsafe_allow_html=True,
+            )
 
     # ─── Portfolio listing with P&L + delete ───
     for t in portfolio:
@@ -333,11 +342,21 @@ with st.sidebar:
 
     # ponytail: hint to set entry prices for better P&L
     if portfolio and not entry_prices:
-        st.caption("💡 Set an ATP above to track your P&L")
+        st.markdown(
+            '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+            '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>'
+            ' Set an ATP above to track your P&amp;L</span>',
+            unsafe_allow_html=True,
+        )
     elif entry_prices:
         missing_ep = [t for t in portfolio if t not in entry_prices]
         if missing_ep:
-            st.caption(f"💡 Set ATP for {', '.join(missing_ep[:3])}{'…' if len(missing_ep) > 3 else ''}")
+            st.markdown(
+                '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+                '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>'
+                f" Set ATP for {', '.join(missing_ep[:3])}{'…' if len(missing_ep) > 3 else ''}</span>",
+                unsafe_allow_html=True,
+            )
 
     if portfolio:
         _render_portfolio_list(portfolio, entry_prices, key_prefix="side")
@@ -353,13 +372,28 @@ with st.sidebar:
         col1.metric("India VIX", f"{vix_d['vix']:.1f}", f"{vix_dir} {vix_d['change']:+.2f}")
         col2.metric("Volatility", vix_d["level"])
         if vix_d["level"] == "High":
-            st.caption("⚠️ High VIX (>20) — sharp reversals likely. Trade with caution.")
+            st.markdown(
+                '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+                '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
+                ' High VIX (&gt;20) — sharp reversals likely. Trade with caution.</span>',
+                unsafe_allow_html=True,
+            )
         elif vix_d["level"] == "Low":
-            st.caption("✅ Low VIX (<15) — trending markets favored.")
+            st.markdown(
+                '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+                '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22b573" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+                ' Low VIX (&lt;15) — trending markets favored.</span>',
+                unsafe_allow_html=True,
+            )
 
     # ─── Track Record Stats ───
     st.markdown("---")
-    st.header("📊 Track Record")
+    st.markdown(
+        '<div style="display:flex;align-items:center;gap:0.5rem;font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;">'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>'
+        ' Track Record</div>',
+        unsafe_allow_html=True,
+    )
     records = load_track_record()
     total = len(records)
     voted = [r for r in records if r.get("vote") is not None]
@@ -367,21 +401,31 @@ with st.sidebar:
     if voted:
         st.metric("Accuracy", f"{accurate/len(voted)*100:.0f}%", help=f"{accurate}/{len(voted)} signals rated")
     st.metric("Total Scans", total)
-    st.caption("👍 = signal was right, 👎 = wrong")
+    st.markdown(
+        '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>'
+        ' = signal was right'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:8px;"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/></svg>'
+        ' = wrong</span>',
+        unsafe_allow_html=True,
+    )
 
     # ─── Changelog & Feedback ───
-    with st.expander("📝 What's New"):
-        try:
-            with open("CHANGELOG.md") as f:
-                lines = f.readlines()
-            st.markdown("".join(lines[:40]), unsafe_allow_html=True)
-            if len(lines) > 40:
-                st.caption("... see CHANGELOG.md for full history")
-        except FileNotFoundError:
-            st.caption("Changelog coming soon")
+    _FILE_TEXT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>'
+    st.markdown(f'<details><summary style="cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;font-size:0.95rem;color:#e4e6eb;">{_FILE_TEXT_SVG} What\'s New</summary>', unsafe_allow_html=True)
+    try:
+        with open("CHANGELOG.md") as f:
+            lines = f.readlines()
+        st.markdown("".join(lines[:40]), unsafe_allow_html=True)
+        if len(lines) > 40:
+            st.caption("... see CHANGELOG.md for full history")
+    except FileNotFoundError:
+        st.caption("Changelog coming soon")
+    st.markdown('</details>', unsafe_allow_html=True)
     st.markdown(
         '<div style="text-align:center;font-size:0.8rem;color:#6b7280;">'
-        '💡 Feature requests: <a href="mailto:darkcharon3301@gmail.com" '
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>'
+        ' Feature requests: <a href="mailto:darkcharon3301@gmail.com" '
         'style="color:#22b573;text-decoration:none;">darkcharon3301@gmail.com</a></div>',
         unsafe_allow_html=True,
     )
@@ -605,14 +649,17 @@ if final_ticker and final_ticker != "":
                     st.session_state._skip_reanalysis = True
                     st.rerun()
         elif last_rec and last_rec["ticker"] == final_ticker and last_rec.get("vote") is not None:
-            st.caption(f"You marked this signal as {'✅ accurate' if last_rec['vote'] else '❌ inaccurate'}")
+            _CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22b573" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg>'
+            _X_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f85149" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+            st.markdown(f'<span style="font-size:0.75rem;color:#8891a0;">{" " + _CHECK_SVG + " accurate" if last_rec["vote"] else " " + _X_SVG + " inaccurate"}</span>', unsafe_allow_html=True)
 
         # Shareable link
         share_url = f"https://nse-sentiment-analyzer.streamlit.app/?ticker={final_ticker}"
         st.markdown(
             f'<div style="text-align:right;margin-top:0.5rem;">'
             f'<a href="{share_url}" target="_blank" style="color:#6b7280;font-size:0.8rem;text-decoration:none;">'
-            f'\U0001f517 Share snapshot</a></div>',
+            '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
+            'Share snapshot</a></div>',
             unsafe_allow_html=True,
         )
 
@@ -661,21 +708,23 @@ if final_ticker and final_ticker != "":
         # ─── Historical Sentiment Archive ───
         history = load_sentiment_history(final_ticker)
         if history:
-            with st.expander("📈 Sentiment History"):
-                df = pd.DataFrame(history)
-                if "smartscore" in df.columns:
-                    df["smartscore"] = pd.to_numeric(df["smartscore"], errors="coerce")
-                    df = df.dropna(subset=["smartscore"])
-                    if not df.empty:
-                        st.line_chart(df.set_index("date")["smartscore"])
-                csv_data = history_to_csv(final_ticker, history)
-                st.download_button(
-                    label="\U0001f4e5 Export CSV",
-                    data=csv_data,
-                    file_name=f"{final_ticker}_sentiment_history.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
+            _TREND_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
+            st.markdown(f'<details><summary style="cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;font-size:0.95rem;color:#e4e6eb;">{_TREND_UP} Sentiment History</summary>', unsafe_allow_html=True)
+            df = pd.DataFrame(history)
+            if "smartscore" in df.columns:
+                df["smartscore"] = pd.to_numeric(df["smartscore"], errors="coerce")
+                df = df.dropna(subset=["smartscore"])
+                if not df.empty:
+                    st.line_chart(df.set_index("date")["smartscore"])
+            csv_data = history_to_csv(final_ticker, history)
+            st.download_button(
+                label="Export CSV",
+                data=csv_data,
+                file_name=f"{final_ticker}_sentiment_history.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+            st.markdown('</details>', unsafe_allow_html=True)
 
     else:
         st.error(f"Could not find data for **{final_ticker}**. "
@@ -688,7 +737,8 @@ elif st.session_state.get("run_briefing"):
     if not portfolio:
         st.warning("No tickers in your portfolio. Add some from the sidebar.")
     else:
-        st.subheader(f"📡 Portfolio Briefing — {len(portfolio)} stocks")
+        _SATELLITE = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 16-4 4"/><path d="m12 20 4-4"/></svg>'
+        st.markdown(f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:1.25rem;font-weight:600;">{_SATELLITE} Portfolio Briefing — {len(portfolio)} stocks</div>', unsafe_allow_html=True)
         st.caption("Live prices · signals from previous analysis (news skipped for speed)")
         results = []
         progress = st.progress(0, text="Starting...")
@@ -784,28 +834,35 @@ with st.expander("🔒 Privacy & Data Policy"):
     st.caption("Last updated: June 2026")
 
 # ─── DISCLAIMER ───
-with st.expander("⚠️ Disclaimer"):
-    st.markdown("""
-    **Not financial advice.** This tool provides data-driven sentiment analysis and technical indicators for educational and informational purposes only. Nothing on this platform constitutes investment advice, a recommendation, or a solicitation to buy or sell securities.
+_ALERT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
+st.markdown(f'<details><summary style="cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;font-size:0.95rem;color:#e4e6eb;">{_ALERT_SVG} Disclaimer</summary>', unsafe_allow_html=True)
+st.markdown("""
+**Not financial advice.** This tool provides data-driven sentiment analysis and technical indicators for educational and informational purposes only. Nothing on this platform constitutes investment advice, a recommendation, or a solicitation to buy or sell securities.
 
-    **No SEBI registration.** The creator is not a SEBI-registered investment advisor. All trading and investment decisions are solely your responsibility.
+**No SEBI registration.** The creator is not a SEBI-registered investment advisor. All trading and investment decisions are solely your responsibility.
 
-    **Data accuracy.** Data is sourced from third-party public APIs (Yahoo Finance, RSS feeds) and may be delayed, incomplete, or inaccurate. We do not guarantee the timeliness, accuracy, or completeness of any data displayed.
+**Data accuracy.** Data is sourced from third-party public APIs (Yahoo Finance, RSS feeds) and may be delayed, incomplete, or inaccurate. We do not guarantee the timeliness, accuracy, or completeness of any data displayed.
 
-    **No liability.** Under no circumstances shall the creator be liable for any direct, indirect, incidental, special, or consequential damages arising from your use of this tool, including but not limited to financial losses from trading or investment decisions made based on the data provided.
+**No liability.** Under no circumstances shall the creator be liable for any direct, indirect, incidental, special, or consequential damages arising from your use of this tool, including but not limited to financial losses from trading or investment decisions made based on the data provided.
 
-    **Past performance.** Historical data and past sentiment scores do not guarantee future results.
+**Past performance.** Historical data and past sentiment scores do not guarantee future results.
 
-    **Use at your own risk.** By using this tool, you acknowledge that you understand and accept these terms. If you do not agree, do not use the tool.
+**Use at your own risk.** By using this tool, you acknowledge that you understand and accept these terms. If you do not agree, do not use the tool.
 
-    **Contact:** [@sentinelcipher on X/Twitter](https://x.com/sentinelcipher) | darkcharon3301@gmail.com
-    """)
-    st.caption("Last updated: June 2026")
+**Contact:** [@sentinelcipher on X/Twitter](https://x.com/sentinelcipher) | darkcharon3301@gmail.com
+""")
+st.caption("Last updated: June 2026")
+st.markdown('</details>', unsafe_allow_html=True)
 
 # ─── FOOTER ───
 st.markdown("---")
 st.caption("Built with Streamlit + yfinance + VADER · FinBERT · Bayesian Calibration · Financial Lexicon | Data from Yahoo Finance + RSS News")
-st.caption("📌 Not financial advice. This tool is for educational purposes only. Trading stocks carries financial risk. Consult a SEBI-registered advisor before making investment decisions.")
+st.markdown(
+    '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+    '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+    ' Not financial advice. This tool is for educational purposes only. Trading stocks carries financial risk. Consult a SEBI-registered advisor before making investment decisions.</span>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<div style="text-align:center;margin-bottom:0.5rem;">'
     '<span style="color:#6b7280;font-size:0.75rem;font-style:italic;">'
