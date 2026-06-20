@@ -185,12 +185,20 @@ with st.sidebar:
     portfolio = load_portfolio()
     entry_prices = load_entry_prices()
 
-    # ─── Indicator to track init ───
-    if "_sidebar_init" not in st.session_state:
-        st.session_state._sidebar_init = True
+    # ─── Helper: collapsible section ───
+    def _collapsible(session_key, label, expanded_default=True, label_suffix=""):
+        """Render a custom collapsible section header. Returns True if section is open."""
+        is_exp = st.session_state.get(session_key, expanded_default)
+        icon = "▾" if is_exp else "▸"
+        c1, c2, c3 = st.columns([4, 1, 1])
+        c1.markdown(f"**{label}**" + (f' <span style="color:#6b7280;font-weight:400;font-size:0.8rem;">{label_suffix}</span>' if label_suffix else ""), unsafe_allow_html=True)
+        if c2.button(icon, key=f"tgl_{session_key}", help="Expand / collapse"):
+            st.session_state[session_key] = not is_exp
+            st.rerun()
+        return st.session_state.get(session_key, expanded_default)
 
-    # ─── Portfolio section (default expanded) ───
-    with st.expander("📁 Portfolio", expanded=True):
+    # ─── Portfolio section (starts expanded) ───
+    if _collapsible("_exp_portfolio", "📁 Portfolio", expanded_default=True):
         add_c1, add_c2, add_c3 = st.columns([2, 1, 1])
         with add_c1:
             new_t = st.text_input("Ticker", placeholder="RELIANCE", label_visibility="collapsed",
@@ -286,8 +294,8 @@ with st.sidebar:
                 st.session_state.run_briefing = True
                 st.caption("Scans every ticker for live prices + sentiment signals")
 
-    # ─── Market Context (default collapsed) ───
-    with st.expander("🌍 Market Context", expanded=False):
+    # ─── Market Context (starts collapsed) ───
+    if _collapsible("_exp_market", "🌍 Market Context", expanded_default=False):
         # India VIX
         if "vix" not in st.session_state:
             st.session_state.vix = get_vix()
@@ -304,8 +312,8 @@ with st.sidebar:
         else:
             st.caption("India VIX data unavailable")
 
-    # ─── Track Record (default collapsed) ───
-    with st.expander("📊 Track Record", expanded=False):
+    # ─── Track Record (starts collapsed) ───
+    if _collapsible("_exp_record", "📊 Track Record", expanded_default=False):
         records = load_track_record()
         total = len(records)
         voted = [r for r in records if r.get("vote") is not None]
@@ -314,6 +322,14 @@ with st.sidebar:
             st.metric("Accuracy", f"{accurate/len(voted)*100:.0f}%", help=f"{accurate}/{len(voted)} signals rated")
         st.metric("Total Scans", total)
         st.caption("👍 = signal was right, 👎 = wrong")
+    st.caption("")
+
+    # ─── Reset sidebar button ───
+    if st.button("↻ Reset Sidebar", help="Expand all sidebar sections", use_container_width=True):
+        for k in list(st.session_state.keys()):
+            if k.startswith("_exp_"):
+                st.session_state[k] = True
+        st.rerun()
 
     # ─── Changelog & Feedback ───
     with st.expander("📝 What's New"):
