@@ -5,6 +5,7 @@ Built with Streamlit + yfinance + VADER + custom financial lexicon.
 """
 
 import streamlit as st
+import os
 from datetime import datetime
 
 from data_fetcher import (
@@ -55,6 +56,13 @@ st.markdown("""
     .custom-header .gh-btn:hover {border-color:#22b573;color:#22b573;background:rgba(34,181,115,0.05);}
     /* Recalculate height now that header/footer are hidden */
     .block-container {padding-top:1rem !important;padding-bottom:0 !important;}
+
+    /* Responsive: mobile-friendly adjustments */
+    @media (max-width: 640px) {
+        .stButton button {font-size: 0.85rem; padding: 0.35rem 0.5rem;}
+        .stTextInput input {font-size: 0.9rem;}
+        .st-emotion-cache-16idsys {gap: 0.25rem;}
+    }
 </style>""", unsafe_allow_html=True)
 
 
@@ -66,7 +74,6 @@ def analyze_ticker(ticker, company_name):
     if not stock_data:
         return None
 
-    import os
     use_finbert = os.environ.get("USE_FINBERT", "").strip().lower() in ("1", "true", "yes")
     pipe_finbert = None
     if use_finbert:
@@ -105,12 +112,12 @@ def analyze_ticker(ticker, company_name):
     # Persist today's aggregated stats to history CSV
     if event_adjusted_scores:
         save_sentiment_history(ticker, {
-            "headline_count": str(ss_result["headline_count"]),
-            "pos_count": str(ss_result["pos_count"]),
-            "neg_count": str(ss_result["headline_count"] - ss_result["pos_count"] - ss_result["neg_count"]),
-            "avg_compound": str(sum(event_adjusted_scores) / len(event_adjusted_scores)),
-            "event_avg": str(ss_result["s_events"]),
-            "smartscore": str(ss_result["smartscore"]),
+            "headline_count": ss_result["headline_count"],
+            "pos_count": ss_result["pos_count"],
+            "neg_count": ss_result["headline_count"] - ss_result["pos_count"] - ss_result["neg_count"],
+            "avg_compound": sum(event_adjusted_scores) / len(event_adjusted_scores),
+            "event_avg": ss_result["s_events"],
+            "smartscore": ss_result["smartscore"],
         })
 
     # Use weighted signal as the primary (and only) signal
@@ -279,20 +286,13 @@ if final_ticker and final_ticker != "":
         records = load_track_record()
         fii_data = get_fii_dii_flow()
 
-        # Render premium HTML dashboard — dynamic height to avoid iframe scrollbars
-        n_news = len(news_items)
-        n_track = len(records) if records else 0
-        # ponytail: per-section heights measured from rendered HTML:
-        #   price card 230 + sentiment 170 + smartscore 190 + distribution 110
-        #   + stats 170 + tech 270 + fiidii 120 + track 140 + padding 80 = ~1480 base
-        #   each news item ≈ 95px (title + meta + body + tag + border)
-        dash_height = 1480 + n_news * 95 + min(n_track, 10) * 22
+        # Render premium HTML dashboard — height is set dynamically via auto-height script
         st.components.v1.html(
             render_dashboard(result, final_ticker, company_name,
                              technical_indicators=ti,
                              track_record=records,
                              fii_dii_data=fii_data),
-            height=int(dash_height),
+            height=800,  # initial height; postMessage auto-height script adjusts after load
             scrolling=False,
         )
 

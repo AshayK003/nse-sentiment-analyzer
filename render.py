@@ -156,27 +156,18 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         primary_signal = primary_signal.rstrip(" 🟢🔴⚪")
     primary_compound = result.get("blended_compound", avg_compound)
     primary_emoji = result.get("weighted_emoji", result["signal_emoji"])
-    _emoji_to_icon = {"🟢": _ICON["bullish"], "🔴": _ICON["bearish"], "⚪": _ICON["neutral"]}
-    primary_emoji_svg = _emoji_to_icon.get(primary_emoji, _ICON["neutral"])
+    primary_emoji_svg = get_signal_icon(primary_emoji)
     source_breakdown = result.get("source_breakdown", [])
     source_stats = result.get("source_stats", {})
 
     # Sentiment class
-    if "BULLISH" in str(primary_signal):
-        sent_class = "bullish"
-        rec_text = "BUY / HOLD"
-        rec_detail = "Positive sentiment dominates"
-        rec_icon = _ICON["check"]
-    elif "BEARISH" in str(primary_signal):
-        sent_class = "bearish"
-        rec_text = "CAUTION / SELL"
-        rec_detail = "Negative sentiment detected"
-        rec_icon = _ICON["alert"]
-    else:
-        sent_class = "neutral"
-        rec_text = "HOLD"
-        rec_detail = "Mixed or neutral sentiment"
-        rec_icon = _ICON["minus"]
+    _sent_map = {
+        "BULLISH": ("bullish", "BUY / HOLD", "Positive sentiment dominates", _ICON["check"]),
+        "BEARISH": ("bearish", "CAUTION / SELL", "Negative sentiment detected", _ICON["alert"]),
+    }
+    sent_class, rec_text, rec_detail, rec_icon = _sent_map.get(
+        primary_signal, ("neutral", "HOLD", "Mixed or neutral sentiment", _ICON["minus"])
+    )
 
     confidence_pct = min(abs(primary_compound) * 100, 99)
 
@@ -407,7 +398,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         ss_signal = ss_signal_raw.rstrip(" 🟢🔴⚪") if isinstance(ss_signal_raw, str) else "NEUTRAL"
         ss_color = "#22b573" if ss_signal == "BULLISH" else "#f85149" if ss_signal == "BEARISH" else "#8891a0"
         # SVG icon for the signal
-        ss_icon = _emoji_to_icon.get(result.get("smartscore_emoji", "⚪"), _ICON["neutral"])
+        ss_icon = get_signal_icon(result.get("smartscore_emoji", "⚪"))
 
         # Component mini-bars
         def _pct(v):

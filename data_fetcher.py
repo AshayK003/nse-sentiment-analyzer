@@ -12,6 +12,8 @@ import streamlit as st
 import subprocess
 import re
 import os
+import random
+import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from duckduckgo_search import DDGS
@@ -606,9 +608,6 @@ def get_stock_info(ticker):
     cached = cache_get(f"stock_{ticker}")
     if cached:
         return cached
-
-    import random
-    import math
 
     # Global rate-limit cooldown — if yfinance recently 429'd us, skip early
     if _check_rate_limited():

@@ -189,6 +189,19 @@ blended = Σ(source_weight × source_avg_compound) / Σ(source_weight)
 - All 108 tests still pass — zero regressions from expansion
 - Ticker alias matching now covers 504 common name forms and 20+ regulatory agencies
 
+### v2.1.1 — Audit cleanup: -22 lines, responsive layout, dynamic iframe height (June 2026)
+
+**Ponytail audit findings applied:**
+- Removed duplicate emoji-to-SVG mapping (`_emoji_to_icon`), now using `get_signal_icon()` throughout — eliminates a maintenance drift point
+- Collapsed 15-line if/elif sentiment class chain into a 7-line dict lookup
+- Moved lazy `import os` / `import math` / `import random` to module-level — fewer per-call allocations
+- Removed 6 redundant `str()` wrappers in `save_sentiment_history()` — CSV writer handles conversion natively
+- All 108 tests still pass — zero regressions
+
+**UX improvements:**
+- Dashboard iframe height is now fully dynamic — the auto-height postMessage script handles all layout sizing, replacing the fragile `1480 + n_news*95 + n_track*22` formula that was wrong on every layout change
+- Added mobile-responsive CSS breakpoints — buttons and inputs scale on screens under 640px
+
 ### v2.0 — Bayesian Calibration + Optional FinBERT (June 2026)
 
 **Source weights now learn from your votes.** The old hand-tuned weights (ET=1.0, MC=0.9, ...) were guesses. Every time you vote 👍/👎 on a signal, the app updates a Beta distribution for each source that contributed. Weight = `α/(α+β)` — the posterior mean. After ~10-50 votes, your source weights converge to your actual accuracy experience.
