@@ -383,7 +383,10 @@ st.markdown("""
 if st.session_state.get("_sidebar_recovery", False) or st.query_params.get("reset", "") == "1":
     if st.query_params.get("reset", "") == "1":
         st.cache_data.clear()
-        st.query_params.clear()
+        try:
+            st.query_params.clear()
+        except AttributeError:
+            pass
         st.session_state._sidebar_recovery = True
     with st.container():
         st.markdown("---")
