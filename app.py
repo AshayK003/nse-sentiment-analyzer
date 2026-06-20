@@ -422,6 +422,10 @@ if search_clicked and ticker_text:
 quick_ticker = st.session_state.pop("quick_ticker", "")
 final_ticker = quick_ticker or ticker_text or st.session_state.pop("manual_search", "")
 
+# When briefing is active, ignore stale ticker text to let the briefing block run
+if st.session_state.get("run_briefing"):
+    final_ticker = ""
+
 if final_ticker and final_ticker != "":
     final_ticker = final_ticker.replace(".NS", "")
     company_name = NSE_TICKERS.get(final_ticker, final_ticker)
@@ -692,6 +696,12 @@ elif st.session_state.get("run_briefing"):
                     cols[2].markdown(f"""<span style="display:inline-flex;align-items:center;gap:4px">{get_signal_icon(r.get('signal_emoji', ''))} <span style="font-weight:600">{r['signal'].rstrip(' 🟢🔴⚪')}</span></span>""", unsafe_allow_html=True)
 
         if st.button("← Back to Single View"):
+            st.session_state.run_briefing = False
+            st.rerun()
+
+    # Back button for empty portfolio case too
+    if not portfolio:
+        if st.button("← Back"):
             st.session_state.run_briefing = False
             st.rerun()
 
