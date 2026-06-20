@@ -344,117 +344,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ─── Dashboard Controls — Tailwind-inspired cards (visible when sidebar is collapsed) ───
-st.markdown("""
-<style>
-.tw-card {
-    background: #15181f;
-    border: 1px solid #2a2e3a;
-    border-radius: 12px;
-    padding: 1rem;
-    height: 100%;
-}
-.tw-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.6rem;
-    color: #f0f2f5;
-}
-.tw-muted { color: #8891a0; font-size: 0.8rem; }
-.tw-green { color: #22b573; }
-.tw-red { color: #ef4444; }
-</style>
-""", unsafe_allow_html=True)
-
-dash_c1, dash_c2, dash_c3 = st.columns([1.6, 1, 1])
-
-with dash_c1:
-    st.markdown('<div class="tw-card">', unsafe_allow_html=True)
-    st.markdown('<div class="tw-title">📁 Portfolio</div>', unsafe_allow_html=True)
-    ac1, ac2, ac3 = st.columns([2, 1, 1])
-    with ac1:
-        mp_t = st.text_input("Ticker", placeholder="RELIANCE", label_visibility="collapsed",
-                             max_chars=15, key="mp_add")
-    with ac2:
-        mp_ep = st.text_input("ATP", placeholder="₹2,800", label_visibility="collapsed",
-                              max_chars=10, key="mp_ep")
-    with ac3:
-        if st.button("➕", use_container_width=True, key="mp_add_btn") and mp_t.strip():
-            t = mp_t.strip().upper().replace(".NS", "")
-            if t.isalnum() and t not in portfolio:
-                portfolio.append(t)
-                save_portfolio(portfolio)
-                if mp_ep.strip():
-                    try:
-                        save_entry_price(t, float(mp_ep.strip().replace(",", "")))
-                    except ValueError:
-                        pass
-                st.rerun()
-    if portfolio:
-        heat_html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin:4px 0;">'
-        for t in portfolio:
-            sd = st.session_state.get("_stock_price_cache", {}).get(t, {})
-            chg = sd.get("change_pct") or 0
-            c = "#22c55e" if chg >= 0 else "#ef4444"
-            heat_html += f'<div style="background:#1a1a2e;border-radius:5px;padding:3px 6px;text-align:center;font-size:0.65rem;"><div style="font-weight:600;color:#e4e6eb;">{t}</div><div style="color:{c};">{chg:+.1f}%</div></div>'
-        heat_html += "</div>"
-        st.markdown(heat_html, unsafe_allow_html=True)
-        for t in portfolio:
-            ca, cb = st.columns([3, 1])
-            ep = entry_prices.get(t)
-            sd2 = st.session_state.get("_stock_price_cache", {}).get(t)
-            cp = sd2.get("current_price") if sd2 else None
-            parts = [f"**{t}**"]
-            if _is_valid_num(cp):
-                parts.append(f"₹{cp:,.2f}")
-            if ep and _is_valid_num(cp):
-                pnl = calc_portfolio_pnl(ep, cp)
-                sgn = "+" if pnl["pnl_pct"] >= 0 else ""
-                parts.append(f"{sgn}{pnl['pnl_pct']:.1f}%  ATP: ₹{ep:,.0f}")
-            elif ep:
-                parts.append(f"ATP: ₹{ep:,.0f}")
-            ca.markdown(" · ".join(parts), help=f"P&L for {t}")
-            if cb.button("✕", key=f"mp_del_{t}"):
-                portfolio.remove(t)
-                save_portfolio(portfolio)
-                st.rerun()
-        st.button("📡 Run Briefing", type="primary", use_container_width=True, key="mp_briefing")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with dash_c2:
-    st.markdown('<div class="tw-card">', unsafe_allow_html=True)
-    st.markdown('<div class="tw-title">🌍 Market Context</div>', unsafe_allow_html=True)
-    if "vix" not in st.session_state:
-        st.session_state.vix = get_vix()
-    vd = st.session_state.vix
-    if vd and vd.get("vix") is not None:
-        mc1, mc2 = st.columns(2)
-        mc1.metric("India VIX", f"{vd['vix']:.1f}", f"{'⬆️' if vd['change']>=0 else '⬇️'} {vd['change']:+.2f}")
-        mc2.metric("Volatility", vd["level"])
-        if vd["level"] == "High":
-            st.caption("⚠️ High VIX — sharp reversals likely")
-        elif vd["level"] == "Low":
-            st.caption("✅ Low VIX — trending markets favored")
-    else:
-        st.caption("VIX unavailable")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with dash_c3:
-    st.markdown('<div class="tw-card">', unsafe_allow_html=True)
-    st.markdown('<div class="tw-title">📊 Track Record</div>', unsafe_allow_html=True)
-    recs = load_track_record()
-    voted = [r for r in recs if r.get("vote") is not None]
-    if voted:
-        acc = sum(1 for r in voted if r["vote"] is True)
-        st.metric("Accuracy", f"{acc/len(voted)*100:.0f}%", help=f"{acc}/{len(voted)} correct")
-    st.metric("Total Scans", len(recs))
-    st.caption("👍 = signal right, 👎 = wrong")
-    st.markdown('<div class="tw-muted" style="margin-top:6px;"><a href="mailto:darkcharon3301@gmail.com" style="color:#22b573;text-decoration:none;">Feature requests →</a></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
 # ─── Ticker Input — single text field + search button ───
 # ─── Shareable snapshot link: ?ticker=X bypasses normal input ───
 query_ticker = st.query_params.get("ticker", "")
@@ -624,6 +513,84 @@ if final_ticker and final_ticker != "":
             f'\U0001f517 Share snapshot</a></div>',
             unsafe_allow_html=True,
         )
+
+        # ─── Bottom section: Portfolio + Track Record cards (after analysis results) ───
+        # Lucide SVG icons (inline, no emojis)
+        _FOLDER = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        _SCALE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>'
+        _PLUS = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+        _X = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+        _ZAP = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'
+        _CHECK = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        _BAR3 = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>'
+        _MAIL = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
+        _ARR = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>'
+        _DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>'
+
+        st.markdown("""<style>
+.btm-card{background:#15181f;border:1px solid #2a2e3a;border-radius:12px;padding:1rem;height:100%}
+.btm-title{display:flex;align-items:center;gap:0.4rem;font-size:0.9rem;font-weight:600;color:#f0f2f5;margin-bottom:0.6rem}
+.btm-muted{color:#8891a0;font-size:0.75rem;line-height:1.4}
+.btm-link{color:#22b573;text-decoration:none}
+</style>""", unsafe_allow_html=True)
+
+        bc1, bc2 = st.columns([1.6, 1])
+        eprices = load_entry_prices()
+
+        with bc1:
+            st.markdown(f'<div class="btm-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="btm-title">{_FOLDER} Portfolio</div>', unsafe_allow_html=True)
+            ia, ib, ic = st.columns([2, 1, 1])
+            with ia:
+                _pt = st.text_input("Ticker", placeholder="RELIANCE", label_visibility="collapsed", max_chars=15, key="btm_add")
+            with ib:
+                _pe = st.text_input("ATP", placeholder="₹2,800", label_visibility="collapsed", max_chars=10, key="btm_ep")
+            with ic:
+                if st.button(_PLUS, use_container_width=True, key="btm_add_btn") and _pt.strip():
+                    t = _pt.strip().upper().replace(".NS", "")
+                    if t.isalnum() and t not in portfolio:
+                        portfolio.append(t); save_portfolio(portfolio)
+                        if _pe.strip():
+                            try: save_entry_price(t, float(_pe.strip().replace(",", "")))
+                            except ValueError: pass
+                        st.rerun()
+            if portfolio:
+                hh = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin:4px 0;">'
+                for t in portfolio:
+                    sd = st.session_state.get("_stock_price_cache", {}).get(t, {})
+                    chg = sd.get("change_pct") or 0
+                    cc = "#22c55e" if chg >= 0 else "#ef4444"
+                    hh += f'<div style="background:#1a1a2e;border-radius:5px;padding:2px 6px;text-align:center;font-size:0.65rem;"><div style="font-weight:600;color:#e4e6eb;">{t}</div><div style="color:{cc};">{chg:+.1f}%</div></div>'
+                hh += "</div>"
+                st.markdown(hh, unsafe_allow_html=True)
+                for t in portfolio:
+                    ca, cb = st.columns([3, 1])
+                    ep = eprices.get(t)
+                    sd2 = st.session_state.get("_stock_price_cache", {}).get(t)
+                    cp = sd2.get("current_price") if sd2 else None
+                    pts = [f"**{t}**"]
+                    if _is_valid_num(cp): pts.append(f"₹{cp:,.2f}")
+                    if ep and _is_valid_num(cp):
+                        pnl = calc_portfolio_pnl(ep, cp)
+                        sn = "+" if pnl["pnl_pct"] >= 0 else ""
+                        pts.append(f"{sn}{pnl['pnl_pct']:.1f}%")
+                    ca.markdown(" · ".join(pts), help=f"P&L for {t}")
+                    if cb.button(_X, key=f"btm_del_{t}"):
+                        portfolio.remove(t); save_portfolio(portfolio); st.rerun()
+                st.button(f"{_ZAP} Briefing", type="primary", use_container_width=True, key="btm_brief", help="Run portfolio briefing")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with bc2:
+            st.markdown(f'<div class="btm-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="btm-title">{_BAR3} Track Record</div>', unsafe_allow_html=True)
+            recs = load_track_record()
+            voted = [r for r in recs if r.get("vote") is not None]
+            if voted:
+                acc = sum(1 for r in voted if r["vote"] is True)
+                st.metric("Accuracy", f"{acc/len(voted)*100:.0f}%", help=f"{acc}/{len(voted)} correct")
+            st.metric("Total Scans", len(recs))
+            st.markdown(f'<div class="btm-muted">{_CHECK} right · {_DOWN} wrong · <a href="mailto:darkcharon3301@gmail.com" class="btm-link">{_MAIL} feedback</a></div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
         # ─── Historical Sentiment Archive ───
         history = load_sentiment_history(final_ticker)
