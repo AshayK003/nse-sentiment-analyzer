@@ -14,6 +14,11 @@
 |<p align="center">
 |  <b>🇮🇳 India-focused</b> &nbsp;·&nbsp; <b>🆓 Zero API costs</b> &nbsp;·&nbsp; <b>🔌 No API keys required</b> &nbsp;·&nbsp; <b>📡 Live data</b>
 |</p>
+|
+|<p align="center">
+|<img alt="Pytest" src="https://img.shields.io/badge/pytest-135%20passing-22b573" />
+|<img alt="License: AGPL v3" src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" />
+|</p>
 
 </div>
 
