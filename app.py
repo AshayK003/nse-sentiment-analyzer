@@ -11,6 +11,14 @@ import time
 import pandas as pd
 from datetime import datetime
 
+# ─── Contact / feature request info (single source of truth) ───
+CONTACT = {
+    "email": "darkcharon3301@gmail.com",
+    "x_url": "https://x.com/sentinelcipher",
+    "x_handle": "@sentinelcipher",
+    "chai_url": "https://chai4.me/darkcharon3301",
+}
+
 from data_fetcher import (
     NSE_TICKERS, get_stock_info, search_news,
 )
@@ -422,12 +430,12 @@ with st.sidebar:
         st.caption("Changelog coming soon")
     st.markdown('</details>', unsafe_allow_html=True)
     st.markdown(
-        '<div style="text-align:center;font-size:0.8rem;color:#6b7280;">'
-        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>'
-        ' Feature requests: <a href="mailto:darkcharon3301@gmail.com" '
-        'style="color:#22b573;text-decoration:none;">darkcharon3301@gmail.com</a> · '
-        '<a href="https://x.com/sentinelcipher" '
-        'style="color:#22b573;text-decoration:none;">@sentinelcipher</a></div>',
+        f'<div style="text-align:center;font-size:0.8rem;color:#6b7280;">'
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>'
+        f' Feature requests: <a href="mailto:{CONTACT["email"]}" '
+        f'style="color:#22b573;text-decoration:none;">{CONTACT["email"]}</a> · '
+        f'<a href="{CONTACT["x_url"]}" '
+        f'style="color:#22b573;text-decoration:none;">{CONTACT["x_handle"]}</a></div>',
         unsafe_allow_html=True,
     )
 
@@ -455,7 +463,7 @@ st.markdown(f"""
 query_ticker = st.query_params.get("ticker", "")
 if query_ticker:
     query_ticker = query_ticker.strip().upper().replace(".NS", "")
-    if query_ticker:
+    if query_ticker and re.match(r'^[A-Z0-9&-]+$', query_ticker):
         final_ticker = query_ticker
         company_name = NSE_TICKERS.get(final_ticker, final_ticker)
         with st.spinner(f"Loading analysis for {final_ticker}..."):
@@ -841,7 +849,7 @@ with st.expander("🔒 Privacy & Data Policy"):
     - No data is sent to external servers beyond the API calls listed above.
     - We do not sell, share, or monetize your data.
 
-    **Contact:** [@sentinelcipher on X/Twitter](https://x.com/sentinelcipher)
+    **Contact:** [{CONTACT["x_handle"]} on X/Twitter]({CONTACT["x_url"]})
     """)
     st.caption("Last updated: June 2026")
 
@@ -861,7 +869,7 @@ st.markdown("""
 
 **Use at your own risk.** By using this tool, you acknowledge that you understand and accept these terms. If you do not agree, do not use the tool.
 
-**Contact:** [@sentinelcipher on X/Twitter](https://x.com/sentinelcipher) | darkcharon3301@gmail.com
+**Contact:** [{CONTACT["x_handle"]} on X/Twitter]({CONTACT["x_url"]}) | {CONTACT["email"]}
 """)
 st.caption("Last updated: June 2026")
 st.markdown('</details>', unsafe_allow_html=True)
@@ -870,11 +878,11 @@ st.markdown('</details>', unsafe_allow_html=True)
 st.markdown("---")
 st.caption("Built with Streamlit + yfinance + VADER · FinBERT · Bayesian Calibration · Financial Lexicon | Data from Yahoo Finance + RSS News")
 st.markdown(
-    '<div style="text-align:center;font-size:0.85rem;color:#6b7280;margin-bottom:0.5rem;">'
-    'Feature requests: <a href="mailto:darkcharon3301@gmail.com" '
-    'style="color:#22b573;text-decoration:none;">darkcharon3301@gmail.com</a> · '
-    '<a href="https://x.com/sentinelcipher" '
-    'style="color:#22b573;text-decoration:none;">@sentinelcipher</a></div>',
+    f'<div style="text-align:center;font-size:0.85rem;color:#6b7280;margin-bottom:0.5rem;">'
+    f'Feature requests: <a href="mailto:{CONTACT["email"]}" '
+    f'style="color:#22b573;text-decoration:none;">{CONTACT["email"]}</a> · '
+    f'<a href="{CONTACT["x_url"]}" '
+    f'style="color:#22b573;text-decoration:none;">{CONTACT["x_handle"]}</a></div>',
     unsafe_allow_html=True,
 )
 st.markdown(
@@ -891,7 +899,7 @@ st.markdown(
 )
 st.markdown(
     '<div style="display:flex;justify-content:center;margin-top:12px">'
-    '<a href="https://chai4.me/darkcharon3301" target="_blank" rel="noopener noreferrer" '
+    f'<a href="{CONTACT["chai_url"]}" target="_blank" rel="noopener noreferrer" '
     'style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;'
     'background:#ffffff;padding:8px 32px;border-radius:16px;text-decoration:none;'
     'border:1px solid #e5e7eb;'

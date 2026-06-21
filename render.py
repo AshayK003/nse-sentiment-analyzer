@@ -66,7 +66,7 @@ def h(s):
     """Escape a string for safe HTML output (content or attribute)."""
     if s is None:
         return ""
-    return html.escape(str(s), quote=True)
+    return html.escape(str(s), quote=True).replace("'", "&#39;")
 
 
 def _is_valid_num(val):

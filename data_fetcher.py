@@ -12,6 +12,7 @@ import streamlit as st
 import re
 import random
 import math
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from duckduckgo_search import DDGS
@@ -21,24 +22,35 @@ from persistence import cache_get, cache_set
 # ─── Global rate-limit cooldown ───
 # When yfinance returns 429, all yfinance calls skip for this duration
 # to let the rate-limit window clear.
+# Thread-safe via _rate_limit_lock (briefing mode runs parallel workers).
 _RATE_LIMITED_UNTIL = 0.0
 _RATE_LIMIT_COOLDOWN = 45  # seconds
+_rate_limit_lock = threading.Lock()
+
+# Separate cooldown for DuckDuckGo (known to return 202/captcha under load)
+_DDGS_RATE_LIMITED_UNTIL = 0.0
+_DDGS_COOLDOWN = 60  # seconds
 
 
 def _check_rate_limited():
     """Return True if we're in a global rate-limit cooldown.
-    Resets automatically after COOLDOWN seconds."""
-    global _RATE_LIMITED_UNTIL
-    now = time.time()
-    if now < _RATE_LIMITED_UNTIL:
-        return True
-    return False
+    Resets automatically after COOLDOWN seconds. Thread-safe."""
+    with _rate_limit_lock:
+        return time.time() < _RATE_LIMITED_UNTIL
 
 
 def _mark_rate_limited():
-    """Set global cooldown. All yfinance calls skip for COOLDOWN seconds."""
+    """Set global cooldown. All yfinance calls skip for COOLDOWN seconds.
+    Thread-safe — overlapping calls just extend the window slightly."""
     global _RATE_LIMITED_UNTIL
-    _RATE_LIMITED_UNTIL = time.time() + _RATE_LIMIT_COOLDOWN
+    with _rate_limit_lock:
+        _RATE_LIMITED_UNTIL = time.time() + _RATE_LIMIT_COOLDOWN
+
+
+def _mark_ddgs_rate_limited():
+    """Set DDGS cooldown. Skips DuckDuckGo fallback for _DDGS_COOLDOWN seconds."""
+    global _DDGS_RATE_LIMITED_UNTIL
+    _DDGS_RATE_LIMITED_UNTIL = time.time() + _DDGS_COOLDOWN
 
 
 # ─── yfinance: set browser User-Agent to avoid 429 rate limiting ───
@@ -607,10 +619,14 @@ def get_stock_info(ticker):
     def _retry_fetch(max_attempts=3, base_wait=1, backoff=2):
         """Generator that yields (attempt_num, wait_seconds) for retry loops.
         Uses exponential backoff with full jitter (AWS retry style).
+        If _check_rate_limited() is True, skips sleep and yields immediately.
         """
         for attempt in range(max_attempts):
             yield attempt
             if attempt < max_attempts - 1:
+                # If we're in a global cooldown, skip the sleep and try again
+                if _check_rate_limited():
+                    continue
                 sleep = base_wait * (backoff ** attempt)
                 jitter = sleep * 0.5 * random.random()
                 time.sleep(sleep + jitter)
@@ -817,7 +833,7 @@ def search_news(ticker, company_name, max_results=10):
         if url is None:
             continue
         try:
-            feed = feedparser.parse(url)
+            feed = feedparser.parse(url, timeout=10)
             for entry in feed.entries[:5]:
                 link = entry.get("link", "")
                 if link and link not in seen_urls:
@@ -839,7 +855,7 @@ def search_news(ticker, company_name, max_results=10):
         label = SOURCE_LABELS.get(source_name.lower().replace("_", " "), source_name)
         items = []
         try:
-            feed = feedparser.parse(url)
+            feed = feedparser.parse(url, timeout=10)
             for entry in feed.entries[:7]:
                 link = entry.get("link", "")
                 title = entry.get("title", "")
@@ -867,8 +883,8 @@ def search_news(ticker, company_name, max_results=10):
                     all_results.append(item)
                     source_stats[label] = source_stats.get(label, 0) + 1
 
-    # Fallback: DuckDuckGo when RSS returns little
-    if len(all_results) < 3:
+    # Fallback: DuckDuckGo when RSS returns little — skip if DDGS rate-limited
+    if len(all_results) < 3 and time.time() >= _DDGS_RATE_LIMITED_UNTIL:
         try:
             with DDGS() as ddgs:
                 for query in [f"{ticker} NSE", f"{company_name} stock"]:
@@ -897,7 +913,7 @@ def search_news(ticker, company_name, max_results=10):
                     if len(all_results) >= max_results:
                         break
         except Exception:
-            pass
+            _mark_ddgs_rate_limited()
 
     all_results.sort(key=lambda x: x["date"], reverse=True)
     if all_results:

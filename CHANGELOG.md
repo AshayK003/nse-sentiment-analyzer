@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.4.1] — 2026-06-21
+
+### Security
+- **HTML escaping extended** — `h()` now escapes single quotes (`'` → `&#39;`) in all rendered output. Prevents XSS via ticker names in shareable `?ticker=` links.
+- **Ticker query param validation** — `?ticker=` URL parameter is now validated against `^[A-Z0-9&-]+$` before any API call. Invalid tickers show a warning instead of triggering yfinance lookups.
+
+### Fixed
+- **RSS feed timeout** — `feedparser.parse()` now uses `timeout=10` to prevent a single slow RSS source from hanging the entire analysis pipeline indefinitely.
+- **DuckDuckGo rate-limit cooldown** — Separate 60s cooldown added for DDGS fallback. If DDGS returns a captcha/error page, all subsequent DDGS calls skip for 60s.
+- **Thread-safe rate-limit cooldown** — `_RATE_LIMITED_UNTIL` is now protected by `threading.Lock`, preventing races when briefing mode runs 5 parallel workers.
+- **Retry skips sleep during cooldown** — If yfinance calls enter a global rate-limit cooldown during retry backoff, the sleep is skipped so retries happen faster instead of burning time.
+
+### Changed
+- **Contact info consolidated** — Email, X handle, and Chai4Me URL are now in a single `CONTACT` dict at the top of `app.py`. All 5 references (sidebar, footer, privacy policy, disclaimer, Chai4Me button) draw from it.
+
 ## [2.4.0] — 2026-06-21
 
 ### Added
