@@ -677,8 +677,7 @@ if final_ticker and final_ticker != "":
         eprices = load_entry_prices()
 
         with bc1:
-            st.markdown(f'<div class="btm-card">', unsafe_allow_html=True)
-            st.markdown(f'<div class="btm-title">{_FOLDER} Portfolio</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="btm-card"><div class="btm-title">{_FOLDER} Portfolio</div>', unsafe_allow_html=True)
             # ─── Add Stock form ───
             ac1, ac2, ac3 = st.columns([2, 1, 0.6])
             with ac1:
@@ -712,8 +711,7 @@ if final_ticker and final_ticker != "":
             st.markdown('</div>', unsafe_allow_html=True)
 
         with bc2:
-            st.markdown(f'<div class="btm-card">', unsafe_allow_html=True)
-            st.markdown(f'<div class="btm-title">{_BAR} Track Record</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="btm-card"><div class="btm-title">{_BAR} Track Record</div>', unsafe_allow_html=True)
             recs = load_track_record()
             voted = [r for r in recs if r.get("vote") is not None]
             if voted:
