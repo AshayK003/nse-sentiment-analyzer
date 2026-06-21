@@ -84,6 +84,68 @@ FINANCIAL_BOOSTERS = {
     "profit booking": -0.5,
     "accumulation": 1.0,
     "distribution": -1.0,
+    # ── IPO & capital markets ──
+    "oversubscribed": 1.5,
+    "undersubscribed": -1.5,
+    "listing": 0.5,
+    # ── Banking / NPAs / credit ──
+    "slippage": -1.5,
+    "write-off": -1.5,
+    "write off": -1.5,
+    "provisioning": -0.8,
+    "moratorium": -1.0,
+    "recapitalization": 1.2,
+    "infusion": 1.5,
+    "pledged": -1.0,
+    "unpledged": 1.0,
+    "margin call": -2.0,
+    # ── Fund flows ──
+    "inflow": 1.0,
+    "outflow": -1.0,
+    "buying": 1.0,
+    "selling": -1.0,
+    # ── Results & performance ──
+    "doubled": 1.5,
+    "tripled": 2.0,
+    "multibagger": 1.5,
+    "topline": 0.5,
+    "bottomline": 1.0,
+    "profit warning": -2.0,
+    # ── Market action ──
+    "sell-off": -2.0,
+    "sell off": -2.0,
+    "short covering": 1.5,
+    "short selling": -1.0,
+    "risk-on": 1.0,
+    "risk-off": -1.0,
+    "upper circuit": 1.5,
+    "lower circuit": -2.0,
+    "circuit breaker": -0.5,
+    "bear phase": -1.5,
+    # ── Corporate governance ──
+    "insider trading": -2.5,
+    "front running": -2.0,
+    "mismanagement": -2.0,
+    "compliance": 0.5,
+    "scrutiny": -1.0,
+    # ── Corporate action ──
+    "buyout": 1.0,
+    "merger": 0.5,
+    "acquisition": 0.5,
+    "delisting": -0.5,
+    "open offer": 0.5,
+    # ── Macro & economy ──
+    "depreciation": -1.0,
+    "appreciation": 1.0,
+    "deficit": -1.0,
+    "GDP growth": 1.0,
+    # ── More Hinglish ──
+    "gire": -1.5,
+    "giri": -1.5,
+    "chade": 1.5,
+    "chadi": 1.5,
+    "tej": 1.0,
+    "mand": -1.0,
 }
 
 # ─── Source weights (0.0–1.0) ───
