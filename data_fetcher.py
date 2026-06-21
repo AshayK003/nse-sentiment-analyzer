@@ -833,7 +833,10 @@ def search_news(ticker, company_name, max_results=10):
         if url is None:
             continue
         try:
-            feed = feedparser.parse(url, timeout=10)
+            try:
+                feed = feedparser.parse(url, timeout=10)
+            except TypeError:
+                feed = feedparser.parse(url)
             for entry in feed.entries[:5]:
                 link = entry.get("link", "")
                 if link and link not in seen_urls:
@@ -855,7 +858,10 @@ def search_news(ticker, company_name, max_results=10):
         label = SOURCE_LABELS.get(source_name.lower().replace("_", " "), source_name)
         items = []
         try:
-            feed = feedparser.parse(url, timeout=10)
+            try:
+                feed = feedparser.parse(url, timeout=10)
+            except TypeError:
+                feed = feedparser.parse(url)
             for entry in feed.entries[:7]:
                 link = entry.get("link", "")
                 title = entry.get("title", "")
@@ -918,6 +924,8 @@ def search_news(ticker, company_name, max_results=10):
     all_results.sort(key=lambda x: x["date"], reverse=True)
     if all_results:
         cache_set(f"news_{ticker}", (all_results, source_stats))
-    if not all_results:
+    else:
+        # Cache empty results briefly to avoid hammering feeds on every search
+        cache_set(f"news_{ticker}", ([], source_stats), ttl=60)
         st.info("ℹ️ News feed unavailable. Showing price data only.")
     return all_results[:max_results], source_stats
