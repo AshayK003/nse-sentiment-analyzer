@@ -802,7 +802,7 @@ elif st.session_state.get("run_briefing"):
 
 else:
     # ─── Empty state: guided launchpad ───
-    st.markdown("""
+    st.markdown(f"""
     <div style="text-align:center;padding:3rem 1rem 1rem">
         <div style="font-size:1.5rem;font-weight:700;color:#f0f2f5;margin-bottom:0.5rem">
             Enter a ticker to begin
@@ -835,7 +835,7 @@ else:
 
 # ─── PRIVACY POLICY ───
 with st.expander("🔒 Privacy & Data Policy"):
-    st.markdown("""
+    st.markdown(f"""
     **What we collect:**
     - Ticker symbols you search (stored locally in your browser for track record)
     - No login, email, or personal information is collected
@@ -856,7 +856,7 @@ with st.expander("🔒 Privacy & Data Policy"):
 # ─── DISCLAIMER ───
 _ALERT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
 st.markdown(f'<details class="hermes-expander"><summary>{_CARET}{_ALERT_SVG} Disclaimer</summary>', unsafe_allow_html=True)
-st.markdown("""
+st.markdown(f"""
 **Not financial advice.** This tool provides data-driven sentiment analysis and technical indicators for educational and informational purposes only. Nothing on this platform constitutes investment advice, a recommendation, or a solicitation to buy or sell securities.
 
 **No SEBI registration.** The creator is not a SEBI-registered investment advisor. All trading and investment decisions are solely your responsibility.
