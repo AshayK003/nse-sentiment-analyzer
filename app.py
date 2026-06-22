@@ -724,6 +724,12 @@ ticker_text = ticker_input.strip().upper().replace(".NS", "")
 quick_ticker = st.session_state.pop("quick_ticker", "")
 final_ticker = quick_ticker or ticker_text or st.session_state.pop("manual_search", "")
 
+# Persist final_ticker so portfolio add/delete reruns don't drop to empty state
+if final_ticker:
+    st.session_state["_active_ticker"] = final_ticker
+elif "_active_ticker" in st.session_state:
+    final_ticker = st.session_state["_active_ticker"]
+
 if final_ticker and final_ticker != "":
     final_ticker = final_ticker.replace(".NS", "")
     company_name = NSE_TICKERS.get(final_ticker, final_ticker)
