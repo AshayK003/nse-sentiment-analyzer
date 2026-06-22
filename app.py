@@ -549,49 +549,35 @@ def _render_bottom_cards(portfolio, final_ticker):
 
     if fiidii_hist:
         _INST = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
-        df_fii = pd.DataFrame(fiidii_hist)
-        df_fii["date"] = pd.to_datetime(df_fii["date"], errors="coerce")
-        df_fii = df_fii.dropna(subset=["date"]).sort_values("date")
-        if len(df_fii) >= 2:
-            # Line chart with both FII and DII
-            chart_data = df_fii.set_index("date")[["fii_net", "dii_net"]].rename(
-                columns={"fii_net": "FII/FPI", "dii_net": "DII"}
-            )
-            st.markdown(
-                f'<div style="background:rgba(19,21,26,0.85);backdrop-filter:blur(20px);'
-                f'-webkit-backdrop-filter:blur(20px);border:1px solid rgba(30,32,40,0.8);'
-                f'border-radius:12px;padding:1.25rem;margin-bottom:1rem;'
-                f'box-shadow:0 1px 3px rgba(0,0,0,0.2)">'
-                f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;'
-                f'font-weight:600;color:#f0f2f5;margin-bottom:0.75rem">{_INST} Institutional Flow</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            st.line_chart(chart_data, use_container_width=True)
-        elif fiidii_hist:
-            # Single day — show as metric cards
-            latest = fiidii_hist[-1]
-            fii_val = latest.get("fii_net", 0)
-            dii_val = latest.get("dii_net", 0)
-            fii_color = "#22c55e" if fii_val >= 0 else "#ef4444"
-            dii_color = "#22c55e" if dii_val >= 0 else "#ef4444"
-            st.markdown(
-                f'<div style="background:rgba(19,21,26,0.85);backdrop-filter:blur(20px);'
-                f'-webkit-backdrop-filter:blur(20px);border:1px solid rgba(30,32,40,0.8);'
-                f'border-radius:12px;padding:1.25rem;margin-bottom:1rem;'
-                f'box-shadow:0 1px 3px rgba(0,0,0,0.2)">'
-                f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;'
-                f'font-weight:600;color:#f0f2f5;margin-bottom:0.75rem">{_INST} Institutional Flow</div>'
-                f'<div style="display:flex;gap:1.5rem">'
-                f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:{fii_color}">'
-                f'\u20b9{fii_val:+,.0f} Cr</div>'
-                f'<div style="font-size:0.7rem;color:#8891a0">FII/FPI</div></div>'
-                f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:{dii_color}">'
-                f'\u20b9{dii_val:+,.0f} Cr</div>'
-                f'<div style="font-size:0.7rem;color:#8891a0">DII</div></div>'
-                f'</div></div>',
-                unsafe_allow_html=True,
-            )
+        latest = fiidii_hist[-1]
+        fii_val = latest.get("fii_net", 0)
+        dii_val = latest.get("dii_net", 0)
+        net_val = fii_val + dii_val
+
+        fii_color = "#22c55e" if fii_val >= 0 else "#ef4444"
+        dii_color = "#22c55e" if dii_val >= 0 else "#ef4444"
+        net_color = "#22c55e" if net_val >= 0 else "#ef4444"
+
+        st.markdown(
+            f'<div style="background:rgba(19,21,26,0.85);backdrop-filter:blur(20px);'
+            f'-webkit-backdrop-filter:blur(20px);border:1px solid rgba(30,32,40,0.8);'
+            f'border-radius:12px;padding:1.25rem;margin-bottom:1rem;'
+            f'box-shadow:0 1px 3px rgba(0,0,0,0.2)">'
+            f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;'
+            f'font-weight:600;color:#f0f2f5;margin-bottom:0.75rem">{_INST} Institutional Flow</div>'
+            f'<div style="display:flex;gap:1.5rem;justify-content:space-around">'
+            f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:{fii_color}">'
+            f'\u20b9{fii_val:+,.0f} Cr</div>'
+            f'<div style="font-size:0.7rem;color:#8891a0">FII/FPI</div></div>'
+            f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:{dii_color}">'
+            f'\u20b9{dii_val:+,.0f} Cr</div>'
+            f'<div style="font-size:0.7rem;color:#8891a0">DII</div></div>'
+            f'<div style="text-align:center;padding:0 0.5rem;border-left:1px solid #2a2e3a"><div style="font-size:1.1rem;font-weight:700;color:{net_color}">'
+            f'\u20b9{net_val:+,.0f} Cr</div>'
+            f'<div style="font-size:0.7rem;color:#8891a0">Net</div></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     # ─── Sentiment History (collapsed by default) ───
     history = load_sentiment_history(final_ticker)
