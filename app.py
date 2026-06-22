@@ -399,92 +399,6 @@ def _render_bottom_cards(portfolio, final_ticker):
                     st.session_state._skip_reanalysis = True
                     st.rerun()
 
-        # Portfolio rows with delete buttons
-        eprices = load_entry_prices()
-        if portfolio:
-            row_parts = []
-            for t in portfolio:
-                ep = eprices.get(t)
-                sd = st.session_state.get("_stock_price_cache", {}).get(t)
-                cp = sd.get("current_price") if sd else None
-
-                c1, c2 = st.columns([6, 0.3])
-                with c1:
-                    display = [f'<span style="font-weight:600;font-size:0.85rem;color:#f0f2f5;min-width:3.5rem">{t}</span>']
-                    if _is_valid_num(cp):
-                        display.append(f'<span style="font-size:0.8rem;color:#c0c5ce">\u20b9{cp:,.2f}</span>')
-                    if ep and _is_valid_num(cp):
-                        pnl = calc_portfolio_pnl(ep, cp)
-                        pnl_color = "#22c55e" if pnl["pnl_pct"] >= 0 else "#ef4444"
-                        pnl_sign = "+" if pnl["pnl_pct"] >= 0 else ""
-                        display.append(f'<span style="font-size:0.78rem;font-weight:600;color:{pnl_color}">{pnl_sign}{pnl["pnl_pct"]:.1f}%</span>')
-                        display.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep:,.0f}</span>')
-                    elif ep:
-                        display.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep:,.0f}</span>')
-                    st.markdown(
-                        f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;'
-                        f'border-bottom:1px solid rgba(42,46,58,0.4);line-height:1.3">'
-                        f'{"".join(display)}</div>',
-                        unsafe_allow_html=True,
-                    )
-                with c2:
-                    st.markdown('<div class="pf-del">', unsafe_allow_html=True)
-                    if st.button("\u2715", key=f"btm_del_{t}", help=f"Remove {t}"):
-                        portfolio.remove(t)
-                        save_portfolio(portfolio)
-                        st.session_state._skip_reanalysis = True
-                        st.rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-            # Summary stats (single HTML block)
-            total_invested = sum(ep for ep in eprices.values() if ep)
-            total_current = sum(
-                sd.get("current_price", 0)
-                for t in portfolio
-                if (sd := st.session_state.get("_stock_price_cache", {}).get(t))
-                and _is_valid_num(sd.get("current_price"))
-            )
-            n_with_prices = sum(
-                1 for t in portfolio
-                if st.session_state.get("_stock_price_cache", {}).get(t)
-            )
-            day_chg = sum(
-                sd.get("change_pct", 0) or 0
-                for t in portfolio
-                if (sd := st.session_state.get("_stock_price_cache", {}).get(t))
-            )
-            day_avg = day_chg / n_with_prices if n_with_prices else 0
-            total_pnl = total_current - total_invested if total_invested and total_current else None
-            total_pnl_pct = (total_pnl / total_invested * 100) if total_pnl is not None else None
-
-            sum_items = []
-            if total_invested:
-                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">Invested <span style="font-weight:600;color:#c0c5ce">\u20b9{total_invested:,.0f}</span></span>')
-            if total_current:
-                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">Current <span style="font-weight:600;color:#c0c5ce">\u20b9{total_current:,.0f}</span></span>')
-            if total_pnl_pct is not None:
-                pnl_color = "#22c55e" if total_pnl >= 0 else "#ef4444"
-                pnl_sign = "+" if total_pnl >= 0 else ""
-                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">P&amp;L <span style="font-weight:600;color:{pnl_color}">{pnl_sign}{total_pnl_pct:.1f}%</span></span>')
-            if day_avg:
-                day_color = "#22c55e" if day_avg >= 0 else "#ef4444"
-                day_sign = "+" if day_avg >= 0 else ""
-                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">Day <span style="font-weight:600;color:{day_color}">{day_sign}{day_avg:.1f}%</span></span>')
-
-            if sum_items:
-                st.markdown(
-                    f'<div style="display:flex;gap:1rem;padding:0.5rem 0 0.15rem;'
-                    f'border-top:1px solid #2a2e3a;margin-top:0.3rem;flex-wrap:wrap">'
-                    f'{"".join(sum_items)}</div>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.markdown(
-                '<div style="color:#6b7280;font-size:0.8rem;padding:0.5rem 0">No holdings yet. Add a ticker above.</div>',
-                unsafe_allow_html=True,
-            )
-
-    # ─── Track Record Card ───
     with bc2:
         recs = load_track_record()
         voted = [r for r in recs if r.get("vote") is not None]
@@ -729,8 +643,10 @@ if final_ticker and final_ticker != "":
     company_name = NSE_TICKERS.get(final_ticker, final_ticker)
 
     # Rate limiter: block if too many searches recently
-    if not _check_rate_limit():
-        st.stop()
+    # Skip when _skip_reanalysis is set — no API call will be made (cache hit)
+    if not st.session_state.get("_skip_reanalysis"):
+        if not _check_rate_limit():
+            st.stop()
 
     # ponytail: skip re-analysis when user voted/edited portfolio (instant re-render from cache)
     if (st.session_state.get("_skip_reanalysis")
