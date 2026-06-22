@@ -3,6 +3,7 @@
 ## [2.5.5] — 2026-06-22
 
 ### Fixed
+- **Dashboard content cut off on mobile** — iframe had `scrolling=False`, so if the auto-height script failed to fire (CSP, Streamlit version), content below Source Calibration was inaccessible. Changed to `scrolling=True` as fallback. Also relaxed `.cal-src` min-width on mobile to prevent horizontal overflow.
 - **DuckDuckGo fallback could hang indefinitely** — When RSS feeds returned few results and DuckDuckGo was slow or unresponsive, the news fetcher would block forever. Now wrapped in a 15-second timeout via `ThreadPoolExecutor`; triggers rate limiter on timeout instead of hanging.
 - **Search button breaking on Streamlit updates** — The custom search button used a single DOM selector (`input[placeholder*="RELIANCE"]`) that broke when Streamlit changed its internal DOM structure. Now tries three fallback selectors for resilience.
 - **Thread lock contention between unrelated operations** — Sentiment history saves (CSV) and source accuracy updates (JSON) shared a single lock, blocking each other unnecessarily. Split into two independent locks.

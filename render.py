@@ -970,6 +970,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         .fii-grid {{ grid-template-columns: 1fr; }}
         .sentiment-row {{ grid-template-columns: 1fr; text-align: center; }}
         .card {{ padding: 0.85rem; }}
+        .cal-src {{ min-width: auto; flex-shrink: 0; }}
+        .cal-row {{ gap: 0.35rem; }}
     }}
 
     /* Price chart */

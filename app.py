@@ -661,7 +661,7 @@ if query_ticker:
                 fii_dii_data=fii_data,
                 ohlcv_json=ohlcv_json,
             )
-            st.components.v1.html(html, height=result.get("_height", 3000), scrolling=False)
+            st.components.v1.html(html, height=result.get("_height", 3000), scrolling=True)
         else:
             st.error(f"No data found for **{final_ticker}**")
         st.stop()
@@ -815,7 +815,7 @@ if final_ticker and final_ticker != "":
                              fii_dii_data=fii_data,
                              ohlcv_json=ohlcv_json),
             height=dash_height,
-            scrolling=False,
+            scrolling=True,
         )
 
         # Track record voting (Streamlit buttons outside the iframe)
