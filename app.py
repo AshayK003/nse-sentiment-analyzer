@@ -399,6 +399,102 @@ def _render_bottom_cards(portfolio, final_ticker):
                     st.session_state._skip_reanalysis = True
                     st.rerun()
 
+        # Portfolio rows (static HTML card)
+        eprices = load_entry_prices()
+        if portfolio:
+            row_parts = []
+            for t in portfolio:
+                ep = eprices.get(t)
+                sd = st.session_state.get("_stock_price_cache", {}).get(t)
+                cp = sd.get("current_price") if sd else None
+
+                ticker_html = f'<span style="font-weight:600;font-size:0.85rem;color:#f0f2f5;min-width:3.5rem">{t}</span>'
+                parts = [ticker_html]
+
+                if _is_valid_num(cp):
+                    parts.append(f'<span style="font-size:0.8rem;color:#c0c5ce">\u20b9{cp:,.2f}</span>')
+
+                if ep and _is_valid_num(cp):
+                    pnl = calc_portfolio_pnl(ep, cp)
+                    pnl_color = "#22c55e" if pnl["pnl_pct"] >= 0 else "#ef4444"
+                    pnl_sign = "+" if pnl["pnl_pct"] >= 0 else ""
+                    parts.append(f'<span style="font-size:0.78rem;font-weight:600;color:{pnl_color}">{pnl_sign}{pnl["pnl_pct"]:.1f}%</span>')
+                    parts.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep:,.0f}</span>')
+                elif ep:
+                    parts.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep:,.0f}</span>')
+
+                row_parts.append(
+                    f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;'
+                    f'border-bottom:1px solid rgba(42,46,58,0.4);line-height:1.3">'
+                    f'{"".join(parts)}</div>'
+                )
+
+            # Summary stats
+            total_invested = sum(ep for ep in eprices.values() if ep)
+            total_current = sum(
+                sd.get("current_price", 0)
+                for t in portfolio
+                if (sd := st.session_state.get("_stock_price_cache", {}).get(t))
+                and _is_valid_num(sd.get("current_price"))
+            )
+            n_with_prices = sum(
+                1 for t in portfolio
+                if st.session_state.get("_stock_price_cache", {}).get(t)
+            )
+            day_chg = sum(
+                sd.get("change_pct", 0) or 0
+                for t in portfolio
+                if (sd := st.session_state.get("_stock_price_cache", {}).get(t))
+            )
+            day_avg = day_chg / n_with_prices if n_with_prices else 0
+            total_pnl = total_current - total_invested if total_invested and total_current else None
+            total_pnl_pct = (total_pnl / total_invested * 100) if total_pnl is not None else None
+
+            sum_items = []
+            if total_invested:
+                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">Invested <span style="font-weight:600;color:#c0c5ce">\u20b9{total_invested:,.0f}</span></span>')
+            if total_current:
+                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">Current <span style="font-weight:600;color:#c0c5ce">\u20b9{total_current:,.0f}</span></span>')
+            if total_pnl_pct is not None:
+                pnl_color = "#22c55e" if total_pnl >= 0 else "#ef4444"
+                pnl_sign = "+" if total_pnl >= 0 else ""
+                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">P&amp;L <span style="font-weight:600;color:{pnl_color}">{pnl_sign}{total_pnl_pct:.1f}%</span></span>')
+            if day_avg:
+                day_color = "#22c55e" if day_avg >= 0 else "#ef4444"
+                day_sign = "+" if day_avg >= 0 else ""
+                sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">Day <span style="font-weight:600;color:{day_color}">{day_sign}{day_avg:.1f}%</span></span>')
+
+            summary_html = ""
+            if sum_items:
+                summary_html = (
+                    f'<div style="display:flex;gap:1rem;padding:0.5rem 0 0.15rem;'
+                    f'border-top:1px solid #2a2e3a;margin-top:0.3rem;flex-wrap:wrap">'
+                    f'{"".join(sum_items)}</div>'
+                )
+
+            rows_html = "".join(row_parts)
+            card_html = (
+                f'<div style="background:rgba(19,21,26,0.85);backdrop-filter:blur(20px);'
+                f'-webkit-backdrop-filter:blur(20px);border:1px solid rgba(30,32,40,0.8);'
+                f'border-radius:12px;padding:1.25rem;margin-bottom:1rem;'
+                f'box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:border-color 0.2s ease,box-shadow 0.2s ease">'
+                f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;'
+                f'font-weight:600;color:#f0f2f5;margin-bottom:0.75rem">{_FOLDER} Portfolio</div>'
+                f'{rows_html}{summary_html}</div>'
+            )
+        else:
+            card_html = (
+                f'<div style="background:rgba(19,21,26,0.85);backdrop-filter:blur(20px);'
+                f'-webkit-backdrop-filter:blur(20px);border:1px solid rgba(30,32,40,0.8);'
+                f'border-radius:12px;padding:1.25rem;margin-bottom:1rem;'
+                f'box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:border-color 0.2s ease,box-shadow 0.2s ease">'
+                f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;'
+                f'font-weight:600;color:#f0f2f5;margin-bottom:0.75rem">{_FOLDER} Portfolio</div>'
+                f'<div style="color:#6b7280;font-size:0.8rem;padding:0.5rem 0">No holdings yet. Add a ticker above.</div>'
+                f'</div>'
+            )
+        st.markdown(card_html, unsafe_allow_html=True)
+
     with bc2:
         recs = load_track_record()
         voted = [r for r in recs if r.get("vote") is not None]
