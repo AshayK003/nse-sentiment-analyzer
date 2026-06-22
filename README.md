@@ -40,13 +40,13 @@
 Enter any NSE ticker and get a **BULLISH / NEUTRAL / BEARISH** signal backed by:
 
 - **Live market data** — price, change %, volume, PE ratio via Yahoo Finance
-- **Interactive price chart** — 1-year candlestick chart with volume bars and 50-day SMA overlay, powered by TradingView Lightweight Charts. Zoom, pan, crosshair on hover. Zero Python dependencies.
+- **Interactive price chart** — 2-year candlestick chart with volume bars, 50-day SMA, 200-day SMA, and Bollinger Bands (20,2) overlays. Powered by TradingView Lightweight Charts. Zoom, pan, crosshair on hover. Visual legend identifies all overlays. Zero Python dependencies.
 - **Multi-source news sentiment** — RSS feeds from Moneycontrol, Economic Times, LiveMint (Markets + Companies + Industry), NDTV Profit, Google News, with DuckDuckGo fallback
 - **Event-aware scoring** — headlines classified by 19 event types (earnings, order wins, litigation, regulatory approvals, buybacks, etc.) with signed sentiment bias. Correctly scores "SEBI penalty" as negative and "SEBI clears merger" as positive — something VADER alone misses.
 - **SmartScore composite (0–100)** — combines recency-weighted EWMA (36h half-life), event-adjusted sentiment, headline breadth, and news volume into a single calibrated score
 - **Self-calibrating source weights** — each source's confidence weight learns from your 👍/👎 votes via Bayesian Beta-Binomial inference. After ~10–50 votes, weights reflect your actual accuracy experience.
 - **Enhanced VADER + 123-term Indian financial lexicon** — includes Indian banking metrics (NPA, GNPA, NIM, credit growth, slippage, provisioning), profitability shorthand (PAT, EBITDA, ROE, ROCE), IPO/capital market terms (oversubscribed, undersubscribed), fund flow terms (inflow, outflow), Hinglish (tezi, mandi, tej, mand), and general financial context not in vanilla VADER. Optionally swap to FinBERT via `USE_FINBERT=true`.
-- **Technical indicators** — RSI(14), SMA crossover (50/200), MACD from 1-year OHLCV history
+- **Technical indicators** — RSI(14), SMA crossover (50/200), MACD from 2-year OHLCV history
 - **Portfolio mode** — track holdings with P&L, heatmap, volume spike detection, and one-click portfolio briefing
 - **FII/DII institutional flow** — NSE India official FII/FPI and DII data
 - **VWAP + Pivot levels** — intraday fair value and classic support/resistance from yesterday's HLC

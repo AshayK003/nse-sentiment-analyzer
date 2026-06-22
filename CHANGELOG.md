@@ -2,14 +2,22 @@
 
 ## [2.5.4] — 2026-06-22
 
+### Added
+- **Interactive price chart (2Y candlestick + volume)** — TradingView Lightweight Charts integration. 2-year candlestick chart with green/red volume bars, crosshair, zoom/pan. Zero Python dependencies — loads ~40KB JS from CDN.
+- **Chart overlays** — Bollinger Bands (20-period, 2 std dev, purple dashed) and 200-day SMA (gold dashed) computed from cached OHLCV data. 50-day SMA (blue solid) computed in JS. Visual legend below chart title.
+- **Accessibility: focus-visible rings** — Visible focus outlines on all interactive elements for keyboard navigation. WCAG 2.4.7 compliance.
+
 ### Changed
-- **Dashboard layout restructured** — Price Chart moved after Technical Indicators (was between Price and Sentiment). Users now see all key data (price, sentiment, news, indicators) before the chart. Stats (sector, industry, market cap, 52W range) merged into Price Card, eliminating duplicate P/E display. Sentiment Distribution bar inlined into Sentiment Card (was a standalone card).
-- **Technical Indicators grid** — Fixed 5-item grid from 4 columns to 5 columns (MACD no longer wraps to a lonely second row).
-- **Tablet responsive breakpoint** — Added 768px breakpoint for better tablet layouts (TI grid collapses to 3 columns).
-- **Confidence percentage color** — Now matches signal direction (green for bullish, red for bearish, grey for neutral) instead of always green.
+- **Dashboard layout restructured** — Price Chart moved after Technical Indicators (was between Price and Sentiment). Stats (sector, industry, market cap, 52W range) merged into Price Card. Sentiment Distribution bar inlined into Sentiment Card.
+- **Technical Indicators grid** — 5 columns (MACD no longer wraps to a lonely second row).
+- **Tablet responsive breakpoint** — 768px breakpoint for better tablet layouts.
+- **Confidence percentage color** — Matches signal direction (green/red/grey) instead of always green.
+- **Extended price history** — yfinance period changed from 1Y to 2Y for fuller SMA200 coverage and Bollinger Bands.
 
 ### Fixed
-- **Accessibility: focus-visible rings** — Added visible focus outlines on all interactive elements (links, buttons) for keyboard navigation. WCAG 2.4.7 compliance.
+- **Chart not rendering** — CSP `script-src` now includes `https://unpkg.com` alongside nonce. Lightweight Charts CDN was being blocked.
+- **Sector/Industry showing N/A** — Added Phase 2c targeted retry for sector/industry across all suffixes (.NS, .BO, bare). yfinance `.info` is flaky for Indian stocks.
+- **Chart data missing on cache hit** — `get_cached_history()` now falls back to direct yfinance fetch when `_hist_cache` is empty (persistence cache early return skipped `_hist_cache` population).
 
 ## [2.5.3] — 2026-06-22
 
