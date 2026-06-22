@@ -147,9 +147,6 @@ st.markdown("""
         /* Portfolio briefing containers stack well */
         .stContainer .stHorizontalBlock > div {min-width: 0;}
 
-        /* Hide the actual Add button — SVG clickable icon is rendered via markdown */
-        button[key="btm_add_btn"] {position:absolute;opacity:0;width:0;height:0;padding:0;border:none;overflow:hidden;pointer-events:none;}
-
         /* Privacy expander compact */
         .streamlit-expanderContent {font-size: 0.8rem;}
         .streamlit-expanderContent li, .streamlit-expanderContent p {font-size: 0.8rem;}
@@ -417,21 +414,8 @@ def _render_bottom_cards(portfolio, final_ticker):
                                       max_chars=6, key="btm_add_qty",
                                       help="Number of shares held")
         with ac4:
-            # Lucide Plus icon as clickable SVG button
-            _PLUS = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22b573" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>'
-            st.markdown(
-                f'<div onclick="document.querySelector(\'button[key=\\\"btm_add_btn\\\"]\').click()" '
-                f'style="cursor:pointer;display:flex;align-items:center;justify-content:center;'
-                f'height:38px;border:1px solid #22b573;border-radius:8px;'
-                f'transition:background 0.2s" '
-                f'onmouseover="this.style.background=\'rgba(34,181,115,0.1)\'" '
-                f'onmouseout="this.style.background=\'transparent\'" '
-                f'title="Add to portfolio">{_PLUS}</div>',
-                unsafe_allow_html=True,
-            )
-            # Hidden Streamlit button (triggered by SVG click above)
-            if st.button("Add", key="btm_add_btn", help="Add to portfolio",
-                         type="secondary", use_container_width=True) and new_t.strip():
+            if st.button("+", use_container_width=True, key="btm_add_btn",
+                         help="Add to portfolio") and new_t.strip():
                 t = new_t.strip().upper().replace(".NS", "")
                 if not re.match(r'^[A-Z0-9&-]+$', t):
                     st.warning("Invalid ticker format")
