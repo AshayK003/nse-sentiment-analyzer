@@ -22,6 +22,7 @@ TRACK_FILE = DATA_DIR / "track_record.json"
 CACHE_FILE = DATA_DIR / "cache.json"
 HISTORY_FILE = DATA_DIR / "sentiment_history.csv"
 ENTRY_PRICES_FILE = DATA_DIR / "entry_prices.json"
+FIIDII_HISTORY_FILE = DATA_DIR / "fiidii_history.json"
 
 CACHE_TTL = 15 * 60  # 15 minutes
 MAX_CACHE_ENTRIES = 500  # drop oldest entries when exceeding this (prevents unbounded growth under multi-user load)
@@ -301,3 +302,29 @@ def update_source_accuracy(source, was_correct):
         else:
             acc[source]["beta"] += 1
         save_source_accuracy(acc)
+
+
+# ─── FII/DII Daily History ───
+
+def load_fiidii_history():
+    """Return list of {date, fii_net, dii_net} dicts, sorted by date ascending."""
+    return _load_json(FIIDII_HISTORY_FILE, [])
+
+
+def save_fiidii_snapshot(fii_data):
+    """Append today's FII/DII data if not already recorded for this date."""
+    if not fii_data:
+        return
+    history = load_fiidii_history()
+    today = fii_data.get("date", "")
+    # Don't duplicate same date
+    if history and history[-1].get("date") == today:
+        return
+    history.append({
+        "date": today,
+        "fii_net": fii_data.get("fii_net", 0),
+        "dii_net": fii_data.get("dii_net", 0),
+    })
+    # Keep last 90 days
+    history = history[-90:]
+    _save_json(FIIDII_HISTORY_FILE, history)

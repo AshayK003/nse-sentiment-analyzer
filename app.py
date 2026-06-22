@@ -46,7 +46,7 @@ from data_fetcher import (
 from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
 from event_classifier import classify_headline, adjust_with_event
 from indicators import get_technical_indicators
-from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history, history_to_csv, update_source_accuracy, load_entry_prices, save_entry_price, calc_portfolio_pnl
+from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history, history_to_csv, update_source_accuracy, load_entry_prices, save_entry_price, calc_portfolio_pnl, load_fiidii_history, save_fiidii_snapshot
 from render import render_dashboard, _is_valid_num
 from market_data import get_fii_dii_flow
 from aggregate_sentiment import compute_smartscore
@@ -538,31 +538,77 @@ def _render_bottom_cards(portfolio, final_ticker):
             unsafe_allow_html=True,
         )
 
-    # ─── Sentiment History (expander) ───
+    # ─── Institutional Flow Card ───
+    fiidii_hist = load_fiidii_history()
+    if fiidii_hist:
+        _INST = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
+        df_fii = pd.DataFrame(fiidii_hist)
+        df_fii["date"] = pd.to_datetime(df_fii["date"], errors="coerce")
+        df_fii = df_fii.dropna(subset=["date"]).sort_values("date")
+        if len(df_fii) >= 2:
+            # Line chart with both FII and DII
+            chart_data = df_fii.set_index("date")[["fii_net", "dii_net"]].rename(
+                columns={"fii_net": "FII/FPI", "dii_net": "DII"}
+            )
+            st.markdown(
+                f'<div style="background:rgba(19,21,26,0.85);backdrop-filter:blur(20px);'
+                f'-webkit-backdrop-filter:blur(20px);border:1px solid rgba(30,32,40,0.8);'
+                f'border-radius:12px;padding:1.25rem;margin-bottom:1rem;'
+                f'box-shadow:0 1px 3px rgba(0,0,0,0.2)">'
+                f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;'
+                f'font-weight:600;color:#f0f2f5;margin-bottom:0.75rem">{_INST} Institutional Flow</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.line_chart(chart_data, use_container_width=True)
+        elif fiidii_hist:
+            # Single day — show as metric cards
+            latest = fiidii_hist[-1]
+            fii_val = latest.get("fii_net", 0)
+            dii_val = latest.get("dii_net", 0)
+            fii_color = "#22c55e" if fii_val >= 0 else "#ef4444"
+            dii_color = "#22c55e" if dii_val >= 0 else "#ef4444"
+            st.markdown(
+                f'<div style="background:rgba(19,21,26,0.85);backdrop-filter:blur(20px);'
+                f'-webkit-backdrop-filter:blur(20px);border:1px solid rgba(30,32,40,0.8);'
+                f'border-radius:12px;padding:1.25rem;margin-bottom:1rem;'
+                f'box-shadow:0 1px 3px rgba(0,0,0,0.2)">'
+                f'<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;'
+                f'font-weight:600;color:#f0f2f5;margin-bottom:0.75rem">{_INST} Institutional Flow</div>'
+                f'<div style="display:flex;gap:1.5rem">'
+                f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:{fii_color}">'
+                f'\u20b9{fii_val:+,.0f} Cr</div>'
+                f'<div style="font-size:0.7rem;color:#8891a0">FII/FPI</div></div>'
+                f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:{dii_color}">'
+                f'\u20b9{dii_val:+,.0f} Cr</div>'
+                f'<div style="font-size:0.7rem;color:#8891a0">DII</div></div>'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    # ─── Sentiment History (collapsed by default) ───
     history = load_sentiment_history(final_ticker)
     if history:
-        _TREND_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
-        st.markdown(f'<details class="hermes-expander"><summary>{_CARET}{_TREND_UP} Sentiment History</summary>', unsafe_allow_html=True)
-        df = pd.DataFrame(history)
-        if "smartscore" in df.columns:
-            df["smartscore"] = pd.to_numeric(df["smartscore"], errors="coerce")
-            df = df.dropna(subset=["smartscore"])
-            if not df.empty:
-                df = df.copy()
-                df["date"] = pd.to_datetime(df["date"], errors="coerce")
-                df = df.dropna(subset=["date"])
+        with st.expander("Sentiment History", expanded=False):
+            df = pd.DataFrame(history)
+            if "smartscore" in df.columns:
+                df["smartscore"] = pd.to_numeric(df["smartscore"], errors="coerce")
+                df = df.dropna(subset=["smartscore"])
                 if not df.empty:
-                    chart_df = df.set_index("date")[["smartscore"]]
-                    st.line_chart(chart_df, y="smartscore", use_container_width=True)
-        csv_data = history_to_csv(final_ticker, history)
-        st.download_button(
-            label="Export CSV",
-            data=csv_data,
-            file_name=f"{final_ticker}_sentiment_history.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
-        st.markdown('</details>', unsafe_allow_html=True)
+                    df = df.copy()
+                    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                    df = df.dropna(subset=["date"])
+                    if not df.empty:
+                        chart_df = df.set_index("date")[["smartscore"]]
+                        st.line_chart(chart_df, y="smartscore", use_container_width=True)
+            csv_data = history_to_csv(final_ticker, history)
+            st.download_button(
+                label="Export CSV",
+                data=csv_data,
+                file_name=f"{final_ticker}_sentiment_history.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
 
 # ─── Sidebar ───
@@ -686,6 +732,8 @@ if query_ticker:
             result["pivot_levels"] = compute_pivot_levels(_hist)
             records = load_track_record()
             fii_data = get_fii_dii_flow()
+            if fii_data:
+                save_fiidii_snapshot(fii_data)
             ohlcv_json = _ohlcv_to_json(hist_cache)
             html = render_dashboard(
                 result, final_ticker, company_name,
@@ -825,8 +873,10 @@ if final_ticker and final_ticker != "":
         result["pivot_levels"] = compute_pivot_levels(_hist)
         records = load_track_record()
         fii_data = get_fii_dii_flow()
+        if fii_data:
+            save_fiidii_snapshot(fii_data)
 
-        # Render premium HTML dashboard — estimate height dynamically
+        # Render premium HTML dashboard
         # Section heights (desktop):
         #   price(280) + chart(420) + sentiment+smartscore(450) + dist(130) + stats(200)
         #   + techs(290) + track(180) + fiidii(200) + cal(270) + buffer(200)
