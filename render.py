@@ -213,8 +213,7 @@ def _render_pivot_html(pivot_data):
 
 
 def render_dashboard(result, ticker, company_name, technical_indicators=None,
-                     track_record=None, fii_dii_data=None, ohlcv_json=None,
-                     intraday_15m_json=None, intraday_1h_json=None):
+                     track_record=None, fii_dii_data=None, ohlcv_json=None):
     """Return a complete premium HTML dashboard as a string."""
     stock = result["stock_data"]
     news_items = result["news_items"]
@@ -600,15 +599,13 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 (function(){{var o=document.referrer?new URL(document.referrer).origin:'*';function h(){{var d=document.body.scrollHeight;parent.postMessage({{type:'streamlit:setFrameHeight',height:d}},o);}}window.addEventListener('load',h);window.addEventListener('resize',h);}})();
 </script>"""
 
-    # ─── TradingView Lightweight Charts — candlestick + volume + intraday timeframes ───
+    # ─── TradingView Lightweight Charts — candlestick + volume (1Y default) ───
     if ohlcv_json and ohlcv_json != "[]":
         _chart_script = f"""<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" nonce="{_nonce}"></script>
 <script nonce="{_nonce}">
 (function(){{
-  var dailyData = {ohlcv_json};
-  var data15m = {intraday_15m_json or '[]'};
-  var data1h = {intraday_1h_json or '[]'};
-  if (!dailyData || !dailyData.length) return;
+  var data = {ohlcv_json};
+  if (!data || !data.length) return;
   var container = document.getElementById('tvchart');
   if (!container) return;
   var chart = LightweightCharts.createChart(container, {{
@@ -618,114 +615,37 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     grid: {{ vertLines: {{ color: 'rgba(42,46,58,0.4)' }}, horzLines: {{ color: 'rgba(42,46,58,0.4)' }} }},
     crosshair: {{ mode: LightweightCharts.CrosshairMode.Normal }},
     rightPriceScale: {{ borderColor: '#2a2e3a' }},
-    timeScale: {{ borderColor: '#2a2e3a', timeVisible: true, secondsVisible: false }},
+    timeScale: {{ borderColor: '#2a2e3a', timeVisible: false }},
   }});
   var candleSeries = chart.addCandlestickSeries({{
     upColor: '#22b573', downColor: '#f85149',
     borderUpColor: '#22b573', borderDownColor: '#f85149',
     wickUpColor: '#22b573', wickDownColor: '#f85149',
   }});
+  candleSeries.setData(data);
   var volumeSeries = chart.addHistogramSeries({{
     color: 'rgba(34,181,115,0.3)',
     priceFormat: {{ type: 'volume' }},
     priceScaleId: '',
   }});
-  var smaSeries = chart.addLineSeries({{
-    color: 'rgba(96,165,250,0.6)', lineWidth: 1,
-    priceLineVisible: false, lastValueVisible: false,
-  }});
-
-  function resample4h(h1) {{
-    var blocks = [];
-    var cur = null;
-    for (var i = 0; i < h1.length; i++) {{
-      var d = h1[i];
-      var blockIdx = Math.floor(i / 4);
-      if (!cur || blocks.length <= blockIdx) {{
-        cur = {{ time: d.time, open: d.open, high: d.high, low: d.low, close: d.close, volume: d.volume }};
-        blocks.push(cur);
-      }} else {{
-        cur.high = Math.max(cur.high, d.high);
-        cur.low = Math.min(cur.low, d.low);
-        cur.close = d.close;
-        cur.volume += d.volume;
-      }}
-    }}
-    return blocks;
-  }}
-
-  function resampleWeekly(daily) {{
-    var weeks = [];
-    var cur = null;
-    for (var i = 0; i < daily.length; i++) {{
-      var d = daily[i];
-      var dt = new Date(d.time + 'T00:00:00');
-      var wk = dt.getFullYear() + '-W' + String(Math.ceil(((dt - new Date(dt.getFullYear(),0,1)) / 86400000 + dt.getDay()+1) / 7)).padStart(2,'0');
-      if (!cur || cur._wk !== wk) {{
-        if (cur) weeks.push(cur);
-        cur = {{ _wk: wk, time: d.time, open: d.open, high: d.high, low: d.low, close: d.close, volume: d.volume }};
-      }} else {{
-        cur.high = Math.max(cur.high, d.high);
-        cur.low = Math.min(cur.low, d.low);
-        cur.close = d.close;
-        cur.volume += d.volume;
-      }}
-    }}
-    if (cur) weeks.push(cur);
-    return weeks;
-  }}
-
-  function calcSMA(data) {{
-    if (data.length < 50) {{ smaSeries.setData([]); return; }}
+  volumeSeries.setData(data.map(function(d){{
+    return {{ time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(34,181,115,0.3)' : 'rgba(248,81,73,0.3)' }};
+  }}));
+  // 50-day SMA
+  if (data.length >= 50) {{
     var sma = [];
     for (var i = 49; i < data.length; i++) {{
       var sum = 0;
       for (var j = i - 49; j <= i; j++) sum += data[j].close;
       sma.push({{ time: data[i].time, value: sum / 50 }});
     }}
+    var smaSeries = chart.addLineSeries({{
+      color: 'rgba(96,165,250,0.6)', lineWidth: 1,
+      priceLineVisible: false, lastValueVisible: false,
+    }});
     smaSeries.setData(sma);
   }}
-
-  function volColors(d) {{
-    return d.close >= d.open ? 'rgba(34,181,115,0.3)' : 'rgba(248,81,73,0.3)';
-  }}
-
-  function setTimeframe(tf) {{
-    var plotData;
-    if (tf === '15m') {{
-      plotData = data15m.length ? data15m : dailyData.slice(-22);
-    }} else if (tf === '1h') {{
-      plotData = data1h.length ? data1h : dailyData.slice(-66);
-    }} else if (tf === '4h') {{
-      plotData = data1h.length ? resample4h(data1h) : dailyData.slice(-66);
-    }} else if (tf === '1D') {{
-      plotData = dailyData.slice(-22);
-    }} else if (tf === '1W') {{
-      plotData = resampleWeekly(dailyData);
-    }} else {{
-      plotData = dailyData;
-    }}
-    candleSeries.setData(plotData);
-    volumeSeries.setData(plotData.map(function(d){{
-      return {{ time: d.time, value: d.volume, color: volColors(d) }};
-    }}));
-    calcSMA(plotData);
-    chart.timeScale().fitContent();
-  }}
-
-  // Initial render
-  setTimeframe('1Y');
-
-  // Button handlers
-  var btns = document.querySelectorAll('.tf-btn');
-  btns.forEach(function(btn) {{
-    btn.addEventListener('click', function() {{
-      btns.forEach(function(b){{ b.classList.remove('active'); }});
-      btn.classList.add('active');
-      setTimeframe(btn.getAttribute('data-tf'));
-    }});
-  }});
-
+  chart.timeScale().fitContent();
   new ResizeObserver(function(){{ chart.applyOptions({{ width: container.clientWidth }}); }}).observe(container);
 }})();
 </script>"""
@@ -1008,17 +928,6 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         overflow: hidden;
         margin-top: 0.25rem;
     }}
-    .tf-bar {{
-        display: flex; gap: 0.35rem; margin-bottom: 0.5rem;
-    }}
-    .tf-btn {{
-        padding: 0.25rem 0.65rem; border-radius: 6px;
-        font-size: 0.75rem; font-weight: 600; cursor: pointer;
-        background: transparent; color: #8891a0;
-        border: 1px solid #2a2e3a; transition: all 0.15s ease;
-    }}
-    .tf-btn:hover {{ background: rgba(255,255,255,0.06); color: #c0c5ce; }}
-    .tf-btn.active {{ background: rgba(96,165,250,0.15); color: #60a5fa; border-color: rgba(96,165,250,0.35); }}
     @media (max-width: 640px) {{
         .chart-container {{ height: 280px; }}
     }}
@@ -1120,15 +1029,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 
     <!-- ═══ PRICE CHART ═══ -->
     <div class="card">
-        <div class="card-title">{_ICON["bar_chart"]} Price Chart</div>
-        <div class="tf-bar">
-            <button class="tf-btn" data-tf="15m">15m</button>
-            <button class="tf-btn" data-tf="1h">1H</button>
-            <button class="tf-btn" data-tf="4h">4H</button>
-            <button class="tf-btn" data-tf="1D">1D</button>
-            <button class="tf-btn" data-tf="1W">1W</button>
-            <button class="tf-btn active" data-tf="1Y">1Y</button>
-        </div>
+        <div class="card-title">{_ICON["bar_chart"]} Price Chart (1Y)</div>
         <div id="tvchart" class="chart-container"></div>
     </div>
 

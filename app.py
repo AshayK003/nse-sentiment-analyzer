@@ -32,21 +32,7 @@ def _ohlcv_to_json(hist):
     return json.dumps(records)
 
 
-def _intraday_to_json(hist):
-    """Convert intraday OHLCV DataFrame to JSON with Unix timestamp (required by Lightweight Charts for sub-daily)."""
-    if hist is None or hist.empty:
-        return "[]"
-    records = []
-    for idx, row in hist.iterrows():
-        # Lightweight Charts needs Unix seconds for intraday data
-        ts = int(idx.timestamp()) if hasattr(idx, "timestamp") else 0
-        o = float(row.get("Open", 0) or 0)
-        h = float(row.get("High", 0) or 0)
-        l = float(row.get("Low", 0) or 0)
-        c = float(row.get("Close", 0) or 0)
-        v = int(row.get("Volume", 0) or 0)
-        records.append({"time": ts, "open": o, "high": h, "low": l, "close": c, "volume": v})
-    return json.dumps(records)
+
 
 
 # ─── Contact / feature request info
@@ -59,7 +45,6 @@ CONTACT = {
 
 from data_fetcher import (
     NSE_TICKERS, get_stock_info, search_news, get_cached_history,
-    get_intraday_data,
 )
 from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
 from event_classifier import classify_headline, adjust_with_event
@@ -669,17 +654,12 @@ if query_ticker:
             records = load_track_record()
             fii_data = get_fii_dii_flow()
             ohlcv_json = _ohlcv_to_json(hist_cache)
-            intraday = get_intraday_data(final_ticker)
-            intraday_15m_json = _intraday_to_json(intraday.get("15m"))
-            intraday_1h_json = _intraday_to_json(intraday.get("1h"))
             html = render_dashboard(
                 result, final_ticker, company_name,
                 technical_indicators=ti,
                 track_record=records,
                 fii_dii_data=fii_data,
                 ohlcv_json=ohlcv_json,
-                intraday_15m_json=intraday_15m_json,
-                intraday_1h_json=intraday_1h_json,
             )
             st.components.v1.html(html, height=result.get("_height", 3000), scrolling=False)
         else:
@@ -823,17 +803,12 @@ if final_ticker and final_ticker != "":
         n_news = len(news_items)
         dash_height = min(2600 + n_news * 120, 6500)
         ohlcv_json = _ohlcv_to_json(hist_cache)
-        intraday = get_intraday_data(final_ticker)
-        intraday_15m_json = _intraday_to_json(intraday.get("15m"))
-        intraday_1h_json = _intraday_to_json(intraday.get("1h"))
         st.components.v1.html(
             render_dashboard(result, final_ticker, company_name,
                              technical_indicators=ti,
                              track_record=records,
                              fii_dii_data=fii_data,
-                             ohlcv_json=ohlcv_json,
-                             intraday_15m_json=intraday_15m_json,
-                             intraday_1h_json=intraday_1h_json),
+                             ohlcv_json=ohlcv_json),
             height=dash_height,
             scrolling=False,
         )
