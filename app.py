@@ -158,9 +158,28 @@ st.markdown("""
         .btm-title{display:flex;align-items:center;gap:0.4rem;font-size:0.9rem;font-weight:600;color:#f0f2f5;margin-bottom:0.6rem}
         .btm-muted{color:#8891a0;font-size:0.75rem;line-height:1.4}
         .btm-link{color:#22b573;text-decoration:none}
-        .btm-heat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin:4px 0}
-        .btm-heat-item{background:#1a1a2e;border-radius:5px;padding:2px 6px;text-align:center;font-size:0.65rem}
-        .btm-heat-tick{font-weight:600;color:#e4e6eb}
+        .btm-heat{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:6px 0}
+        .btm-heat-item{background:#1a1a2e;border-radius:6px;padding:5px 4px;text-align:center;font-size:0.7rem;line-height:1.3}
+        .btm-heat-tick{font-weight:600;color:#e4e6eb;margin-bottom:1px}
+        /* Portfolio row (compact single-line layout) */
+        .pf-row{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid rgba(42,46,58,0.4);line-height:1.3}
+        .pf-row:last-child{border-bottom:none}
+        .pf-ticker{font-weight:600;font-size:0.85rem;color:#f0f2f5;min-width:3.5rem}
+        .pf-price{font-size:0.8rem;color:#c0c5ce}
+        .pf-pnl-pos{font-size:0.78rem;font-weight:600;color:#22c55e}
+        .pf-pnl-neg{font-size:0.78rem;font-weight:600;color:#ef4444}
+        .pf-atp{font-size:0.7rem;color:#6b7280}
+        /* Summary row */
+        .pf-summary{display:flex;gap:1rem;padding:0.5rem 0 0.15rem;border-top:1px solid #2a2e3a;margin-top:0.3rem;flex-wrap:wrap}
+        .pf-sum-item{font-size:0.75rem;color:#8891a0}
+        .pf-sum-val{font-weight:600;color:#c0c5ce}
+        .pf-sum-pos{color:#22c55e;font-weight:600}
+        .pf-sum-neg{color:#ef4444;font-weight:600}
+        /* Mobile responsive */
+        @media (max-width: 640px) {
+            .btm-heat{grid-template-columns:repeat(2,1fr)}
+            .pf-summary{gap:0.6rem}
+        }
     }
 </style>""", unsafe_allow_html=True)
 
@@ -322,35 +341,33 @@ def _render_portfolio_list(portfolio, entry_prices, key_prefix="side",
     duplicated Streamlit widget code. The key_prefix ensures unique
     widget keys per usage (e.g. 'side' → side_heat, 'btm' → btm_heat).
     """
-    # ─── Market Heatmap (compact 3-col grid) ───
+    # ─── Market Heatmap (compact grid) ───
     heat_parts = []
     for t in portfolio:
         sd_cache = st.session_state.get("_stock_price_cache", {}).get(t)
         if sd_cache is not None:
             chg = sd_cache.get("change_pct") or 0
             color = "#22c55e" if chg >= 0 else "#ef4444"
+            bg = "rgba(34,197,94,0.1)" if chg >= 0 else "rgba(239,68,68,0.1)"
         else:
             chg = 0
             color = "#6b7280"
-        if heatmap_css:
-            heat_parts.append(
-                f'<div class="{heatmap_css}-item"><div class="{heatmap_css}-tick">{t}</div>'
-                f'<div style="color:{color};">{chg:+.1f}%</div></div>'
-            )
-        else:
-            heat_parts.append(
-                f'<div style="background:#1a1a2e;border-radius:6px;padding:4px;text-align:center;font-size:0.65rem;">'
-                f'<div style="font-weight:600;color:#e4e6eb;">{t}</div><div style="color:{color};">{chg:+.1f}%</div></div>'
-            )
+            bg = "#1a1a2e"
+        # ponytail: always use CSS classes — bottom cards get grid via .btm-heat
+        heat_parts.append(
+            f'<div class="btm-heat-item" style="background:{bg};">'
+            f'<div class="btm-heat-tick">{t}</div>'
+            f'<div style="color:{color};">{chg:+.1f}%</div></div>'
+        )
     if heat_parts:
-        h_class = f' class="{heatmap_css}"' if heatmap_css else ''
+        h_class = f' class="{heatmap_css}"' if heatmap_css else ' class="btm-heat"'
         st.markdown(f'<div{h_class}>{"".join(heat_parts)}</div>', unsafe_allow_html=True)
         if not heatmap_css:
             st.markdown(
                 '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
                 '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22b573" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/></svg>'
                 ' Day gain'
-                '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f85149" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/></svg>'
+                '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/></svg>'
                 ' Day loss'
                 '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/></svg>'
                 ' No data</span>',
@@ -358,16 +375,38 @@ def _render_portfolio_list(portfolio, entry_prices, key_prefix="side",
             )
 
     # ─── Portfolio listing with P&L + delete ───
+    # ponytail: sidebar uses multi-line HTML rows; bottom cards use compact single-line
+    is_compact = key_prefix == "btm"
+
     for t in portfolio:
-        c1, c2 = st.columns([3, 1] if key_prefix == "side" else [3, 0.6])
         ep = entry_prices.get(t)
         sd_cache = st.session_state.get("_stock_price_cache", {}).get(t)
         cp = sd_cache.get("current_price") if sd_cache else None
 
-        if key_prefix == "side":
+        if is_compact:
+            # ─── Bottom cards: compact single-line row ───
+            c1, c2 = st.columns([4, 0.6])
+            left = [f'<span class="pf-ticker">{t}</span>']
+            if _is_valid_num(cp):
+                left.append(f'<span class="pf-price">\u20b9{cp:,.2f}</span>')
+            if ep and _is_valid_num(cp):
+                pnl = calc_portfolio_pnl(ep, cp)
+                cls = "pf-pnl-pos" if pnl["pnl_pct"] >= 0 else "pf-pnl-neg"
+                sn = "+" if pnl["pnl_pct"] >= 0 else ""
+                left.append(f'<span class="{cls}">{sn}{pnl["pnl_pct"]:.1f}%</span>')
+                left.append(f'<span class="pf-atp">ATP \u20b9{ep:,.0f}</span>')
+            elif ep:
+                left.append(f'<span class="pf-atp">ATP \u20b9{ep:,.0f}</span>')
+            c1.markdown(
+                f'<div class="pf-row">{"".join(left)}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            # ─── Sidebar: multi-line detail row ───
+            c1, c2 = st.columns([3, 1])
             display_parts = [f"<strong>{t}</strong>"]
             if _is_valid_num(cp):
-                display_parts.append(f'<span style="font-size:0.85rem;">₹{cp:,.2f}</span>')
+                display_parts.append(f'<span style="font-size:0.85rem;">\u20b9{cp:,.2f}</span>')
             elif sd_cache is not None:
                 display_parts.append(f'<span style="font-size:0.85rem;color:#6b7280;">Price N/A</span>')
             if ep and _is_valid_num(cp):
@@ -377,30 +416,59 @@ def _render_portfolio_list(portfolio, entry_prices, key_prefix="side",
                     f'<span style="font-size:0.8rem;color:{"#22c55e" if pnl["pnl_pct"] >= 0 else "#ef4444"};">'
                     f'{sign}{pnl["pnl_pct"]:.1f}%</span>'
                 )
-                display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">ATP: ₹{ep:,.0f}</span>')
+                display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">ATP: \u20b9{ep:,.0f}</span>')
             elif ep:
-                display_parts.append(f'<span style="font-size:0.75rem;color:#6b7280;">ATP: ₹{ep:,.0f}</span>')
+                display_parts.append(f'<span style="font-size:0.75rem;color:#6b7280;">ATP: \u20b9{ep:,.0f}</span>')
             elif cp:
                 display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">No ATP set</span>')
             c1.markdown(
                 '<div style="line-height:1.5;">' + '<br>'.join(display_parts) + '</div>',
                 unsafe_allow_html=True,
             )
-        else:
-            pts = [f"**{t}**"]
-            if _is_valid_num(cp):
-                pts.append(f"₹{cp:,.2f}")
-            if ep and _is_valid_num(cp):
-                pnl = calc_portfolio_pnl(ep, cp)
-                sn = "+" if pnl["pnl_pct"] >= 0 else ""
-                pts.append(f"{sn}{pnl['pnl_pct']:.1f}%")
-            c1.markdown(" · ".join(pts), help=f"P&L for {t}")
 
         if c2.button("✕", key=f"{key_prefix}_del_{t}", help=f"Remove {t} from portfolio"):
             portfolio.remove(t)
             save_portfolio(portfolio)
             st.session_state._skip_reanalysis = True
             st.rerun()
+
+    # ─── Summary stats (bottom cards only) ───
+    if is_compact and entry_prices:
+        total_invested = sum(ep for ep in entry_prices.values() if ep)
+        total_current = sum(
+            sd.get("current_price", 0)
+            for t in portfolio
+            if (sd := st.session_state.get("_stock_price_cache", {}).get(t))
+            and _is_valid_num(sd.get("current_price"))
+        )
+        day_chg = sum(
+            sd.get("change_pct", 0) or 0
+            for t in portfolio
+            if (sd := st.session_state.get("_stock_price_cache", {}).get(t))
+        )
+        n_with_prices = sum(
+            1 for t in portfolio
+            if st.session_state.get("_stock_price_cache", {}).get(t)
+        )
+        day_avg = day_chg / n_with_prices if n_with_prices else 0
+        total_pnl = total_current - total_invested if total_invested and total_current else None
+        total_pnl_pct = (total_pnl / total_invested * 100) if total_pnl is not None else None
+        pnl_cls = "pf-sum-pos" if (total_pnl_pct or 0) >= 0 else "pf-sum-neg"
+
+        parts = []
+        if total_invested:
+            parts.append(f'<span class="pf-sum-item">Invested <span class="pf-sum-val">\u20b9{total_invested:,.0f}</span></span>')
+        if total_current:
+            parts.append(f'<span class="pf-sum-item">Current <span class="pf-sum-val">\u20b9{total_current:,.0f}</span></span>')
+        if total_pnl_pct is not None:
+            sign = "+" if total_pnl >= 0 else ""
+            parts.append(f'<span class="pf-sum-item">P&amp;L <span class="{pnl_cls}">{sign}{total_pnl_pct:.1f}%</span></span>')
+        if day_avg:
+            d_cls = "pf-sum-pos" if day_avg >= 0 else "pf-sum-neg"
+            sign = "+" if day_avg >= 0 else ""
+            parts.append(f'<span class="pf-sum-item">Day <span class="{d_cls}">{sign}{day_avg:.1f}%</span></span>')
+        if parts:
+            st.markdown(f'<div class="pf-summary">{"".join(parts)}</div>', unsafe_allow_html=True)
 
     # ─── Briefing button ───
     if st.button(brief_btn_label, type="primary", use_container_width=True,
@@ -527,9 +595,33 @@ def _render_bottom_cards(portfolio, final_ticker):
         voted = [r for r in recs if r.get("vote") is not None]
         if voted:
             acc = sum(1 for r in voted if r["vote"] is True)
-            st.metric("Accuracy", f"{acc/len(voted)*100:.0f}%", help=f"{acc}/{len(voted)} correct")
-        st.metric("Total Scans", len(recs))
-        st.markdown(f'<div class="btm-muted">{_CHECK} right · {_X} wrong</div></div>', unsafe_allow_html=True)
+            acc_pct = acc / len(voted) * 100
+            acc_cls = "#22c55e" if acc_pct >= 60 else "#f59e0b" if acc_pct >= 40 else "#ef4444"
+            st.markdown(
+                f'<div style="text-align:center;margin:0.5rem 0">'
+                f'<div style="font-size:2rem;font-weight:800;color:{acc_cls};line-height:1">{acc_pct:.0f}%</div>'
+                f'<div style="font-size:0.75rem;color:#8891a0;margin-top:0.15rem">{acc}/{len(voted)} correct</div></div>'
+                f'<div style="height:6px;background:#1a1a2e;border-radius:3px;overflow:hidden;margin:0.4rem 0">'
+                f'<div style="height:100%;width:{acc_pct:.0f}%;background:{acc_cls};border-radius:3px;transition:width 0.4s"></div></div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="text-align:center;padding:0.5rem 0;color:#6b7280;font-size:0.85rem">'
+                'No votes yet. Search a ticker and vote on the signal.</div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown(
+            f'<div style="display:flex;justify-content:space-around;padding:0.3rem 0">'
+            f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#f0f2f5">{len(recs)}</div>'
+            f'<div style="font-size:0.7rem;color:#8891a0">Scans</div></div>'
+            f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#22c55e">{acc if voted else 0}</div>'
+            f'<div style="font-size:0.7rem;color:#8891a0">Right</div></div>'
+            f'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#ef4444">{len(voted) - acc if voted else 0}</div>'
+            f'<div style="font-size:0.7rem;color:#8891a0">Wrong</div></div>'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
 
     # ─── Historical Sentiment Archive ───
     history = load_sentiment_history(final_ticker)

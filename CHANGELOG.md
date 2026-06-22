@@ -10,6 +10,7 @@
 - **Stale aliases pointing to non-existent tickers** — Removed `KTKBANK`, `DCBBANK`, `DHANBANK`, `SBICARD`, `IOB`, `PSB` aliases that mapped to tickers not in the NSE ticker database, causing silent match failures.
 
 ### Changed
+- **Portfolio section visual overhaul** — Heatmap tiles now have color-coded backgrounds (green tint for gainers, red for losers) with bigger text and proper grid layout. Portfolio rows use compact single-line layout with CSS classes (`.pf-row`, `.pf-ticker`, `.pf-price`, `.pf-pnl-*`) instead of markdown separators. New summary row shows total invested, current value, P&L %, and day change. Track Record card redesigned with large color-coded accuracy percentage, visual progress bar, and Scans/Right/Wrong stat row. Mobile: heatmap collapses to 2 columns.
 - **yfinance session handling documented** — Removed private `yf._session` attribute patch (breaks on yfinance upgrades). Added `ponytail:` comments explaining the semi-public `yf.utils._session` approach for future maintainers.
 - **Iframe height estimation documented** — Added comments clarifying that the hardcoded height is a safe default, with the auto-height script in render.py handling real adjustment via `postMessage`.
 
