@@ -308,6 +308,30 @@ def analyze_ticker(ticker, company_name, quick=False):
     }
 
 
+def _refresh_price_cache(portfolio):
+    """Fetch current prices for all portfolio stocks and cache in session state."""
+    if not portfolio:
+        return
+    cache = st.session_state.setdefault("_stock_price_cache", {})
+    missing = [t for t in portfolio if t not in cache]
+    if not missing:
+        return
+    import yfinance as yf
+    for t in missing:
+        try:
+            tk = yf.Ticker(t + ".NS")
+            hist = tk.history(period="2d")
+            if hist is not None and not hist.empty:
+                cp = float(hist["Close"].iloc[-1])
+                prev = float(hist["Close"].iloc[-2]) if len(hist) > 1 else cp
+                cache[t] = {
+                    "change_pct": round((cp - prev) / prev * 100, 2),
+                    "current_price": cp,
+                }
+        except Exception:
+            pass
+
+
 def _render_portfolio_list(portfolio, entry_prices, key_prefix="side"):
     """Render portfolio listing with delete buttons for the sidebar.
 
@@ -669,6 +693,7 @@ def _render_bottom_cards(portfolio, final_ticker):
 with st.sidebar:
     portfolio = load_portfolio()
     entry_prices = load_entry_prices()
+    _refresh_price_cache(portfolio)
 
     # ─── Portfolio list ───
     if portfolio:
