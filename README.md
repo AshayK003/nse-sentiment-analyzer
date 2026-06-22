@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-[![Tests](https://img.shields.io/badge/tests-138%20passing-brightgreen)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-139%20passing-brightgreen)](#-testing)
 [![Security](https://img.shields.io/badge/security-XSS%20escaped-2ea44f)](#)
 [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 [![Streamlit Limits](https://img.shields.io/badge/resource%20limits-500%20cache%2C%206%2Fmin%20throttle-blueviolet)](.streamlit/config.toml)
@@ -47,8 +47,8 @@ Enter any NSE ticker and get a **BULLISH / NEUTRAL / BEARISH** signal backed by:
 - **Self-calibrating source weights** — each source's confidence weight learns from your 👍/👎 votes via Bayesian Beta-Binomial inference. After ~10–50 votes, weights reflect your actual accuracy experience.
 - **Enhanced VADER + 123-term Indian financial lexicon** — includes Indian banking metrics (NPA, GNPA, NIM, credit growth, slippage, provisioning), profitability shorthand (PAT, EBITDA, ROE, ROCE), IPO/capital market terms (oversubscribed, undersubscribed), fund flow terms (inflow, outflow), Hinglish (tezi, mandi, tej, mand), and general financial context not in vanilla VADER. Optionally swap to FinBERT via `USE_FINBERT=true`.
 - **Technical indicators** — RSI(14), SMA crossover (50/200), MACD from 2-year OHLCV history
-- **Portfolio mode** — track holdings with P&L, heatmap, volume spike detection, and one-click portfolio briefing
-- **FII/DII institutional flow** — NSE India official FII/FPI and DII data
+- **Portfolio mode** — track holdings with P&L, qty/shares field, auto-fetched LTPs, and one-click clear all
+- **FII/DII institutional flow** — NSE India official FII/FPI and DII data with Net value. Glassmorphism card shows latest day's flow plus a 7-day history table. Auto-saves daily snapshots.
 - **VWAP + Pivot levels** — intraday fair value and classic support/resistance from yesterday's HLC
 - **Resource protections** — per-session rate limiter (6 searches/min), auto-pruning cache (500-entry cap), DDGS fallback cooldown, and thread-safe rate-limit tracking (including DDGS) prevent quota exhaustion and race conditions under multi-user load. Configured in `.streamlit/config.toml`.
 - **XSS-safe rendering** — all user data (ticker names, company names) is HTML-escaped via `html.escape()` with single-quote support. Shareable `?ticker=` URLs are validated before API calls. RSS feed URLs are checked for `http://`/`https://` scheme.

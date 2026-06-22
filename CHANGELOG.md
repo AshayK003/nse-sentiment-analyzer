@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.5.6] — 2026-06-22
+
+### Added
+- **Institutional flow card** — Glassmorphism card showing latest FII/FPI and DII net flow (₹ Cr) with Net value. Compact table below shows last 7 days of history (Date, FII/FPI, DII, Net). Daily snapshots auto-saved to `fiidii_history.json` (90-day rolling) whenever FII/DII data is fetched.
+- **Shares quantity field** — New Qty input alongside ATP in the add-ticker form. Quantity defaults to 1 if left blank. P&L calculations are now qty-weighted: `(price − entry) * qty`.
+- **Auto-fetch LTPs for all portfolio holdings** — `_refresh_price_cache()` batch-fetches yfinance prices for any portfolio ticker missing from the session cache on every page load. Previously prices only showed for tickers you'd searched.
+- **Clear portfolio buttons** — "Clear all holdings" in both the sidebar (below portfolio list) and the main portfolio card area. Wipes portfolio list + entry prices in one click.
+
+### Changed
+- **Portfolio entry price format** — Changed from flat `{ticker: price}` to nested `{ticker: {price, qty}}`. Old format auto-migrated on load via `get_entry_info()` helper.
+- **Sentiment History collapsed by default** — Converted from raw `<details>` HTML to `st.expander(expanded=False)`. No longer takes up vertical space until clicked.
+- **FII/DII card simplified** — Removed line chart, unified to show latest day's FII/FPI, DII, and Net values with green/red coloring.
+- **Add button icon** — Replaced Lucide SVG attempt (unreliable with Streamlit's DOM) with clean `"+"` button label.
+- **Sidebar portfolio list** — Now displays holdings with delete buttons and a Clear All button. Previously the sidebar loaded the portfolio but never rendered it.
+- **Summary stats qty-weighted** — Invested and Current values now use `price × qty` instead of summing prices directly.
+
+### Fixed
+- **Rate limiter blocking add/delete** — Moved rate-limiter check inside `_skip_reanalysis` guard so cache-hit reruns (portfolio add/delete) skip the 20 s cooldown.
+- **Empty state on rerun after add** — Persisted active ticker in `st.session_state._active_ticker` so portfolio add/delete buttons preserve the current stock view across reruns.
+- **Clear button inline import** — Moved `ENTRY_PRICES_FILE` import to top-level to prevent silent failure in Streamlit's execution context.
+
 ## [2.5.5] — 2026-06-22
 
 ### Fixed
