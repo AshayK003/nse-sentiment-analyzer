@@ -74,15 +74,33 @@ def save_portfolio(tickers):
 # ─── Entry Prices ───
 
 def load_entry_prices():
-    """Return {ticker: entry_price} dict. Empty dict if none saved."""
-    return _load_json(ENTRY_PRICES_FILE, {})
+    """Return {ticker: {"price": float, "qty": int}} dict. Empty dict if none saved.
+    Auto-migrates old flat format {ticker: price} to new nested format.
+    """
+    raw = _load_json(ENTRY_PRICES_FILE, {})
+    prices = {}
+    for ticker, val in raw.items():
+        if isinstance(val, (int, float)):
+            prices[ticker] = {"price": float(val), "qty": 1}
+        elif isinstance(val, dict):
+            prices[ticker] = {"price": float(val.get("price", 0)), "qty": int(val.get("qty", 1))}
+    return prices
 
 
-def save_entry_price(ticker, price):
-    """Save or update entry price for a ticker."""
+def save_entry_price(ticker, price, qty=1):
+    """Save or update entry price and quantity for a ticker."""
     prices = load_entry_prices()
-    prices[ticker.upper()] = price
+    prices[ticker.upper()] = {"price": float(price), "qty": int(qty)}
     _save_json(ENTRY_PRICES_FILE, prices)
+
+
+def get_entry_info(entry):
+    """Extract (price, qty) from an entry_prices value (handles old + new format)."""
+    if isinstance(entry, dict):
+        return float(entry.get("price", 0)), int(entry.get("qty", 1))
+    if isinstance(entry, (int, float)):
+        return float(entry), 1
+    return 0, 1
 
 
 def calc_portfolio_pnl(entry_price, current_price, qty=1):

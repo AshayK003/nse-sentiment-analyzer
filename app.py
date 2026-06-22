@@ -46,7 +46,7 @@ from data_fetcher import (
 from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
 from event_classifier import classify_headline, adjust_with_event
 from indicators import get_technical_indicators
-from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history, history_to_csv, update_source_accuracy, load_entry_prices, save_entry_price, calc_portfolio_pnl, load_fiidii_history, save_fiidii_snapshot, ENTRY_PRICES_FILE
+from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history, history_to_csv, update_source_accuracy, load_entry_prices, save_entry_price, get_entry_info, calc_portfolio_pnl, load_fiidii_history, save_fiidii_snapshot, ENTRY_PRICES_FILE
 from render import render_dashboard, _is_valid_num
 from market_data import get_fii_dii_flow
 from aggregate_sentiment import compute_smartscore
@@ -327,22 +327,26 @@ def _render_portfolio_list(portfolio, entry_prices, key_prefix="side"):
         sd_cache = st.session_state.get("_stock_price_cache", {}).get(t)
         cp = sd_cache.get("current_price") if sd_cache else None
 
+        ep_price, ep_qty = get_entry_info(ep)
+
         c1, c2 = st.columns([3, 1])
         display_parts = [f"<strong>{t}</strong>"]
         if _is_valid_num(cp):
             display_parts.append(f'<span style="font-size:0.85rem;">\u20b9{cp:,.2f}</span>')
         elif sd_cache is not None:
             display_parts.append(f'<span style="font-size:0.85rem;color:#6b7280;">Price N/A</span>')
-        if ep and _is_valid_num(cp):
-            pnl = calc_portfolio_pnl(ep, cp)
+        if ep_qty > 0:
+            display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">\u00d7{ep_qty}</span>')
+        if ep_price and _is_valid_num(cp):
+            pnl = calc_portfolio_pnl(ep_price, cp, ep_qty)
             sign = "+" if pnl["pnl_pct"] >= 0 else ""
             display_parts.append(
                 f'<span style="font-size:0.8rem;color:{"#22c55e" if pnl["pnl_pct"] >= 0 else "#ef4444"};">'
                 f'{sign}{pnl["pnl_pct"]:.1f}%</span>'
             )
-            display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">ATP: \u20b9{ep:,.0f}</span>')
-        elif ep:
-            display_parts.append(f'<span style="font-size:0.75rem;color:#6b7280;">ATP: \u20b9{ep:,.0f}</span>')
+            display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">ATP \u20b9{ep_price:,.0f}</span>')
+        elif ep_price:
+            display_parts.append(f'<span style="font-size:0.75rem;color:#6b7280;">ATP \u20b9{ep_price:,.0f}</span>')
         elif cp:
             display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">No ATP set</span>')
         c1.markdown(
@@ -373,15 +377,19 @@ def _render_bottom_cards(portfolio, final_ticker):
     # ─── Portfolio Card ───
     with bc1:
         # Add ticker form (Streamlit widgets, outside card)
-        ac1, ac2, ac3 = st.columns([2, 1, 0.6])
+        ac1, ac2, ac3, ac4 = st.columns([1.8, 0.8, 0.8, 0.4])
         with ac1:
             new_t = st.text_input("Ticker", placeholder="RELIANCE", label_visibility="collapsed",
                                   max_chars=15, key="btm_add_ticker")
         with ac2:
             ep_input = st.text_input("ATP", placeholder="ATP", label_visibility="collapsed",
                                      max_chars=10, key="btm_add_atp",
-                                     help="Optional: average trade price for P&L tracking")
+                                     help="Average trade price for P&L tracking")
         with ac3:
+            qty_input = st.text_input("Qty", placeholder="Qty", label_visibility="collapsed",
+                                      max_chars=6, key="btm_add_qty",
+                                      help="Number of shares held")
+        with ac4:
             if st.button("\u2795", use_container_width=True, key="btm_add_btn", help="Add to portfolio") and new_t.strip():
                 t = new_t.strip().upper().replace(".NS", "")
                 if not re.match(r'^[A-Z0-9&-]+$', t):
@@ -391,11 +399,19 @@ def _render_bottom_cards(portfolio, final_ticker):
                 else:
                     portfolio.append(t)
                     save_portfolio(portfolio)
+                    qty_val = 1
+                    if qty_input.strip():
+                        try:
+                            qty_val = int(qty_input.strip().replace(",", ""))
+                        except ValueError:
+                            pass
                     if ep_input.strip():
                         try:
-                            save_entry_price(t, float(ep_input.strip().replace(",", "")))
+                            save_entry_price(t, float(ep_input.strip().replace(",", "")), qty_val)
                         except ValueError:
                             st.warning("Could not parse ATP -- stock added without entry price")
+                    else:
+                        save_entry_price(t, 0, qty_val)
                     st.session_state._skip_reanalysis = True
                     st.rerun()
 
@@ -408,20 +424,25 @@ def _render_bottom_cards(portfolio, final_ticker):
                 sd = st.session_state.get("_stock_price_cache", {}).get(t)
                 cp = sd.get("current_price") if sd else None
 
+                ep_price, ep_qty = get_entry_info(ep)
+
                 ticker_html = f'<span style="font-weight:600;font-size:0.85rem;color:#f0f2f5;min-width:3.5rem">{t}</span>'
                 parts = [ticker_html]
 
                 if _is_valid_num(cp):
                     parts.append(f'<span style="font-size:0.8rem;color:#c0c5ce">\u20b9{cp:,.2f}</span>')
 
-                if ep and _is_valid_num(cp):
-                    pnl = calc_portfolio_pnl(ep, cp)
+                if ep_qty > 0:
+                    parts.append(f'<span style="font-size:0.7rem;color:#6b7280">\u00d7{ep_qty}</span>')
+
+                if ep_price and _is_valid_num(cp):
+                    pnl = calc_portfolio_pnl(ep_price, cp, ep_qty)
                     pnl_color = "#22c55e" if pnl["pnl_pct"] >= 0 else "#ef4444"
                     pnl_sign = "+" if pnl["pnl_pct"] >= 0 else ""
                     parts.append(f'<span style="font-size:0.78rem;font-weight:600;color:{pnl_color}">{pnl_sign}{pnl["pnl_pct"]:.1f}%</span>')
-                    parts.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep:,.0f}</span>')
-                elif ep:
-                    parts.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep:,.0f}</span>')
+                    parts.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep_price:,.0f}</span>')
+                elif ep_price:
+                    parts.append(f'<span style="font-size:0.7rem;color:#6b7280">ATP \u20b9{ep_price:,.0f}</span>')
 
                 row_parts.append(
                     f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;'
@@ -429,10 +450,13 @@ def _render_bottom_cards(portfolio, final_ticker):
                     f'{"".join(parts)}</div>'
                 )
 
-            # Summary stats
-            total_invested = sum(ep for ep in eprices.values() if ep)
+            # Summary stats (qty-weighted)
+            total_invested = sum(
+                get_entry_info(eprices.get(t))[0] * get_entry_info(eprices.get(t))[1]
+                for t in portfolio if eprices.get(t)
+            )
             total_current = sum(
-                sd.get("current_price", 0)
+                sd.get("current_price", 0) * get_entry_info(eprices.get(t))[1]
                 for t in portfolio
                 if (sd := st.session_state.get("_stock_price_cache", {}).get(t))
                 and _is_valid_num(sd.get("current_price"))

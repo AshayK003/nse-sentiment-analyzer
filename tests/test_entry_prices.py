@@ -14,10 +14,11 @@ class TestEntryPrices:
         monkeypatch.setattr("persistence.DATA_DIR", tmp_path)
         monkeypatch.setattr("persistence.ENTRY_PRICES_FILE", tmp_path / "entry_prices.json")
 
-        save_entry_price("RELIANCE", 2850.50)
+        save_entry_price("RELIANCE", 2850.50, qty=10)
         prices = load_entry_prices()
 
-        assert prices["RELIANCE"] == 2850.50
+        assert prices["RELIANCE"]["price"] == 2850.50
+        assert prices["RELIANCE"]["qty"] == 10
 
     def test_load_empty_returns_empty_dict(self, tmp_path, monkeypatch):
         from persistence import load_entry_prices
@@ -37,11 +38,26 @@ class TestEntryPrices:
         monkeypatch.setattr("persistence.DATA_DIR", tmp_path)
         monkeypatch.setattr("persistence.ENTRY_PRICES_FILE", tmp_path / "entry_prices.json")
 
-        save_entry_price("RELIANCE", 2850.50)
-        save_entry_price("RELIANCE", 2900.00)
+        save_entry_price("RELIANCE", 2850.50, qty=10)
+        save_entry_price("RELIANCE", 2900.00, qty=15)
         prices = load_entry_prices()
 
-        assert prices["RELIANCE"] == 2900.00
+        assert prices["RELIANCE"]["price"] == 2900.00
+        assert prices["RELIANCE"]["qty"] == 15
+
+    def test_migrates_old_flat_format(self, tmp_path, monkeypatch):
+        from persistence import load_entry_prices
+        from pathlib import Path
+
+        monkeypatch.setattr("persistence.ENTRY_PRICES_FILE", tmp_path / "entry_prices.json")
+        # Write old flat format
+        import json
+        (tmp_path / "entry_prices.json").write_text(json.dumps({"SBIN": 800.50}), encoding="utf-8")
+
+        prices = load_entry_prices()
+
+        assert prices["SBIN"]["price"] == 800.50
+        assert prices["SBIN"]["qty"] == 1
 
     def test_calc_portfolio_pnl(self):
         from persistence import calc_portfolio_pnl
