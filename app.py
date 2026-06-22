@@ -106,6 +106,13 @@ st.markdown("""
     ::-webkit-scrollbar-thumb:hover {background: #2a2d35;}
     /* Widget overrides */
     .stTextInput input {border-radius: 8px;border-color: #1e2028 !important;font-size:1rem;padding:0.6rem 0.75rem;}
+
+    /* Ticker search row: tighter spacing between input and search button */
+    div[data-testid="column"]:has(button#svgsrch) {padding-left:0 !important;}
+    div[data-testid="column"]:has(input[placeholder*="RELIANCE"]) {padding-right:0 !important;}
+    div[data-testid="column"]:has(input[placeholder*="HDFCBANK"]) {padding-right:0 !important;}
+    .stTextInput {margin-bottom:0 !important;}
+    div[data-testid="stHorizontalBlock"]:has(div button#svgsrch) {gap:0 !important;}
     .stTextInput input:focus {border-color: #22b573 !important;box-shadow: 0 0 0 2px rgba(34,181,115,0.1) !important;}
     .stButton button {border-radius: 8px;border: 1px solid #1e2028;background: rgba(19,21,26,0.6);color: #e4e6eb;font-weight: 500;transition: all 0.2s ease;}
     .stButton button:hover {border-color: rgba(34,181,115,0.3);background: rgba(34,181,115,0.08);}
@@ -832,7 +839,7 @@ if query_ticker:
             st.error(f"No data found for **{final_ticker}**")
         st.stop()
 
-ticker_col, btn_col = st.columns([4, 1])
+ticker_col, btn_col = st.columns([5, 0.6])
 with ticker_col:
     ticker_input = st.text_input(
         "NSE Ticker Symbol",
