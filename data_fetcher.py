@@ -902,13 +902,17 @@ def get_stock_info(ticker):
                     continue
         return cached
 
-    # Global rate-limit cooldown — if yfinance recently 429'd us, skip early
+    # Global rate-limit cooldown — if yfinance recently 429'd us, wait and retry
     if _check_rate_limited():
-        st.warning(
-            f"Yahoo Finance rate-limited. Waiting {_RATE_LIMIT_COOLDOWN}s "
-            "before retrying. Try again shortly."
-        )
-        return None
+        import time as _time
+        remaining = int(_RATE_LIMITED_UNTIL - _time.time())
+        if remaining > 0 and remaining <= _RATE_LIMIT_COOLDOWN:
+            st.info(f"⏳ Yahoo Finance rate-limited. Waiting {remaining}s before retrying...")
+            _time.sleep(remaining + 1)
+            # Re-check — if still limited after wait, give up
+            if _check_rate_limited():
+                st.warning("Still rate-limited. Please try again in a moment.")
+                return None
 
     suffixes = [".NS", ".BO", ""]
     info = None
