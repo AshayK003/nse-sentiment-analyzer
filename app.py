@@ -166,23 +166,6 @@ st.markdown("""
         /* Bottom cards (Portfolio + Track Record) — redesigned */
     }
 
-    /* Autocomplete dropdown */
-    .ac-menu {position:absolute;top:100%;left:0;right:0;z-index:9999;
-              background:#13151a;border:1px solid #1e2028;border-radius:8px;
-              margin-top:4px;max-height:260px;overflow-y:auto;
-              box-shadow:0 8px 32px rgba(0,0,0,0.5);display:none;}
-    .ac-menu.vis {display:block;}
-    .ac-row {padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;
-              align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.04);
-              transition:background 0.15s;}
-    .ac-row:last-child {border-bottom:none;}
-    .ac-row:hover {background:rgba(34,181,115,0.1);}
-    .ac-sym {font-weight:600;font-size:0.9rem;color:#e4e6eb;font-family:'IBM Plex Mono',monospace;}
-    .ac-nm {font-size:0.8rem;color:#6b7280;text-align:right;white-space:nowrap;
-             overflow:hidden;text-overflow:ellipsis;max-width:180px;}
-    .ac-msg {padding:10px 12px;color:#6b7280;font-size:0.85rem;text-align:center;}
-    .ac-hl {color:#22b573;font-weight:700;}
-    @media (max-width:640px) { .ac-nm {max-width:120px;font-size:0.75rem;} .ac-sym {font-size:0.85rem;} }
 </style>""", unsafe_allow_html=True)
 
 
@@ -892,132 +875,46 @@ ticker_col, btn_col = st.columns([5, 0.6])
 with ticker_col:
     ticker_input = st.text_input(
         "NSE Ticker Symbol",
-        placeholder="e.g., RELIANCE, HDFCBANK, TCS, NYKAA, ZOMATO",
+        placeholder="Type company name or ticker...",
         max_chars=15,
         label_visibility="collapsed",
     )
-
-    # ─── Autocomplete dropdown ───
-    st.markdown("""<div class="ac-root"></div>
-<script>
-(function() {
-    var DATA = {"AARTIDRUGS":"Aarti Drugs","AARTIIND":"Aarti Industries","AARTIPHARM":"Aarti Pharmalabs","ABB":"ABB India","ABFRL":"Aditya Birla Fashion","ACC":"ACC Ltd","ADANIENT":"Adani Enterprises","ADANIGREEN":"Adani Green Energy","ADANIPORTS":"Adani Ports","ADANIPOWER":"Adani Power","ADANITRANS":"Adani Energy Solutions","AJANTPHARM":"Ajanta Pharma","ALKEM":"Alkem Laboratories","AMARAJABAT":"Amararaja Batteries","AMBUJACEM":"Ambuja Cements","APOLLOHOSP":"Apollo Hospitals","APOLLOTYRE":"Apollo Tyres","ASIANPAINT":"Asian Paints","ASTRAL":"Astral Ltd","AUBANK":"AU Small Finance Bank","AUROPHARMA":"Aurobindo Pharma","AXISBANK":"Axis Bank","BAJAJ-AUTO":"Bajaj Auto","BAJAJFINSV":"Bajaj Finserv","BAJFINANCE":"Bajaj Finance","BALKRISIND":"Balkrishna Industries","BANDHANBNK":"Bandhan Bank","BANKBARODA":"Bank of Baroda","BATAINDIA":"Bata India","BEL":"Bharat Electronics","BERGEPAINT":"Berger Paints","BHARATFORG":"Bharat Forge","BHARTIARTL":"Bharti Airtel","BHEL":"BHEL","BIOCON":"Biocon Ltd","BLUEDART":"Blue Dart Express","BLUESTARCO":"Blue Star","BOSCHLTD":"Bosch India","BPCL":"Bharat Petroleum","BRITANNIA":"Britannia Industries","BSOFT":"Birlasoft","CADILAHC":"Cadila Healthcare","CANBK":"Canara Bank","CENTRALBK":"Central Bank of India","CESC":"CESC Ltd","CHOLAFIN":"Cholamandalam Investment","CIPLA":"Cipla","COALINDIA":"Coal India","COCHINSHIP":"Cochin Shipyard","COFORGE":"Coforge","COLPAL":"Colgate Palmolive","CONCOR":"Container Corp of India","COROMANDEL":"Coromandel International","CRISIL":"CRISIL Ltd","CROMPTON":"Crompton Greaves","CUB":"City Union Bank","CYIENT":"Cyient","DABUR":"Dabur India","DEEPAKNTR":"Deepak Nitrite","DIVISLAB":"Divi's Laboratories","DIXON":"Dixon Technologies","DLF":"DLF Ltd","DMART":"Avenue Supermarts","DRREDDY":"Dr. Reddy's Labs","EICHERMOT":"Eicher Motors","EMAMILTD":"Emami Ltd","ENDURANCE":"Endurance Technologies","ENERGY":"Mirae Asset Energy ETF","EQUITASBNK":"Equitas Small Finance Bank","ESCORTS":"Escorts Kubota","EXIDEIND":"Exide Industries","FEDERALBNK":"Federal Bank","FINPIPE":"Supreme Petrochem","FORTIS":"Fortis Healthcare","GAIL":"GAIL India","GLAXO":"GlaxoSmithKline Pharma","GLENMARK":"Glenmark Pharma","GODREJAGRO":"Godrej Agrovet","GODREJCP":"Godrej Consumer Products","GODREJIND":"Godrej Industries","GODREJPROP":"Godrej Properties","GOLDBEES":"Nippon India ETF Gold BeES","GRANULES":"Granules India","GRASIM":"Grasim Industries","GROWW":"Groww Asset Management","GSFC":"Gujarat State Fertilizers","GUJGASLTD":"Gujarat Gas","HAL":"Hindustan Aeronautics","HAVELLS":"Havells India","HCLTECH":"HCL Technologies","HDFCAMC":"HDFC Asset Management","HDFCBANK":"HDFC Bank","HDFCLIFE":"HDFC Life Insurance","HEROMOTOCO":"Hero MotoCorp","HEXAWARE":"Hexaware Technologies","HINDALCO":"Hindalco Industries","HINDPETRO":"Hindustan Petroleum","HINDUNILVR":"Hindustan Unilever","HINDZINC":"Hindustan Zinc","HUDCO":"HUDCO","ICICIBANK":"ICICI Bank","ICICIGI":"ICICI Lombard General Insurance","ICICIPRULI":"ICICI Prudential Life","IDBI":"IDBI Bank","IDEA":"Vodafone Idea","IDFCFIRSTB":"IDFC First Bank","IEX":"Indian Energy Exchange","IGL":"Indraprastha Gas","IIFL":"IIFL Finance","INDIANB":"Indian Bank","INDIGO":"InterGlobe Aviation","INDUSINDBK":"IndusInd Bank","INFY":"Infosys","INOXWIND":"Inox Wind","INTELLECT":"Intellect Design Arena","IOC":"Indian Oil Corp","IPCALAB":"IPCA Laboratories","IRCON":"Ircon International","IRCTC":"IRCTC","IRFC":"IRFC","ITC":"ITC Ltd","J&KBANK":"Jammu & Kashmir Bank","JINDALSTEL":"Jindal Steel & Power","JKCEMENT":"JK Cement","JKLAKSHMI":"JK Lakshmi Cement","JSL":"Jindal Stainless","JSWENERGY":"JSW Energy","JSWSTEEL":"JSW Steel","JUBLFOOD":"Jubilant FoodWorks","KANSAINER":"Kansai Nerolac Paints","KARURVYSYA":"Karur Vysya Bank","KEC":"KEC International","KELLTONTEC":"Kellton Tech","KIRLOSENG":"Kirloskar Oil Engines","KOTAKBANK":"Kotak Mahindra Bank","KPITTECH":"KPIT Technologies","L&TFH":"L&T Finance Holdings","LAURUSLABS":"Laurus Labs","LICHSGFIN":"LIC Housing Finance","LICI":"LIC India","LT":"Larsen & Toubro","LTIM":"LTIMindtree","LTTS":"L&T Technology Services","LUPIN":"Lupin Ltd","M&M":"Mahindra & Mahindra","MAHABANK":"Bank of Maharashtra","MAKEINDIA":"Mirae Asset Manufacturing ETF","MANAPPURAM":"Manappuram Finance","MARICO":"Marico Ltd","MARUTI":"Maruti Suzuki","MAXHEALTH":"Max Healthcare","MAZDOCK":"Mazagon Dock","MCDOWELL-N":"United Spirits","MCX":"MCX","METALETF":"Mirae Asset Metal ETF","METROBRAND":"Metro Brands","MFSL":"Max Financial Services","MGL":"Mahanagar Gas","MIDCAPETF":"Nippon India ETF Midcap 150","MINDACORP":"Minda Corporation","MINDTREE":"Mindtree","MODEFENCE":"Mirae Asset Defence ETF","MOIL":"MOIL Ltd","MOTHERSON":"Motherson Sumi","MPHASIS":"Mphasis","MRF":"MRF Tyres","MUTHOOTFIN":"Muthoot Finance","NATCOPHARM":"Natco Pharma","NATIONALUM":"National Aluminium","NAVINFLUOR":"Navin Fluorine","NBCC":"NBCC India","NCC":"NCC Ltd","NESTLEIND":"Nestl\u00e9 India","NEXT50IETF":"Nippon India ETF Junior BeES","NHPC":"NHPC Ltd","NIFTYBEES":"Nippon India ETF Nifty 50","NMDC":"NMDC Ltd","NTPC":"NTPC Ltd","OBEROIRLTY":"Oberoi Realty","ONGC":"Oil & Natural Gas Corp","PAGEIND":"Page Industries","PERSISTENT":"Persistent Systems","PFC":"Power Finance Corp","PFIZER":"Pfizer India","PHOENIXLTD":"Phoenix Mills","PIDILITIND":"Pidilite Industries","PIIND":"PI Industries","PNB":"Punjab National Bank","PNBHOUSING":"PNB Housing Finance","POLYCAB":"Polycab India","POWERGRID":"Power Grid Corp","PRAJIND":"Praj Industries","PRESTIGE":"Prestige Estates","PTC":"PTC India","PVRINOX":"PVR INOX","PWL":"PW Lakshmi AI & Tech Fund","QUESS":"Quess Corp","RADICO":"Radico Khaitan","RAILTEL":"Railtel Corp","RALLIS":"Rallis India","RAMCOCEM":"Ramco Cements","RATNAMANI":"Ratnamani Metals","RAYMOND":"Raymond Ltd","RBLBANK":"RBL Bank","RCF":"Rashtriya Chemicals","RECLTD":"REC Ltd","RELIANCE":"Reliance Industries","RITES":"RITES Ltd","RVNL":"RVNL","SAIL":"Steel Authority of India","SANOFI":"Sanofi India","SBILIFE":"SBI Life Insurance","SBIN":"State Bank of India","SCHAEFFLER":"Schaeffler India","SHILPAMED":"Shilpa Medicare","SHREECEM":"Shree Cement","SIEMENS":"Siemens India","SKFINDIA":"SKF India","SOBHA":"Sobha Ltd","SOLARINDS":"Solar Industries","SONACOMS":"Sona BLW Precision","SOUTHBANK":"South Indian Bank","SRF":"SRF Ltd","SRTRANSFIN":"Shriram Transport Finance","STARCEMENT":"Star Cement","STLTECH":"Sterlite Technologies","SUNPHARMA":"Sun Pharmaceutical","SUPREMEIND":"Supreme Industries","SUZLON":"Suzlon Energy","SYMPHONY":"Symphony Ltd","SYNGENE":"Syngene International","TATACHEM":"Tata Chemicals","TATACOMM":"Tata Communications","TATACONSUM":"Tata Consumer","TATAELXSI":"Tata Elxsi","TATAMOTORS":"Tata Motors","TATAPOWER":"Tata Power","TATASTEEL":"Tata Steel","TCI":"Transport Corp of India","TCIEXP":"TCI Express","TCS":"Tata Consultancy Services","TEAMLEASE":"TeamLease Services","TECHM":"Tech Mahindra","THERMAX":"Thermax Ltd","TIMKEN":"Timken India","TITAN":"Titan Company","TORNTPHARM":"Torrent Pharmaceuticals","TORNTPOWER":"Torrent Power","TRENT":"Trent Ltd","TRIDENT":"Trident Ltd","TV18BRDCST":"TV18 Broadcast","TVSMOTOR":"TVS Motor Company","UBL":"United Breweries","UCOBANK":"UCO Bank","ULTRACEMCO":"UltraTech Cement","UNIONBANK":"Union Bank of India","UPL":"UPL Ltd","UTIAMC":"UTI Asset Management","VBL":"Varun Beverages","VEDL":"Vedanta Ltd","VMART":"V-Mart Retail","VOLTAS":"Voltas Ltd","VRLLOG":"VRL Logistics","WELCORP":"Welspun Corp","WESTLIFE":"Westlife Foodworld","WIPRO":"Wipro Ltd","YESBANK":"Yes Bank","ZEEL":"Zee Entertainment","ZENSARTECH":"Zensar Technologies","ZOMATO":"Zomato Ltd","ZYDUSLIFE":"Zydus Lifesciences"};
-    var MAX = 8, MIN = 2;
-    var INDEX = [];
-    for (var sym in DATA) {
-        INDEX.push({sym:sym, name:DATA[sym],
-            ls:sym.toLowerCase(), ln:DATA[sym].toLowerCase()});
-    }
-
-    function norm(s) { return s.replace(/[^A-Z0-9]/gi, '').toUpperCase(); }
-
-    function filter(q) {
-        if (!q || q.length < MIN) return [];
-        var nq = norm(q), r = [], s = {};
-        // 1) Prefix on symbol (with spaces stripped)
-        for (var i = 0; i < INDEX.length; i++) {
-            var e = INDEX[i]; if (s[e.sym]) continue;
-            if (norm(e.sym).indexOf(nq) === 0) { r.push(e); s[e.sym] = true; if (r.length >= MAX) break; }
-        }
-        // 2) Substring in company name
-        if (r.length < MAX) for (var i = 0; i < INDEX.length; i++) {
-            var e = INDEX[i]; if (s[e.sym]) continue;
-            if (e.ln.indexOf(q.toLowerCase()) !== -1) { r.push(e); s[e.sym] = true; if (r.length >= MAX) break; }
-        }
-        // 3) Substring in symbol (handles spaces in query like "tata mo")
-        if (r.length < MAX) for (var i = 0; i < INDEX.length; i++) {
-            var e = INDEX[i]; if (s[e.sym]) continue;
-            if (norm(e.sym).indexOf(nq) !== -1) { r.push(e); s[e.sym] = true; if (r.length >= MAX) break; }
-        }
-        return r;
-    }
-
-    function hl(t, q) {
-        if (!q) return t;
-        var i = t.toUpperCase().indexOf(q.toUpperCase());
-        if (i === -1) return t;
-        return t.substring(0, i) + '<span class="ac-hl">' + t.substring(i, i + q.length) + '</span>' + t.substring(i + q.length);
-    }
-
-    function render(rs, q) {
-        var d = document.getElementById('ac-dd');
-        if (!d) return;
-        if (!rs.length) { d.innerHTML = '<div class="ac-msg">No matching tickers</div>'; d.classList.add('vis'); return; }
-        var h = '';
-        for (var i = 0; i < rs.length; i++) {
-            var e = rs[i];
-            h += '<div class="ac-row" data-sym="' + e.sym + '">'
-                + '<span class="ac-sym">' + hl(e.sym, q) + '</span>'
-                + '<span class="ac-nm">' + hl(e.name, q) + '</span></div>';
-        }
-        d.innerHTML = h;
-        d.classList.add('vis');
-        var its = d.querySelectorAll('.ac-row');
-        for (var j = 0; j < its.length; j++) its[j].addEventListener('mousedown', function(ev) {
-            ev.preventDefault();
-            var sym = this.getAttribute('data-sym');
-            var inp = findInp();
-            if (inp) {
-                var st = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                st.call(inp, sym);
-                inp.dispatchEvent(new Event('input', {bubbles: true}));
-                inp.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));
-            }
-            d.classList.remove('vis');
-        });
-    }
-
-    function findInp() {
-        return window.parent.document.querySelector('input[placeholder*="RELIANCE"]')
-            || window.parent.document.querySelector('input[data-baseweb="input"]')
-            || window.parent.document.querySelector('section[data-testid="stTextInput"] input')
-            || window.parent.document.querySelector('.stTextInput input');
-    }
-
-    function hide() { var d = document.getElementById('ac-dd'); if (d) d.classList.remove('vis'); }
-
-    function setup() {
-        var inp = findInp();
-        if (!inp || inp.dataset.acBound) return;
-        inp.dataset.acBound = '1';
-
-        // Find the column container for positioning
-        var col = inp.closest('[data-testid="column"]') || inp.closest('.stTextInput') || inp.parentElement.parentElement;
-        col.style.position = 'relative';
-
-        var dd = document.createElement('div');
-        dd.id = 'ac-dd';
-        dd.className = 'ac-menu';
-        col.appendChild(dd);
-
-        var db;
-        inp.addEventListener('input', function() {
-            clearTimeout(db);
-            var q = inp.value.trim().replace(/\.NS$/i, '');
-            db = setTimeout(function() {
-                if (q.length < MIN) { hide(); return; }
-                render(filter(q), q);
-            }, 150);
-        });
-
-        inp.addEventListener('blur', function() { setTimeout(hide, 200); });
-        inp.addEventListener('focus', function() {
-            var q = inp.value.trim().replace(/\.NS$/i, '');
-            if (q.length >= MIN) render(filter(q), q);
-        });
-    }
-
-    // Multiple retry strategies for Streamlit's async rendering
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() { setTimeout(setup, 100); });
-    } else {
-        setTimeout(setup, 100);
-    }
-    var retries = [300, 600, 1000, 2000, 3000];
-    retries.forEach(function(ms) { setTimeout(setup, ms); });
-})();
-</script>
-""", unsafe_allow_html=True)
+    # Autocomplete: filter NSE_TICKERS as user types
+    _ac_query = ticker_input.strip()
+    _ac_options = []
+    if len(_ac_query) >= 2:
+        _ac_q = _ac_query.upper()
+        _ac_seen = set()
+        # Pass 1: ticker symbol prefix match
+        for _s, _n in NSE_TICKERS.items():
+            if _s in _ac_seen:
+                continue
+            if _s.startswith(_ac_q):
+                _ac_options.append(f"{_s} — {_n}")
+                _ac_seen.add(_s)
+                if len(_ac_options) >= 10:
+                    break
+        # Pass 2: company name contains
+        if len(_ac_options) < 10:
+            for _s, _n in NSE_TICKERS.items():
+                if _s in _ac_seen:
+                    continue
+                if _ac_q in _n.upper():
+                    _ac_options.append(f"{_s} — {_n}")
+                    _ac_seen.add(_s)
+                    if len(_ac_options) >= 10:
+                        break
+    if _ac_options:
+        _ac_pick = st.selectbox(
+            "Select ticker",
+            _ac_options,
+            index=None,
+            placeholder="Pick a ticker...",
+            label_visibility="collapsed",
+            key="ac_select",
+        )
+        if _ac_pick:
+            ticker_input = _ac_pick.split(" — ")[0]
 
 
 with btn_col:
