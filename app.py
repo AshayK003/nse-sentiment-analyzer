@@ -884,17 +884,12 @@ with ticker_col:
         max_chars=15,
         label_visibility="collapsed",
     )
-    # Autocomplete: filter NSE_TICKERS + ALIASES as user types
+    # Autocomplete: filter NSE_TICKERS + ALIASES as user types (local only, fast)
     _ac_query = ticker_input.strip()
     _ac_options = []
     if len(_ac_query) >= 2:
         _ac_q = _ac_query.upper()
         _ac_seen = set()
-        # Pass 0: resolve_ticker finds aliases, partial names, prefix matches
-        _resolved, _rname = resolve_ticker(_ac_query)
-        if _resolved and _resolved not in _ac_seen:
-            _ac_options.append(f"{_resolved} — {_rname}")
-            _ac_seen.add(_resolved)
         # Pass 1: ticker symbol prefix match
         for _s, _n in NSE_TICKERS.items():
             if _s in _ac_seen:

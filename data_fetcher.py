@@ -589,6 +589,13 @@ def resolve_ticker(raw_input):
 
     Handles tickers, company names, aliases, and partial matches.
     Returns (ticker, company_name) or (None, None) if unresolved.
+
+    Resolution order (fast → slow):
+      1. Exact NSE_TICKERS match
+      2. Exact ALIASES match (e.g. "HDFC BANK" → "HDFCBANK")
+      3. Company name reverse lookup
+      4. Ticker prefix match
+      5. yfinance search API fallback (network, ~1-2s)
     """
     if not raw_input or not raw_input.strip():
         return None, None
@@ -618,6 +625,73 @@ def resolve_ticker(raw_input):
         if sym.startswith(q):
             return sym, name
 
+    # 5. Online fallback — search yfinance for NSE ticker
+    if not _check_rate_limited():
+        online_result = _search_ticker_online(raw_input.strip())
+        if online_result and online_result[0]:
+            # Validate the found ticker exists in our system
+            ticker, name = online_result
+            if ticker in NSE_TICKERS:
+                return ticker, NSE_TICKERS[ticker]
+            # New ticker not in NSE_TICKERS — still valid, use it
+            return ticker, name
+
+    return None, None
+
+
+# Cache for online ticker lookups (avoids repeated yf.Search calls)
+_online_ticker_cache = {}
+_online_cache_lock = threading.Lock()
+_MAX_ONLINE_CACHE = 200
+
+
+def _search_ticker_online(query):
+    """Search yfinance for NSE ticker by company name. Returns (ticker, name) or (None, None).
+
+    Caches results in memory. Only called when local resolution fails.
+    ~1-2s per call (network). Filters for NSE-listed stocks only.
+    """
+    q = query.strip()
+    if not q or len(q) < 2:
+        return None, None
+
+    with _online_cache_lock:
+        cached = _online_ticker_cache.get(q.upper())
+        if cached is not None:
+            return cached
+
+    try:
+        search = yf.Search(q)
+        quotes = search.quotes or []
+        # Prefer NSE-listed stocks, then fall back to any .NS result
+        for q_item in quotes:
+            sym = q_item.get("symbol", "")
+            exch = q_item.get("exchDisp", "")
+            if exch == "NSE" and sym.endswith(".NS"):
+                ticker = sym.replace(".NS", "")
+                name = q_item.get("shortname", q_item.get("longname", q))
+                result = (ticker, name)
+                with _online_cache_lock:
+                    if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
+                        _online_ticker_cache[q.upper()] = result
+                return result
+        # Fallback: any result with .NS suffix
+        for q_item in quotes:
+            sym = q_item.get("symbol", "")
+            if sym.endswith(".NS"):
+                ticker = sym.replace(".NS", "")
+                name = q_item.get("shortname", q_item.get("longname", q))
+                result = (ticker, name)
+                with _online_cache_lock:
+                    if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
+                        _online_ticker_cache[q.upper()] = result
+                return result
+    except Exception as e:
+        logger.debug("_search_ticker_online(%s) failed: %s", q, e)
+
+    with _online_cache_lock:
+        if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
+            _online_ticker_cache[q.upper()] = (None, None)
     return None, None
 
 
