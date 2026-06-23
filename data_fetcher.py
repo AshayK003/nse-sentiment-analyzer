@@ -639,59 +639,102 @@ def resolve_ticker(raw_input):
     return None, None
 
 
-# Cache for online ticker lookups (avoids repeated yf.Search calls)
+# Cache for online ticker lookups (avoids repeated API calls)
 _online_ticker_cache = {}
 _online_cache_lock = threading.Lock()
-_MAX_ONLINE_CACHE = 200
+_MAX_ONLINE_CACHE = 500
+
+
+def _search_yahoo_finance(query):
+    """Search Yahoo Finance REST API for NSE ticker. Fast (~200ms).
+
+    Returns (ticker, name) or (None, None).
+    """
+    try:
+        url = f'https://query2.finance.yahoo.com/v1/finance/search?q={requests.utils.quote(query)}&quotesCount=10&newsCount=0'
+        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=3)
+        if r.status_code != 200:
+            return None, None
+        data = r.json()
+        quotes = data.get('quotes', [])
+        # Prefer NSE exchange (NSI), then any .NS symbol
+        for q_item in quotes:
+            sym = q_item.get('symbol', '')
+            exch = q_item.get('exchange', '')
+            if exch == 'NSI' and sym.endswith('.NS'):
+                return sym.replace('.NS', ''), q_item.get('shortname', query)
+        for q_item in quotes:
+            sym = q_item.get('symbol', '')
+            if sym.endswith('.NS'):
+                return sym.replace('.NS', ''), q_item.get('shortname', query)
+    except Exception as e:
+        logger.debug("_search_yahoo_finance(%s) failed: %s", query, e)
+    return None, None
+
+
+def _search_yfinance_sdk(query):
+    """Search yfinance SDK for NSE ticker. Slower (~1-2s) but more comprehensive.
+
+    Returns (ticker, name) or (None, None).
+    """
+    try:
+        search = yf.Search(query)
+        quotes = search.quotes or []
+        # Prefer NSE-listed stocks
+        for q_item in quotes:
+            sym = q_item.get('symbol', '')
+            exch = q_item.get('exchDisp', '')
+            if exch == 'NSE' and sym.endswith('.NS'):
+                return sym.replace('.NS', ''), q_item.get('shortname', q_item.get('longname', query))
+        for q_item in quotes:
+            sym = q_item.get('symbol', '')
+            if sym.endswith('.NS'):
+                return sym.replace('.NS', ''), q_item.get('shortname', q_item.get('longname', query))
+    except Exception as e:
+        logger.debug("_search_yfinance_sdk(%s) failed: %s", query, e)
+    return None, None
 
 
 def _search_ticker_online(query):
-    """Search yfinance for NSE ticker by company name. Returns (ticker, name) or (None, None).
+    """Search for NSE ticker by company name using chained APIs.
 
-    Caches results in memory. Only called when local resolution fails.
-    ~1-2s per call (network). Filters for NSE-listed stocks only.
+    Resolution order:
+      1. In-memory cache (instant)
+      2. Yahoo Finance REST API (~200ms, fast)
+      3. yfinance SDK Search (~1-2s, more comprehensive)
+
+    Returns (ticker, name) or (None, None).
     """
     q = query.strip()
     if not q or len(q) < 2:
         return None, None
 
+    q_upper = q.upper()
     with _online_cache_lock:
-        cached = _online_ticker_cache.get(q.upper())
+        cached = _online_ticker_cache.get(q_upper)
         if cached is not None:
             return cached
 
-    try:
-        search = yf.Search(q)
-        quotes = search.quotes or []
-        # Prefer NSE-listed stocks, then fall back to any .NS result
-        for q_item in quotes:
-            sym = q_item.get("symbol", "")
-            exch = q_item.get("exchDisp", "")
-            if exch == "NSE" and sym.endswith(".NS"):
-                ticker = sym.replace(".NS", "")
-                name = q_item.get("shortname", q_item.get("longname", q))
-                result = (ticker, name)
-                with _online_cache_lock:
-                    if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
-                        _online_ticker_cache[q.upper()] = result
-                return result
-        # Fallback: any result with .NS suffix
-        for q_item in quotes:
-            sym = q_item.get("symbol", "")
-            if sym.endswith(".NS"):
-                ticker = sym.replace(".NS", "")
-                name = q_item.get("shortname", q_item.get("longname", q))
-                result = (ticker, name)
-                with _online_cache_lock:
-                    if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
-                        _online_ticker_cache[q.upper()] = result
-                return result
-    except Exception as e:
-        logger.debug("_search_ticker_online(%s) failed: %s", q, e)
+    # Tier 1: Yahoo Finance REST API (fast)
+    result = _search_yahoo_finance(q)
+    if result and result[0]:
+        with _online_cache_lock:
+            if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
+                _online_ticker_cache[q_upper] = result
+        return result
+
+    # Tier 2: yfinance SDK Search (slower, more comprehensive)
+    if not _check_rate_limited():
+        result = _search_yfinance_sdk(q)
+        if result and result[0]:
+            with _online_cache_lock:
+                if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
+                    _online_ticker_cache[q_upper] = result
+            return result
 
     with _online_cache_lock:
         if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
-            _online_ticker_cache[q.upper()] = (None, None)
+            _online_ticker_cache[q_upper] = (None, None)
     return None, None
 
 
