@@ -324,22 +324,33 @@ def _refresh_price_cache(portfolio):
     if not missing:
         return
     import yfinance as yf
-    # Collect failures to warn user once
-    _failed = []
-    for t in missing:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _fetch_one(t):
+        """Fetch price for one ticker — runs in worker thread."""
         try:
             tk = yf.Ticker(t + ".NS")
             hist = tk.history(period="2d")
             if hist is not None and not hist.empty:
                 cp = float(hist["Close"].iloc[-1])
                 prev = float(hist["Close"].iloc[-2]) if len(hist) > 1 else cp
-                cache[t] = {
+                return t, {
                     "change_pct": round((cp - prev) / prev * 100, 2),
                     "current_price": cp,
                 }
         except Exception:
             logger.warning("_refresh_price_cache failed for %s", t)
-            _failed.append(t)
+        return t, None
+
+    _failed = []
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(_fetch_one, t): t for t in missing}
+        for future in as_completed(futures):
+            t, result = future.result()
+            if result is not None:
+                cache[t] = result
+            else:
+                _failed.append(t)
     if _failed:
         st.warning(f"Could not refresh price for: {', '.join(_failed)}")
 
