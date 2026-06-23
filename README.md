@@ -39,6 +39,7 @@
 
 Enter any NSE ticker and get a **BULLISH / NEUTRAL / BEARISH** signal backed by:
 
+- **Autocomplete search** — type-ahead dropdown filters 271 NSE tickers by symbol or company name as you type. Click a result to analyze instantly.
 - **Live market data** — price, change %, volume, PE ratio via Yahoo Finance
 - **Interactive price chart** — 2-year candlestick chart with volume bars, 50-day SMA, 200-day SMA, and Bollinger Bands (20,2) overlays. Powered by TradingView Lightweight Charts. Zoom, pan, crosshair on hover. Visual legend identifies all overlays. Zero Python dependencies.
 - **Multi-source news sentiment** — RSS feeds from Moneycontrol, Economic Times, LiveMint (Markets + Companies + Industry), NDTV Profit, Google News, with DuckDuckGo fallback

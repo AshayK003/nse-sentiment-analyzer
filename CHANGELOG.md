@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.5.9] — 2026-06-23
+
+### Added
+- **Autocomplete ticker search** — Type-ahead dropdown appears as you type in the search box, showing matching NSE tickers and company names. Filters all 271 tickers client-side (instant, no network calls). Shows up to 8 results with highlighted matches. Click a result to fill the ticker and trigger analysis. Minimum 2 characters to activate.
+
 ## [2.5.8] — 2026-06-23
 
 ### Fixed
