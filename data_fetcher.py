@@ -724,32 +724,35 @@ def get_stock_info(ticker):
                 except Exception:
                     continue
 
-        # ── Phase 2c: targeted sector/industry fetch ──
-        #    yfinance .info is flaky for Indian stocks — sometimes returns
-        #    partial dicts or None. Retry specifically for sector/industry.
-        _sec = info.get("sector") if info else None
-        _ind = info.get("industry") if info else None
-        if (not _sec or _sec == "N/A") or (not _ind or _ind == "N/A"):
+        # ── Phase 2c: targeted metadata recovery ──
+        #    yfinance .info is flaky for Indian stocks/ETFs — sometimes returns
+        #    partial dicts or None. Retry for all missing metadata fields.
+        _META_FIELDS = ["sector", "industry", "marketCap", "trailingPE",
+                        "fiftyTwoWeekHigh", "fiftyTwoWeekLow"]
+        _missing = [
+            f for f in _META_FIELDS
+            if info is None or info.get(f) is None or info.get(f) == "N/A"
+        ]
+        if _missing:
             for suffix in suffixes:
                 try:
                     stock = yf.Ticker(f"{ticker}{suffix}")
                     raw = stock.info
                     if raw and isinstance(raw, dict):
-                        if not _sec or _sec == "N/A":
-                            _sec = raw.get("sector")
-                        if not _ind or _ind == "N/A":
-                            _ind = raw.get("industry")
-                        if _sec and _sec != "N/A" and _ind and _ind != "N/A":
+                        for f in list(_missing):
+                            v = raw.get(f)
+                            if v is not None and v != "N/A":
+                                if info is None:
+                                    info = {}
+                                info[f] = v
+                                _missing.remove(f)
+                        if not _missing:
                             break
                 except Exception:
                     continue
-            # Patch into info dict (create one if it was None)
+            # Ensure info dict exists even if all retries failed
             if info is None:
                 info = {}
-            if _sec and _sec != "N/A":
-                info["sector"] = _sec
-            if _ind and _ind != "N/A":
-                info["industry"] = _ind
 
         # ── Build result dict ──
         if hist is not None and not hist.empty:
