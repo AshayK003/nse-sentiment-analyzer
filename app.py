@@ -209,15 +209,17 @@ def analyze_ticker(ticker, company_name, quick=False):
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # Parallelize independent network calls: stock info + news search
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    # Parallelize independent network calls: stock info + news + FII/DII
+    with ThreadPoolExecutor(max_workers=3) as pool:
         stock_future = pool.submit(get_stock_info, ticker)
         news_future = pool.submit(search_news, ticker, company_name)
+        fii_future = pool.submit(get_fii_dii_flow)
         stock_data = stock_future.result()
 
     if not stock_data:
-        # Discard news result if stock data failed
+        # Discard pending results if stock data failed
         news_future.cancel()
+        fii_future.cancel()
         return None
 
     if quick:
@@ -243,6 +245,7 @@ def analyze_ticker(ticker, company_name, quick=False):
             "smartscore_history": [],
             "vwap": None,
             "pivot_levels": None,
+            "fii_data": fii_future.result(),
         }
 
     use_finbert = os.environ.get("USE_FINBERT", "").strip().lower() in ("1", "true", "yes")
@@ -322,6 +325,8 @@ def analyze_ticker(ticker, company_name, quick=False):
         # Intraday trading data
         "vwap": vwap_data,
         "pivot_levels": None,  # set after TI fetch in main flow
+        # FII/DII (fetched in parallel above)
+        "fii_data": fii_future.result(),
     }
 
 
@@ -988,17 +993,17 @@ if final_ticker and final_ticker != "":
         hist_cache = get_cached_history(final_ticker)
         _hist = hist_cache.tail(5) if hist_cache is not None and len(hist_cache) >= 1 else None
         result["pivot_levels"] = compute_pivot_levels(_hist)
-        records = load_track_record()
-        fii_data = get_fii_dii_flow()
-        if fii_data:
-            save_fiidii_snapshot(fii_data)
-
         # Render premium HTML dashboard
         # Section heights (desktop):
         #   price(280) + chart(420) + sentiment+smartscore(450) + dist(130) + stats(200)
         #   + techs(290) + track(180) + fiidii(200) + cal(270) + buffer(200)
         # Each news item ≈ 120px (title + meta + body text wrapping)
         # ─── Annotate news with portfolio match badges ───
+        records = load_track_record()
+        fii_data = result.get("fii_data")
+        if fii_data:
+            save_fiidii_snapshot(fii_data)
+
         portfolio = load_portfolio()
         if portfolio and news_items:
             for item in news_items:
