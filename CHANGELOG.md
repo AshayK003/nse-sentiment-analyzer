@@ -3,9 +3,7 @@
 ## [2.7.0] — 2026-06-26
 
 ### Added
-- **Debt-to-Equity ratio with risk badge** — D/E ratio now shown in the stock info panel alongside P/E. Color-coded badge indicates Low, Normal, Elevated, or High leverage.
-- **Bank/financial sector D/E suppression** — Banks and financial services companies naturally carry high D/E. Their D/E is shown with a `~` prefix and no risk badge.
-- **Market Pulse Overview** — Dashboard card at the top of the page shows Nifty 50 level + daily change % and a market Climate verdict (Bullish / Neutral / Cautious / Risky) based on Nifty trend and India VIX, alongside India VIX level. Includes a "should I trade today?" guidance line. No extra API calls — reuses existing VIX and yfinance index data.
+- **Market Mood Index (MMI)** — 0–100 fear & greed gauge in the Market Pulse card. 4 equally-weighted components: Trend Strength (Nifty vs 20-day SMA), VIX Fear Gauge (inverted India VIX), FII Money Flow (institutional confidence vs 21-day trailing average), Market Breadth (sector advance/decline ratio across 10 sectoral indices). Replaces the previous binary Climate verdict with a 5-zone system (Extreme Fear → Extreme Greed). Sub-scores shown for each component. All data from yfinance + existing FII history — zero new API dependencies.
 
 ## [2.6.0] — 2026-06-23
 

@@ -49,7 +49,7 @@ from event_classifier import classify_headline, adjust_with_event
 from indicators import get_technical_indicators
 from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history, history_to_csv, update_source_accuracy, load_entry_prices, save_entry_price, get_entry_info, calc_portfolio_pnl, load_fiidii_history, save_fiidii_snapshot, ENTRY_PRICES_FILE
 from render import render_dashboard, _is_valid_num
-from market_data import get_fii_dii_flow, get_market_pulse, get_market_verdict
+from market_data import get_fii_dii_flow, get_market_pulse, get_market_verdict, get_mmi
 from aggregate_sentiment import compute_smartscore
 from intraday import compute_vwap, compute_pivot_levels, get_vix
 
@@ -835,6 +835,13 @@ if _has_pulse or _has_vix:
         ' Market Pulse</div>',
         unsafe_allow_html=True,
     )
+
+    # Compute MMI (cached in session_state)
+    if "mmi_data" not in st.session_state:
+        st.session_state.mmi_data = get_mmi()
+    mmi_d = st.session_state.mmi_data
+    _has_mmi = mmi_d and mmi_d.get("mmi") is not None
+
     cols = st.columns([1, 1, 1])
     # ─── Column 1: Nifty 50 ───
     if _has_pulse:
@@ -847,31 +854,45 @@ if _has_pulse or _has_vix:
             f"{arrow} {chg:+.2f}%" if chg is not None else "N/A",
         )
     else:
-        cols[0].metric("Nifty 50", "—", "Unavailable")
-    # ─── Column 2: Climate ───
-    if _has_pulse:
-        verdict, verdict_icon, verdict_detail = get_market_verdict(
-            pulse_d.get("nifty_change_pct"),
-            vix_d.get("level") if _has_vix else None,
-        )
-        _vc = {
-            "Bullish": "#22b573", "Neutral": "#8891a0",
-            "Cautious": "#f59e0b", "Risky": "#f85149",
+        cols[0].metric("Nifty 50", "\u2014", "Unavailable")
+    # ─── Column 2: MMI Gauge ───
+    if _has_mmi:
+        mmi_val = mmi_d["mmi"]
+        zone = mmi_d["zone"]
+        _mc = {
+            "Extreme Greed": "#22b573", "Greed": "#4ade80",
+            "Neutral": "#8891a0", "Fear": "#f59e0b",
+            "Extreme Fear": "#f85149",
         }
-        v_color = _vc.get(verdict, "#8891a0")
+        m_color = _mc.get(zone, "#8891a0")
+        # MMI icon based on zone
+        _icons = {
+            "Extreme Greed": "\U0001f7e2",
+            "Greed": "\U0001f7e2",
+            "Neutral": "\u26aa",
+            "Fear": "\U0001f7e0",
+            "Extreme Fear": "\U0001f534",
+        }
+        m_icon = _icons.get(zone, "\u26aa")
+        # Sub-score summary
+        sub = (
+            f"T:{mmi_d['trend_score']:.0f}  V:{mmi_d['vix_score']:.0f}  "
+            f"F:{mmi_d['fii_score']:.0f}  B:{mmi_d['breadth_score']:.0f}"
+        )
         cols[1].markdown(
             '<div style="text-align:center;padding:0.25rem 0">'
-            '<div style="font-size:0.7rem;color:#8891a0;text-transform:uppercase;letter-spacing:0.04em;">Climate</div>'
-            f'<div style="font-size:1rem;font-weight:700;color:{v_color};">{verdict_icon} {verdict}</div>'
-            f'<div style="font-size:0.65rem;color:#6b7280;margin-top:0.15rem;">{verdict_detail}</div>'
+            '<div style="font-size:0.7rem;color:#8891a0;text-transform:uppercase;letter-spacing:0.04em;">MMI</div>'
+            f'<div style="font-size:1.4rem;font-weight:700;color:{m_color};">{mmi_val:.0f}</div>'
+            f'<div style="font-size:0.85rem;font-weight:600;color:{m_color};">{m_icon} {zone}</div>'
+            f'<div style="font-size:0.6rem;color:#6b7280;margin-top:0.15rem;font-family:monospace;">{sub}</div>'
             '</div>',
             unsafe_allow_html=True,
         )
     else:
         cols[1].markdown(
             '<div style="text-align:center;padding:0.25rem 0">'
-            '<div style="font-size:0.7rem;color:#8891a0;text-transform:uppercase;letter-spacing:0.04em;">Climate</div>'
-            '<div style="font-size:1rem;font-weight:700;color:#6b7280;">—</div>'
+            '<div style="font-size:0.7rem;color:#8891a0;text-transform:uppercase;letter-spacing:0.04em;">MMI</div>'
+            '<div style="font-size:1rem;font-weight:700;color:#6b7280;">\u2014</div>'
             '<div style="font-size:0.65rem;color:#6b7280;margin-top:0.15rem;">Data unavailable</div>'
             '</div>',
             unsafe_allow_html=True,
@@ -899,7 +920,7 @@ if _has_pulse or _has_vix:
                 unsafe_allow_html=True,
             )
     else:
-        cols[2].metric("India VIX", "—", "Unavailable")
+        cols[2].metric("India VIX", "\u2014", "Unavailable")
 
 # ─── Ticker Input — single text field + search button ───
 # ─── Shareable snapshot link: ?ticker=X bypasses normal input ───
