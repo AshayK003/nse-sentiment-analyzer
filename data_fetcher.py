@@ -1038,6 +1038,7 @@ def get_stock_info(ticker):
             "industry": info.get("industry", "N/A") if info else "N/A",
             "market_cap": info.get("marketCap") if info else None,
             "pe_ratio": info.get("trailingPE") if info else None,
+            "debt_to_equity": _nf(info.get("debtToEquity")) if info else None,
             "current_price": current_price,
             "change": change,
             "change_pct": change_pct,

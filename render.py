@@ -138,6 +138,34 @@ def fmt_large(val):
     return "N/A"
 
 
+def fmt_de(de_val, sector=None):
+    """Format Debt-to-Equity ratio with risk badge.
+
+    Banks/Financial services naturally have high D/E (customer deposits
+    count as liabilities) so the badge is suppressed for that sector.
+    """
+    if not _is_valid_num(de_val):
+        return "N/A"
+
+    is_financial = sector and ("financial" in sector.lower() or "bank" in sector.lower())
+
+    if is_financial:
+        return f'<span class="de-note">~{de_val:.2f}</span>'
+
+    if de_val < 0:
+        badge = '<span class="stat-badge danger">Negative</span>'
+    elif de_val > 3.0:
+        badge = '<span class="stat-badge danger">High</span>'
+    elif de_val > 1.5:
+        badge = '<span class="stat-badge warn">Elevated</span>'
+    elif de_val >= 0.5:
+        badge = '<span class="stat-badge ok">Normal</span>'
+    else:
+        badge = '<span class="stat-badge ok">Low</span>'
+
+    return f'{de_val:.2f} {badge}'
+
+
 def get_sentiment_svg(compound):
     if compound >= 0.3:
         return _ICON["bullish"]
@@ -463,6 +491,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         <div class="stat-item"><span class="stat-label">52W High</span><span class="stat-value">{fmt_price(stock.get("52w_high"))}</span></div>
         <div class="stat-item"><span class="stat-label">52W Low</span><span class="stat-value">{fmt_price(stock.get("52w_low"))}</span></div>
         <div class="stat-item"><span class="stat-label">P/E Ratio</span><span class="stat-value">{pe_str}</span></div>
+        <div class="stat-item"><span class="stat-label">D/E Ratio</span><span class="stat-value">{fmt_de(stock.get("debt_to_equity"), stock.get("sector"))}</span></div>
     </div>"""
 
     badge_html = ""
@@ -880,6 +909,11 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     .stat-item {{ padding: 0.5rem 0; }}
     .stat-label {{ font-size: 0.78rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.04em; }}
     .stat-value {{ font-size: 0.9rem; font-weight: 500; display: block; margin-top: 0.15rem; }}
+    .stat-badge {{ display: inline-block; padding: 0.05rem 0.45rem; border-radius: 100px; font-size: 0.7rem; font-weight: 600; vertical-align: middle; margin-left: 0.25rem; }}
+    .stat-badge.ok {{ background: rgba(34,181,115,0.12); color: #22b573; }}
+    .stat-badge.warn {{ background: rgba(245,158,11,0.12); color: #f59e0b; }}
+    .stat-badge.danger {{ background: rgba(248,81,73,0.12); color: #f85149; }}
+    .de-note {{ color: #8891a0; font-size: 0.8rem; }}
 
     /* Technical indicators */
     .ti-preview {{ font-size: 0.85rem; color: #8891a0; margin-bottom: 0.75rem; }}

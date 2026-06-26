@@ -18,6 +18,7 @@ def _mock_yfinance_ticker(mocker, info=None, hist_df=None):
             "industry": "Software",
             "marketCap": 1_000_000_000,
             "trailingPE": 25.0,
+            "debtToEquity": 1.5,
             "fiftyTwoWeekHigh": 120.0,
             "fiftyTwoWeekLow": 80.0,
             "currentPrice": 100.0,
@@ -64,6 +65,8 @@ class TestStockInfo:
         assert result["current_price"] == 102.0  # From hist Close[-1]
         assert isinstance(result["market_cap"], int)
         assert isinstance(result["volume"], int)
+        # Debt-to-Equity should be extracted from the mock
+        assert result["debt_to_equity"] == 1.5
 
     def test_stock_info_empty_response_retries(self, mocker):
         """Empty info dict should trigger retry, eventually return partial data from history."""
@@ -192,6 +195,48 @@ class TestStockInfo:
         # 52w data should still be present
         assert result["52w_high"] == 302.25
         assert result["52w_low"] == 251.70
+
+    def test_debt_to_equity_missing(self, mocker):
+        """When yfinance doesn't provide debtToEquity, result should have None."""
+        from data_fetcher import get_stock_info
+
+        info = {
+            "longName": "No Debt Ltd", "shortName": "NODEBT",
+            "sector": "Technology", "industry": "Software",
+            "marketCap": 1_000_000_000, "trailingPE": 20.0,
+            "fiftyTwoWeekHigh": 100.0, "fiftyTwoWeekLow": 70.0,
+            "currentPrice": 85.0, "regularMarketChange": 1.0,
+            "regularMarketChangePercent": 1.19, "dayHigh": 86.0,
+            "dayLow": 84.0, "volume": 500_000,
+        }
+        _mock_yfinance_ticker(mocker, info=info)
+        mocker.patch("time.sleep")
+
+        result = get_stock_info("NODEBT")
+        assert result is not None
+        assert result["debt_to_equity"] is None
+
+    def test_debt_to_equity_nan(self, mocker):
+        """NaN debtToEquity should be converted to None."""
+        from data_fetcher import get_stock_info
+        import math
+
+        info = {
+            "longName": "NaN Debt Ltd", "shortName": "NANDEBT",
+            "sector": "Technology", "industry": "Software",
+            "marketCap": 1_000_000_000, "trailingPE": 20.0,
+            "debtToEquity": float("nan"),
+            "fiftyTwoWeekHigh": 100.0, "fiftyTwoWeekLow": 70.0,
+            "currentPrice": 85.0, "regularMarketChange": 1.0,
+            "regularMarketChangePercent": 1.19, "dayHigh": 86.0,
+            "dayLow": 84.0, "volume": 500_000,
+        }
+        _mock_yfinance_ticker(mocker, info=info)
+        mocker.patch("time.sleep")
+
+        result = get_stock_info("NANDEBT")
+        assert result is not None
+        assert result["debt_to_equity"] is None
 
 
 class TestRelevanceFilter:

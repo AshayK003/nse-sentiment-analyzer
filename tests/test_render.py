@@ -170,6 +170,7 @@ class TestRenderDashboard:
             "industry": None,
             "market_cap": None,
             "pe_ratio": None,
+            "debt_to_equity": None,
             "current_price": 100.0,
             "change": None,
             "change_pct": None,
@@ -200,3 +201,49 @@ class TestRenderDashboard:
         html = render_dashboard(result, "TEST", "Test Ltd")
         assert html is not None
         assert "CAUTION" in html or "SELL" in html or "BEARISH" in html
+
+    def test_de_ratio_displayed(self, sample_stock_data):
+        """D/E ratio with value 1.5 should show 'Normal' badge."""
+        from render import render_dashboard
+
+        result = _make_result(
+            sample_stock_data, [], [],
+            signal="NEUTRAL \u26aa", num_articles=0,
+        )
+        html = render_dashboard(result, "TEST", "Test Ltd")
+        assert "D/E Ratio" in html
+        assert "1.50" in html
+        assert "Normal" in html
+
+    def test_de_ratio_high_risk(self, sample_stock_data):
+        """D/E ratio of 3.5 should show 'High' badge."""
+        from render import render_dashboard
+
+        high_de_stock = dict(sample_stock_data)
+        high_de_stock["debt_to_equity"] = 3.5
+        result = _make_result(
+            high_de_stock, [], [],
+            signal="NEUTRAL \u26aa", num_articles=0,
+        )
+        html = render_dashboard(result, "TEST", "Test Ltd")
+        assert "3.50" in html
+        assert "High" in html
+
+    def test_de_ratio_bank_suppressed(self, sample_stock_data):
+        """Bank/financial sector should suppress the High badge for D/E."""
+        from render import render_dashboard
+
+        bank_stock = dict(sample_stock_data)
+        bank_stock["sector"] = "Financial Services"
+        bank_stock["debt_to_equity"] = 12.0
+        result = _make_result(
+            bank_stock, [], [],
+            signal="NEUTRAL \u26aa", num_articles=0,
+        )
+        html = render_dashboard(result, "TEST", "Test Ltd")
+        assert "D/E Ratio" in html
+        assert "~12.00" in html  # tilde prefix for financials
+        # D/E stat-value should use de-note (not stat-badge) for banks
+        de_row = html[html.find("D/E Ratio"):][:120]
+        assert "de-note" in de_row, "Bank D/E should show de-note, not stat-badge"
+        assert "stat-badge" not in de_row, "Bank D/E should not have risk badge"

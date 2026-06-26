@@ -17,6 +17,7 @@ def mock_deps(mocker):
     mocker.patch("app.get_stock_info", return_value={
         "name": "Test Company Ltd", "sector": "Technology", "industry": "Software",
         "market_cap": 100_000_000_000, "pe_ratio": 25.0,
+        "debt_to_equity": 1.5,
         "current_price": 100.0, "change": 2.5, "change_pct": 2.56,
         "day_high": 102.0, "day_low": 98.0, "volume": 1_000_000,
         "52w_high": 120.0, "52w_low": 80.0,

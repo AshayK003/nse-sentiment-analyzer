@@ -23,6 +23,7 @@ def sample_stock_data():
         "industry": "Software",
         "market_cap": 1_000_000_000,
         "pe_ratio": 25.0,
+        "debt_to_equity": 1.5,
         "current_price": 100.0,
         "change": 2.5,
         "change_pct": 2.56,

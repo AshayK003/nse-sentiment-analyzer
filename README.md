@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-[![Tests](https://img.shields.io/badge/tests-139%20passing-brightgreen)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-144%20passing-brightgreen)](#-testing)
 [![Security](https://img.shields.io/badge/security-XSS%20escaped-2ea44f)](#)
 [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 [![Streamlit Limits](https://img.shields.io/badge/resource%20limits-500%20cache%2C%206%2Fmin%20throttle-blueviolet)](.streamlit/config.toml)
@@ -39,7 +39,7 @@
 Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH** signal backed by:
 
 - **Smart ticker search** — type a company name ("HDFC Bank", "Tata Motors", "Zomato"), alias ("SBI", "L&T"), or partial name and get the correct NSE ticker automatically. 504 aliases, Yahoo Finance REST API (~0.5s), yfinance SDK, and direct ticker probe — chained with caching. Handles rebrands (Zomato → Eternal) and splits (Tata Motors → TMPV/TMCV).
-- **Live market data** — price, change %, volume, PE ratio via Yahoo Finance
+- **Live market data** — price, change %, volume, PE ratio, and D/E ratio via Yahoo Finance
 - **Interactive price chart** — 2-year candlestick chart with volume bars, 50-day SMA, 200-day SMA, and Bollinger Bands (20,2) overlays. Powered by TradingView Lightweight Charts. Zoom, pan, crosshair on hover. Visual legend identifies all overlays. Zero Python dependencies.
 - **Multi-source news sentiment** — RSS feeds from Moneycontrol, Economic Times, LiveMint (Markets + Companies + Industry), NDTV Profit, Google News, with DuckDuckGo fallback
 - **Event-aware scoring** — headlines classified by 19 event types (earnings, order wins, litigation, regulatory approvals, buybacks, etc.) with signed sentiment bias. Correctly scores "SEBI penalty" as negative and "SEBI clears merger" as positive — something VADER alone misses.

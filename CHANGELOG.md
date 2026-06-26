@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.7.0] — 2026-06-26
+
+### Added
+- **Debt-to-Equity ratio with risk badge** — D/E ratio now shown in the stock info panel alongside P/E. Color-coded badge indicates Low (green, <0.5), Normal (green, 0.5–1.5), Elevated (amber, 1.5–3.0), or High (red, >3.0) leverage. Populated from Yahoo Finance fundamentals (zero extra API calls).
+- **Bank/financial sector D/E suppression** — Banks and financial services companies naturally carry high D/E due to customer deposits. Their D/E is shown with a `~` prefix and no risk badge to avoid false alarms.
+
 ## [2.6.0] — 2026-06-23
 
 ### Added
