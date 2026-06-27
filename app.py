@@ -44,7 +44,7 @@ CONTACT = {
 
 from data_fetcher import (
     NSE_TICKERS, get_stock_info, search_news, get_cached_history,
-    resolve_ticker,
+    resolve_ticker, fetch_market_headlines,
 )
 from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
 from event_classifier import classify_headline, adjust_with_event
@@ -169,6 +169,22 @@ st.markdown("""
 
         /* Bottom cards (Portfolio + Track Record) — redesigned */
     }
+
+    /* Cascade / Ripple Effects card */
+    .card {background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:1rem;margin-bottom:1rem;}
+    .card-title {font-size:1rem;font-weight:700;color:#e4e6eb;margin-bottom:0.75rem;}
+    .cw {display:flex;flex-direction:column;gap:0.75rem;}
+    .cd {border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:0.75rem;}
+    .cd:last-child {border-bottom:none;padding-bottom:0;}
+    .ch {display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-size:0.85rem;}
+    .cn {color:#e4e6eb;font-weight:600;}
+    .cb {font-weight:700;font-size:0.8rem;}
+    .cc {color:#6b7280;font-size:0.75rem;margin-left:auto;}
+    .cticks {display:flex;flex-direction:column;gap:0.25rem;}
+    .ct {display:flex;align-items:center;gap:0.45rem;padding:0.2rem 0.5rem;border-radius:6px;background:rgba(255,255,255,0.02);font-size:0.8rem;}
+    .cs {color:#22b573;font-weight:700;min-width:5.5rem;}
+    .cco {color:#8891a0;flex:1;font-size:0.75rem;}
+    .cw {color:#6b7280;font-size:0.75rem;}
 
 </style>""", unsafe_allow_html=True)
 
@@ -1246,6 +1262,26 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # ─── Cascade / Ripple Effects on home page ───
+    _market_news = fetch_market_headlines()
+    if _market_news:
+        _cascade_results = detect_cascade(_market_news, ticker_lookup=NSE_TICKERS)
+        if _cascade_results:
+            _rows = ""
+            _CACHE = {"arrow_up": "↑", "arrow_down": "↓"}
+            for _ce in _cascade_results:
+                _dr = _ce["driver"]
+                _dir_icon = _CACHE["arrow_up"] if _ce["direction"] > 0 else _CACHE["arrow_down"]
+                _impact = _ce.get("impact", 1)
+                _n = _ce.get("matched_articles", 1)
+                _label = "Bearish" if _impact > 0 else "Bullish"
+                _color = "#f85149" if _impact > 0 else "#22b573"
+                _aff = ""
+                for _a in _ce["affects"]:
+                    _aff += f"""<div class="ct"><span class="cs">{_a['ticker']}</span><span class="cco">{_a['company']}</span><span class="cw">{_a['reason']}</span></div>"""
+                _rows += f"""<div class="cd"><div class="ch"><span class="cn">{_dir_icon} {_dr}</span><span class="cb" style="color:{_color}">{_label}</span><span class="cc">{_n} article{'s' if _n > 1 else ''}</span></div><div class="cticks">{_aff}</div></div>"""
+            st.markdown(f"""<div class="card"><div class="card-title">Cascade / Ripple Effects</div><div class="cw">{_rows}</div></div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='text-align:center;padding:0.5rem 0 1.5rem'>", unsafe_allow_html=True)
     popular = ["RELIANCE", "HDFCBANK", "TCS", "INFY", "SBIN"]

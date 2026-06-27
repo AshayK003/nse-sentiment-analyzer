@@ -1203,3 +1203,30 @@ def search_news(ticker, company_name, max_results=10):
         cache_set(f"news_{ticker}", ([], source_stats), ttl=60)
         st.info("ℹ️ News feed unavailable. Showing price data only.")
     return all_results[:max_results], cascade_pool, source_stats
+
+
+def fetch_market_headlines():
+    """Fetch broad market headlines for cascade detection on the home page.
+
+    Fetches all INDIA_RSS_FEEDS without ticker filtering.
+    Cached for 5 minutes to avoid hammering feeds on every rerun.
+
+    Returns list of dicts with title, body, date, url, source.
+    """
+    cached = cache_get("market_headlines")
+    if cached:
+        return cached
+    all_items = []
+    seen_urls = set()
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(_parse_rss_feed, name, url, "", ""): name for name, url in INDIA_RSS_FEEDS}
+        for future in as_completed(futures):
+            _, items, _ = future.result()
+            for item in items:
+                link = item["url"]
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    all_items.append(item)
+    all_items.sort(key=lambda x: x["date"], reverse=True)
+    cache_set("market_headlines", all_items, ttl=300)
+    return all_items
