@@ -306,7 +306,7 @@ def analyze_ticker(ticker, company_name, quick=False):
     weighted_signal, blended_compound, weighted_emoji, source_breakdown = get_weighted_signal(headline_scores)
 
     # Cascade/Ripple Tracking — scan all market news (including non-ticker articles) for commodity keywords
-    cascade_effects = detect_cascade(cascade_pool, ticker_lookup=NSE_TICKERS)
+    cascade_effects = detect_cascade(cascade_pool, ticker_lookup=NSE_TICKERS, focus_ticker=ticker)
 
     # Intraday tools — skip if yfinance is rate-limited to avoid extra API pressure
     from data_fetcher import _check_rate_limited

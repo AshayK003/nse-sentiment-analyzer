@@ -39,13 +39,13 @@ CASCADE_MAP = [
             r"\bpetrol(?:ium)?\s+prices?\b",
         ],
         "affects": [
-            ("BPCL", "Higher input cost — OMC margins compress when crude rises"),
-            ("IOC", "Higher input cost — OMCs absorb retail losses"),
-            ("HINDPETRO", "Higher input cost — OMC margins follow crude"),
-            ("INDIGO", "ATF (jet fuel) cost rises — airline margins squeeze"),
-            ("ASIANPAINT", "Raw material (solvents/resins) linked to crude"),
-            ("BERGEPAINT", "Paint raw materials track crude derivatives"),
-            ("KANSAINER", "Paint raw materials track crude derivatives"),
+            ("BPCL", "Higher input cost — OMC margins compress when crude rises", "Lower input cost — OMC margins expand when crude falls"),
+            ("IOC", "Higher input cost — OMCs absorb retail losses", "Lower input cost — OMCs benefit from falling crude"),
+            ("HINDPETRO", "Higher input cost — OMC margins follow crude", "Lower input cost — OMC margins recover as crude falls"),
+            ("INDIGO", "ATF (jet fuel) cost rises — airline margins squeeze", "ATF (jet fuel) cost falls — airline margins improve"),
+            ("ASIANPAINT", "Raw material (solvents/resins) linked to crude", "Raw material costs ease with falling crude"),
+            ("BERGEPAINT", "Paint raw materials track crude derivatives", "Paint raw material costs ease with crude"),
+            ("KANSAINER", "Paint raw materials track crude derivatives", "Paint raw material costs ease with crude"),
         ],
     },
     {
@@ -58,12 +58,12 @@ CASCADE_MAP = [
             r"\bforex\b",
         ],
         "affects": [
-            ("INFY", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("TCS", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("HCLTECH", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("WIPRO", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("TECHM", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("LTIM", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("INFY", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("TCS", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("HCLTECH", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("WIPRO", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("TECHM", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("LTIM", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
         ],
     },
     {
@@ -76,8 +76,8 @@ CASCADE_MAP = [
             r"\bspot\s+gold\b",
         ],
         "affects": [
-            ("GOLDBEES", "Gold price movement directly tracks the underlying metal"),
-            ("TITAN", "Jewellery demand & inventory value tracks gold prices"),
+            ("GOLDBEES", "Gold price decline impacts metal value", "Gold price rally benefits metal holdings"),
+            ("TITAN", "Gold price decline impacts jewellery demand & inventory", "Gold price rally boosts jewellery demand & inventory value"),
         ],
     },
     {
@@ -90,10 +90,10 @@ CASCADE_MAP = [
             r"\b(?:HRC|CRC)\s+steel\b",
         ],
         "affects": [
-            ("TATASTEEL", "Steel price realisations directly impact revenue"),
-            ("JSWSTEEL", "Steel price realisations directly impact revenue"),
-            ("SAIL", "Steel price realisations directly impact revenue"),
-            ("JINDALSTEL", "Steel price realisations directly impact revenue"),
+            ("TATASTEEL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
+            ("JSWSTEEL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
+            ("SAIL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
+            ("JINDALSTEL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
         ],
     },
     {
@@ -105,10 +105,10 @@ CASCADE_MAP = [
             r"\bgas\s+prices?\b",
         ],
         "affects": [
-            ("GUJGASLTD", "Higher gas procurement cost — city gas margins compress"),
-            ("IGL", "Higher gas procurement cost — CNG/piped gas margins compress"),
-            ("MGL", "Higher gas procurement cost — city gas margins compress"),
-            ("GAIL", "Higher gas prices — transmission margins benefit but volume may drop"),
+            ("GUJGASLTD", "Higher gas procurement cost — city gas margins compress", "Lower gas procurement cost — city gas margins expand"),
+            ("IGL", "Higher gas procurement cost — CNG/piped gas margins compress", "Lower gas procurement cost — CNG/piped gas margins expand"),
+            ("MGL", "Higher gas procurement cost — city gas margins compress", "Lower gas procurement cost — city gas margins expand"),
+            ("GAIL", "Higher gas prices — transmission margins benefit but volume may drop", "Higher gas prices — transmission margins benefit but volume may drop"),
         ],
     },
     {
@@ -119,9 +119,9 @@ CASCADE_MAP = [
             r"\bthermal\s+coal\b",
         ],
         "affects": [
-            ("COALINDIA", "Higher coal prices — revenue positive for Coal India"),
-            ("NTPC", "Higher fuel cost — power generation margins compress"),
-            ("TATAPOWER", "Higher fuel cost — power generation margins may compress"),
+            ("COALINDIA", "Lower coal prices — revenue declines for Coal India", "Higher coal prices — revenue positive for Coal India"),
+            ("NTPC", "Higher fuel cost — power generation margins compress", "Lower fuel cost — power generation margins recover"),
+            ("TATAPOWER", "Higher fuel cost — power generation margins may compress", "Lower fuel cost — power generation margins may recover"),
         ],
     },
 ]
@@ -134,7 +134,7 @@ _DIR_UP = re.compile(
     r"\b(?:surges?|surged|jumps?|jumped|climbs?|climbed|"
     r"rally|rallies|rallied|soars?|soared|rebounds?|rebounded|"
     r"spikes?|spiked|hikes?|hiked|gains?|gained|rises?|rising|"
-    r"skyrockets?|skyrocketed|appreciates?)\b",
+    r"skyrockets?|skyrocketed|appreciates?|strengthens?|strengthened)\b",
     re.IGNORECASE,
 )
 _DIR_DOWN = re.compile(
@@ -161,19 +161,22 @@ def _get_compiled():
     return _COMPILED_PATTERNS
 
 
-def detect_cascade(news_items, ticker_lookup=None):
+def detect_cascade(news_items, ticker_lookup=None, focus_ticker=None):
     """Scan a list of news items for commodity/macro keywords.
 
     Args:
         news_items: list of dicts with 'title' and 'body' keys.
         ticker_lookup: optional dict {ticker→company_name} for name resolution.
                        Falls back to the ticker symbol if not provided.
+        focus_ticker: optional str — if set, that ticker's commodity is
+                      sorted first and highlighted in the results.
 
     Returns:
         list of dicts:
             driver: str — commodity name (e.g. "Crude Oil")
             direction: +1 (rise) or -1 (fall) — semantic direction
-            affects: list of (ticker, reason, company_name)
+            impact: +1 (Bearish/bad), -1 (Bullish/good)
+            affects: list of dicts with keys: ticker, reason, company, searched
             matched_articles: int — how many news items triggered
     """
     if not news_items:
@@ -186,6 +189,7 @@ def detect_cascade(news_items, ticker_lookup=None):
         text = (item.get("title") or "") + " " + (item.get("body") or "")
         texts.append(text)
 
+    focus_ticker = (focus_ticker or "").upper()
     results = []
 
     for entry in CASCADE_MAP:
@@ -222,11 +226,54 @@ def detect_cascade(news_items, ticker_lookup=None):
         # Net impact on ticker: +1 = Bad (Bearish), -1 = Good (Bullish)
         impact = direction * entry["direction"]
 
-        # Resolve company names for affected tickers
+        # Build per-ticker mention patterns (word-boundary ticker + company name)
+        ticker_pats = {}
+        for ticker, bad_reason, good_reason in entry["affects"]:
+            company = (ticker_lookup or {}).get(ticker, "")
+            pats = [re.compile(rf"\b{re.escape(ticker)}\b", re.IGNORECASE)]
+            if company:
+                pats.append(re.compile(rf"\b{re.escape(company)}\b", re.IGNORECASE))
+            ticker_pats[ticker] = pats
+
+        # Check each ticker against all matching articles
+        ticker_mentioned = {}
+        for ticker, pats in ticker_pats.items():
+            for text in matching_texts:
+                if any(p.search(text) for p in pats):
+                    ticker_mentioned[ticker] = True
+                    break
+
+        # Build resolved list — pick reason by impact, mark searched
+        any_mentioned = False
         resolved = []
-        for ticker, reason in entry["affects"]:
+        for ticker, bad_reason, good_reason in entry["affects"]:
             company = (ticker_lookup or {}).get(ticker, ticker)
-            resolved.append((ticker, reason, company))
+            reason = good_reason if impact < 0 else bad_reason
+            mentioned = ticker_mentioned.get(ticker, False)
+            if mentioned:
+                any_mentioned = True
+            resolved.append({
+                "ticker": ticker,
+                "reason": reason,
+                "company": company,
+                "mentioned": mentioned,
+                "searched": ticker == focus_ticker,
+            })
+
+        # Filter to mentioned tickers only (fallback to all if none mentioned)
+        if any_mentioned:
+            resolved = [a for a in resolved if a["mentioned"]]
+
+        # Sort: searched ticker first, then alphabetical
+        resolved.sort(key=lambda a: (0 if a["searched"] else 1, a["ticker"]))
+
+        # Remove mention flag from output (internal only)
+        for a in resolved:
+            del a["mentioned"]
+
+        # Skip commodities that don't affect the searched ticker (when known)
+        if focus_ticker and not any(a["searched"] for a in resolved):
+            continue
 
         results.append({
             "driver": driver,
@@ -235,5 +282,9 @@ def detect_cascade(news_items, ticker_lookup=None):
             "affects": resolved,
             "matched_articles": len(matching_texts),
         })
+
+    # Sort: focus ticker's commodity first
+    if focus_ticker:
+        results.sort(key=lambda r: 0 if any(a["searched"] for a in r["affects"]) else 1)
 
     return results

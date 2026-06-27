@@ -31,7 +31,7 @@ class TestDetectCascade:
         assert len(results) == 1
         assert results[0]["driver"] == "Crude Oil"
         assert results[0]["direction"] == 1
-        tickers = [r[0] for r in results[0]["affects"]]
+        tickers = [a["ticker"] for a in results[0]["affects"]]
         assert "BPCL" in tickers
         assert "INDIGO" in tickers
         assert "ASIANPAINT" in tickers
@@ -54,7 +54,7 @@ class TestDetectCascade:
         drivers = [r["driver"] for r in results]
         assert "Rupee / USD" in drivers
         rupee_effect = [r for r in results if r["driver"] == "Rupee / USD"][0]
-        tickers = [a[0] for a in rupee_effect["affects"]]
+        tickers = [a["ticker"] for a in rupee_effect["affects"]]
         assert "INFY" in tickers
         assert "TCS" in tickers
 
@@ -107,9 +107,9 @@ class TestDetectCascade:
         assert len(results) == 1
         crude = results[0]
         # Find BPCL in affects
-        bpcl_entry = [a for a in crude["affects"] if a[0] == "BPCL"]
+        bpcl_entry = [a for a in crude["affects"] if a["ticker"] == "BPCL"]
         assert len(bpcl_entry) == 1
-        _, _, company = bpcl_entry[0]
+        company = bpcl_entry[0]["company"]
         assert company == "Bharat Petroleum Corp Ltd"
 
     def test_natural_gas_detection(self):
@@ -121,7 +121,7 @@ class TestDetectCascade:
         drivers = [r["driver"] for r in results]
         assert "Natural Gas" in drivers
         gas_effect = [r for r in results if r["driver"] == "Natural Gas"][0]
-        tickers = [a[0] for a in gas_effect["affects"]]
+        tickers = [a["ticker"] for a in gas_effect["affects"]]
         assert "IGL" in tickers
         assert "GUJGASLTD" in tickers
 
@@ -181,6 +181,62 @@ class TestDetectCascade:
         # 1 up + 1 down = tie → fall back to CASCADE_MAP +1 default
         assert crude["direction"] == 1
         assert crude["impact"] == 1
+
+    def test_ticker_mention_scanning_filters_unmentioned(self):
+        """Only tickers mentioned in the article should be included."""
+        news = [
+            {"title": "Crude oil surges, BPCL to benefit from rising prices", "body": "BPCL margins expected to improve."},
+        ]
+        results = detect_cascade(news)
+        tickers = [a["ticker"] for a in results[0]["affects"]]
+        assert "BPCL" in tickers  # mentioned in article
+        assert "IOC" not in tickers  # not mentioned
+        assert "INDIGO" not in tickers  # not mentioned
+
+    def test_ticker_mention_fallback_to_all_when_none_mentioned(self):
+        """If no tickers are mentioned, include all as fallback."""
+        news = [
+            {"title": "Crude oil prices surge on supply cuts", "body": "Oil markets tighten."},
+        ]
+        results = detect_cascade(news)
+        tickers = [a["ticker"] for a in results[0]["affects"]]
+        assert "BPCL" in tickers  # fallback — all included
+        assert "INDIGO" in tickers  # fallback
+        assert len(tickers) == 7  # all crude tickers
+
+    def test_focus_ticker_filters_other_commodities(self):
+        """focus_ticker should only show commodities that affect that ticker."""
+        news = [
+            {"title": "Crude oil surges, gold prices steady", "body": "Brent crude above $85."},
+        ]
+        # Focus BPCL — only crude (affects BPCL) should show, not gold
+        results = detect_cascade(news, focus_ticker="BPCL")
+        drivers = [r["driver"] for r in results]
+        assert "Crude Oil" in drivers
+        assert "Gold" not in drivers
+
+    def test_focus_ticker_sorts_first_in_affects(self):
+        """focus_ticker should appear first in the affects list."""
+        news = [
+            {"title": "Crude oil surges, BPCL margins seen improving", "body": "BPCL may benefit."},
+        ]
+        results = detect_cascade(news, focus_ticker="BPCL")
+        assert results[0]["affects"][0]["ticker"] == "BPCL"
+        assert results[0]["affects"][0]["searched"] is True
+
+    def test_direction_aware_reason_crude_crash_is_bullish(self):
+        """When crude crashes, reason should reflect lower costs (good for OMCs)."""
+        news = [{"title": "Crude oil prices crash on demand fears", "body": ""}]
+        results = detect_cascade(news)
+        bpcl = [a for a in results[0]["affects"] if a["ticker"] == "BPCL"][0]
+        assert "lower" in bpcl["reason"].lower() or "expand" in bpcl["reason"].lower()
+
+    def test_direction_aware_reason_gold_surge_is_bullish(self):
+        """When gold surges, reason should reflect benefits for gold holders."""
+        news = [{"title": "Gold prices rally to new record high", "body": ""}]
+        results = detect_cascade(news)
+        goldbees = [a for a in results[0]["affects"] if a["ticker"] == "GOLDBEES"][0]
+        assert "rally" in goldbees["reason"].lower() or "benefits" in goldbees["reason"].lower()
 
     def test_matched_articles_count(self):
         """matched_articles should reflect how many articles mentioned the commodity."""

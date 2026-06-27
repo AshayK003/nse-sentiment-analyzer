@@ -18,7 +18,11 @@
 - **`\bcrude\b` tightened** — Now uses negative lookahead `(?!\s+steel\b)` to avoid false matching "crude steel output".
 - **Removed redundant `\bRupee\b` pattern** — All CASCADE_MAP patterns are compiled with `re.IGNORECASE`, so lowercase `\brupee\b` already covered "Rupee".
 - **CHANGELOG.md sidebar read cached** — File is now read once per session via `st.session_state._changelog_cache` instead of on every page rerun.
-- **191 tests** (was 184) — 7 new tests covering direction inference (up/down), impact calculation (Bullish/Bearish) for both crude and gold, and ambiguous-direction fallback.
+- **Ticker mention scanning** — `detect_cascade()` now scans matching articles for each ticker symbol and company name. Only tickers mentioned in the article text are included in the results. Falls back to all tickers if none are mentioned (no false empty cards).
+- **Direction-aware impact reasons** — Each ticker in CASCADE_MAP now has two reasons: one for when the commodity move is bad (Bearish) and one for when it's good (Bullish). `detect_cascade()` picks the matching reason based on the inferred impact direction.
+- **Searched-ticker highlighting** — `detect_cascade()` accepts `focus_ticker` parameter. Only commodities that affect the searched ticker are shown. The searched ticker sorts first in the affects list. `render.py` adds `cascade-searched` CSS class for visual promotion.
+- **`focus_ticker` wired in `app.py`** — `detect_cascade(cascade_pool, ticker_lookup=NSE_TICKERS, focus_ticker=ticker)` makes the cascade card ticker-specific.
+- **197 tests** (was 191) — 6 new tests covering ticker mention scanning, fallback behavior, focus_ticker filtering, focus_ticker sorting, and direction-aware reason selection.
 
 ## [2.8.0] — 2026-06-28
 

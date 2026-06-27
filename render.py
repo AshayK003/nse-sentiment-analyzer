@@ -245,12 +245,13 @@ def _render_cascade_html(cascade_effects):
             dir_label = "Bullish"
             dir_color = "#22b573"
         affected_rows = ""
-        for ticker, reason, company in effect["affects"]:
+        for a in effect["affects"]:
+            searched_cls = " cascade-searched" if a.get("searched") else ""
             affected_rows += f"""
-            <div class="cascade-ticker">
-                <span class="cascade-sym">{h(ticker)}</span>
-                <span class="cascade-co">{h(company)}</span>
-                <span class="cascade-why">{h(reason)}</span>
+            <div class="cascade-ticker{searched_cls}">
+                <span class="cascade-sym">{h(a['ticker'])}</span>
+                <span class="cascade-co">{h(a['company'])}</span>
+                <span class="cascade-why">{h(a['reason'])}</span>
             </div>"""
         driver_rows += f"""
         <div class="cascade-driver">
