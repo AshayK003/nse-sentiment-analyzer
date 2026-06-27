@@ -4,6 +4,8 @@ Replaces Streamlit display widgets with a custom premium template
 rendered via st.components.v1.html().
 """
 
+from pathlib import Path
+
 import html
 import logging
 import math
@@ -48,7 +50,10 @@ _ICON["bullish"] = _svg('<circle cx="12" cy="12" r="10" fill="#22b573" stroke="n
 _ICON["bearish"] = _svg('<circle cx="12" cy="12" r="10" fill="#f85149" stroke="none"/><path d="M8 9h8l-4 8z" fill="#f0f0f0" stroke="none"/>')
 _ICON["neutral"] = _svg('<circle cx="12" cy="12" r="10" fill="#8891a0" stroke="none"/><path d="M7 12h10" stroke="#f0f0f0" stroke-width="2.5" stroke-linecap="round" fill="none"/>')
 
-# Counter for unique sparkline gradient IDs (avoids id() which can collide across renders)
+# Dashboard CSS — loaded once at module init
+_DASHBOARD_CSS = (Path(__file__).parent / "static" / "dashboard.css").read_text(encoding="utf-8")
+
+# Counter for unique sparkline gradient IDs
 _sparkline_counter = itertools.count()
 
 
@@ -238,6 +243,115 @@ def _render_pivot_html(pivot_data):
         + " · ".join(parts)
         + "</div>"
     )
+
+
+def _build_chart_script(ohlcv_json, nonce):
+    """Build TradingView Lightweight Charts script with Bollinger + SMA overlays.
+    Returns empty string if no data.
+    """
+    if not ohlcv_json or ohlcv_json == "[]":
+        return ""
+    import json as _json
+    _ohlc = _json.loads(ohlcv_json) if isinstance(ohlcv_json, str) else ohlcv_json
+    _bb_upper, _bb_lower, _sma200 = "[]", "[]", "[]"
+    if len(_ohlc) >= 20:
+        _closes = [d["close"] for d in _ohlc]
+        _bb_u, _bb_l = [], []
+        for i in range(19, len(_closes)):
+            _window = _closes[i-19:i+1]
+            _mean = sum(_window) / 20
+            _var = sum((x - _mean) ** 2 for x in _window) / 20
+            _std = math.sqrt(_var)
+            _bb_u.append({"time": _ohlc[i]["time"], "value": round(_mean + 2 * _std, 2)})
+            _bb_l.append({"time": _ohlc[i]["time"], "value": round(_mean - 2 * _std, 2)})
+        _bb_upper = _json.dumps(_bb_u)
+        _bb_lower = _json.dumps(_bb_l)
+    if len(_ohlc) >= 200:
+        _closes_200 = [d["close"] for d in _ohlc]
+        _sma = []
+        for i in range(199, len(_closes_200)):
+            _sma.append({"time": _ohlc[i]["time"], "value": round(sum(_closes_200[i-199:i+1]) / 200, 2)})
+        _sma200 = _json.dumps(_sma)
+
+    _bb_upper_s = _json.dumps(_bb_upper) if isinstance(_bb_upper, (list, dict)) else _bb_upper
+    _bb_lower_s = _json.dumps(_bb_lower) if isinstance(_bb_lower, (list, dict)) else _bb_lower
+    _sma200_s = _json.dumps(_sma200) if isinstance(_sma200, (list, dict)) else _sma200
+
+    return f"""<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" nonce="{nonce}"></script>
+<script nonce="{nonce}">
+(function(){{
+  var data = {ohlcv_json};
+  var bbUpperData = {_bb_upper_s};
+  var bbLowerData = {_bb_lower_s};
+  var sma200Data = {_sma200_s};
+  if (!data || !data.length) return;
+  var container = document.getElementById('tvchart');
+  if (!container) return;
+  var chart = LightweightCharts.createChart(container, {{
+    width: container.clientWidth,
+    height: container.clientHeight || 380,
+    layout: {{ background: {{ color: '#15181f' }}, textColor: '#8891a0' }},
+    grid: {{ vertLines: {{ color: 'rgba(42,46,58,0.4)' }}, horzLines: {{ color: 'rgba(42,46,58,0.4)' }} }},
+    crosshair: {{ mode: LightweightCharts.CrosshairMode.Normal }},
+    rightPriceScale: {{ borderColor: '#2a2e3a' }},
+    timeScale: {{ borderColor: '#2a2e3a', timeVisible: false }},
+  }});
+  var candleSeries = chart.addCandlestickSeries({{
+    upColor: '#22b573', downColor: '#f85149',
+    borderUpColor: '#22b573', borderDownColor: '#f85149',
+    wickUpColor: '#22b573', wickDownColor: '#f85149',
+  }});
+  candleSeries.setData(data);
+  var volumeSeries = chart.addHistogramSeries({{
+    color: 'rgba(34,181,115,0.3)',
+    priceFormat: {{ type: 'volume' }},
+    priceScaleId: '',
+  }});
+  volumeSeries.setData(data.map(function(d){{
+    return {{ time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(34,181,115,0.3)' : 'rgba(248,81,73,0.3)' }};
+  }}));
+  // 50-day SMA
+  if (data.length >= 50) {{
+    var sma = [];
+    for (var i = 49; i < data.length; i++) {{
+      var sum = 0;
+      for (var j = i - 49; j <= i; j++) sum += data[j].close;
+      sma.push({{ time: data[i].time, value: sum / 50 }});
+    }}
+    var smaSeries = chart.addLineSeries({{
+      color: 'rgba(96,165,250,0.6)', lineWidth: 1,
+      priceLineVisible: false, lastValueVisible: false,
+    }});
+    smaSeries.setData(sma);
+  }}
+  // 200-day SMA
+  if (sma200Data.length) {{
+    var sma200Series = chart.addLineSeries({{
+      color: 'rgba(251,191,36,0.5)', lineWidth: 1,
+      priceLineVisible: false, lastValueVisible: false,
+      lineStyle: 2,
+    }});
+    sma200Series.setData(sma200Data);
+  }}
+  // Bollinger Bands (20, 2)
+  if (bbUpperData.length) {{
+    var bbUpperSeries = chart.addLineSeries({{
+      color: 'rgba(168,85,247,0.4)', lineWidth: 1,
+      priceLineVisible: false, lastValueVisible: false,
+      lineStyle: 2,
+    }});
+    bbUpperSeries.setData(bbUpperData);
+    var bbLowerSeries = chart.addLineSeries({{
+      color: 'rgba(168,85,247,0.4)', lineWidth: 1,
+      priceLineVisible: false, lastValueVisible: false,
+      lineStyle: 2,
+    }});
+    bbLowerSeries.setData(bbLowerData);
+  }}
+  chart.timeScale().fitContent();
+  new ResizeObserver(function(){{ chart.applyOptions({{ width: container.clientWidth }}); }}).observe(container);
+}})();
+</script>"""
 
 
 def render_dashboard(result, ticker, company_name, technical_indicators=None,
@@ -629,107 +743,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 </script>"""
 
     # ─── TradingView Lightweight Charts — candlestick + volume + overlays ───
-    if ohlcv_json and ohlcv_json != "[]":
-        # Compute overlay data (Bollinger Bands + SMA200) from ohlcv_json
-        import json as _json
-        _ohlc = _json.loads(ohlcv_json) if isinstance(ohlcv_json, str) else ohlcv_json
-        _bb_upper, _bb_lower, _sma200 = "[]", "[]", "[]"
-        if len(_ohlc) >= 20:
-            _closes = [d["close"] for d in _ohlc]
-            _bb_u, _bb_l = [], []
-            for i in range(19, len(_closes)):
-                _window = _closes[i-19:i+1]
-                _mean = sum(_window) / 20
-                _var = sum((x - _mean) ** 2 for x in _window) / 20
-                _std = math.sqrt(_var)
-                _bb_u.append({"time": _ohlc[i]["time"], "value": round(_mean + 2 * _std, 2)})
-                _bb_l.append({"time": _ohlc[i]["time"], "value": round(_mean - 2 * _std, 2)})
-            _bb_upper = _json.dumps(_bb_u)
-            _bb_lower = _json.dumps(_bb_l)
-        if len(_ohlc) >= 200:
-            _closes_200 = [d["close"] for d in _ohlc]
-            _sma = []
-            for i in range(199, len(_closes_200)):
-                _sma.append({"time": _ohlc[i]["time"], "value": round(sum(_closes_200[i-199:i+1]) / 200, 2)})
-            _sma200 = _json.dumps(_sma)
-
-        _chart_script = f"""<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" nonce="{_nonce}"></script>
-<script nonce="{_nonce}">
-(function(){{
-  var data = {ohlcv_json};
-  var bbUpperData = {_bb_upper};
-  var bbLowerData = {_bb_lower};
-  var sma200Data = {_sma200};
-  if (!data || !data.length) return;
-  var container = document.getElementById('tvchart');
-  if (!container) return;
-  var chart = LightweightCharts.createChart(container, {{
-    width: container.clientWidth,
-    height: container.clientHeight || 380,
-    layout: {{ background: {{ color: '#15181f' }}, textColor: '#8891a0' }},
-    grid: {{ vertLines: {{ color: 'rgba(42,46,58,0.4)' }}, horzLines: {{ color: 'rgba(42,46,58,0.4)' }} }},
-    crosshair: {{ mode: LightweightCharts.CrosshairMode.Normal }},
-    rightPriceScale: {{ borderColor: '#2a2e3a' }},
-    timeScale: {{ borderColor: '#2a2e3a', timeVisible: false }},
-  }});
-  var candleSeries = chart.addCandlestickSeries({{
-    upColor: '#22b573', downColor: '#f85149',
-    borderUpColor: '#22b573', borderDownColor: '#f85149',
-    wickUpColor: '#22b573', wickDownColor: '#f85149',
-  }});
-  candleSeries.setData(data);
-  var volumeSeries = chart.addHistogramSeries({{
-    color: 'rgba(34,181,115,0.3)',
-    priceFormat: {{ type: 'volume' }},
-    priceScaleId: '',
-  }});
-  volumeSeries.setData(data.map(function(d){{
-    return {{ time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(34,181,115,0.3)' : 'rgba(248,81,73,0.3)' }};
-  }}));
-  // 50-day SMA
-  if (data.length >= 50) {{
-    var sma = [];
-    for (var i = 49; i < data.length; i++) {{
-      var sum = 0;
-      for (var j = i - 49; j <= i; j++) sum += data[j].close;
-      sma.push({{ time: data[i].time, value: sum / 50 }});
-    }}
-    var smaSeries = chart.addLineSeries({{
-      color: 'rgba(96,165,250,0.6)', lineWidth: 1,
-      priceLineVisible: false, lastValueVisible: false,
-    }});
-    smaSeries.setData(sma);
-  }}
-  // 200-day SMA
-  if (sma200Data.length) {{
-    var sma200Series = chart.addLineSeries({{
-      color: 'rgba(251,191,36,0.5)', lineWidth: 1,
-      priceLineVisible: false, lastValueVisible: false,
-      lineStyle: 2,
-    }});
-    sma200Series.setData(sma200Data);
-  }}
-  // Bollinger Bands (20, 2)
-  if (bbUpperData.length) {{
-    var bbUpperSeries = chart.addLineSeries({{
-      color: 'rgba(168,85,247,0.4)', lineWidth: 1,
-      priceLineVisible: false, lastValueVisible: false,
-      lineStyle: 2,
-    }});
-    bbUpperSeries.setData(bbUpperData);
-    var bbLowerSeries = chart.addLineSeries({{
-      color: 'rgba(168,85,247,0.4)', lineWidth: 1,
-      priceLineVisible: false, lastValueVisible: false,
-      lineStyle: 2,
-    }});
-    bbLowerSeries.setData(bbLowerData);
-  }}
-  chart.timeScale().fitContent();
-  new ResizeObserver(function(){{ chart.applyOptions({{ width: container.clientWidth }}); }}).observe(container);
-}})();
-</script>"""
-    else:
-        _chart_script = ""
+    _chart_script = _build_chart_script(ohlcv_json, _nonce)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -740,290 +754,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    .sr-only {{ position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }}
-    .icon {{ vertical-align: middle; margin-right: 0.15rem; }}
-    body {{
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        font-display: swap;
-        background: #0a0b0f; color: #f0f2f5;
-        padding: 0; line-height: 1.5;
-    }}
-    .dashboard {{ max-width: 820px; margin: 0 auto; padding: 0; }}
-    ::-webkit-scrollbar {{ width: 6px; }}
-    ::-webkit-scrollbar-track {{ background: #0a0b0f; }}
-    ::-webkit-scrollbar-thumb {{ background: #2a2e3a; border-radius: 3px; }}
-
-    /* Cards */
-    .card {{
-        background: #15181f;
-        border: 1px solid #2a2e3a;
-        border-radius: 12px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    }}
-    .card-title {{
-        font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: 0.08em; color: #8891a0; margin-bottom: 0.75rem;
-    }}
-
-    /* Company header */
-    .company-header {{
-        display: flex; justify-content: space-between; align-items: flex-start;
-        margin-bottom: 1rem;
-    }}
-    .company-name {{ font-size: 1.35rem; font-weight: 700; }}
-    .company-ticker {{ color: #8891a0; font-size: 0.9rem; }}
-
-    /* Price grid */
-    .price-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }}
-    .price-cell {{
-        background: #1a1d26;
-        border: 1px solid #2a2e3a;
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-    }}
-    .price-cell .label {{ font-size: 0.78rem; color: #8891a0; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }}
-    .price-cell .value {{ font-size: 1.1rem; font-weight: 700; }}
-    .price-cell .value.price-main {{ font-size: 2rem; }}
-    .price-cell .delta {{ font-size: 0.9rem; font-weight: 600; }}
-    .price-cell .delta.up {{ color: #22b573; }}
-    .price-cell .delta.down {{ color: #f85149; }}
-
-    /* Sentiment hero */
-    .sentiment-row {{ display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; margin-bottom: 0.75rem; }}
-    .sentiment-hero {{ font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }}
-    .sentiment-hero.bullish {{ background: linear-gradient(135deg,#22b573,#0d9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-    .sentiment-hero.bearish {{ background: linear-gradient(135deg,#f85149,#da3633); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-    .sentiment-hero.neutral {{ background: linear-gradient(135deg,#8891a0,#6b7280); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-    .sentiment-caption {{ font-size: 0.8rem; color: #8891a0; }}
-    .confidence-box {{ text-align: center; }}
-    .confidence-num {{ font-size: 1.2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }}
-    .confidence-num.bullish {{ background: linear-gradient(135deg,#22b573,#0d9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-    .confidence-num.bearish {{ background: linear-gradient(135deg,#f85149,#da3633); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-    .confidence-num.neutral {{ background: linear-gradient(135deg,#8891a0,#6b7280); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-    .confidence-label {{ font-size: 0.75rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.05em; }}
-
-    /* Recommendation callout */
-    .rec-callout {{
-        display: inline-flex; align-items: center; gap: 0.5rem;
-        padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
-        margin-top: 0.5rem;
-    }}
-    .rec-callout.bullish {{ background: rgba(34,181,115,0.12); color: #2ecc71; border: 1px solid rgba(34,181,115,0.25); }}
-    .rec-callout.bearish {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.25); }}
-    .rec-callout.neutral {{ background: rgba(136,145,160,0.1); color: #8891a0; border: 1px solid rgba(136,145,160,0.2); }}
-
-    /* Source badges */
-    .badge-wrap {{ margin-top: 0.75rem; }}
-    .source-badge {{
-        display: inline-flex; align-items: center; gap: 0.35rem;
-        padding: 0.3rem 0.75rem; border-radius: 100px;
-        font-size: 0.8rem; font-weight: 500;
-        border: 1px solid #2a2e3a;
-        background: rgba(255,255,255,0.06);
-        margin: 0.15rem; white-space: nowrap;
-    }}
-    .source-badge.bullish {{ border-color: rgba(34,181,115,0.35); color: #2ecc71; }}
-    .source-badge.bearish {{ border-color: rgba(248,81,73,0.35); color: #ff6b6b; }}
-    .source-badge.neutral {{ border-color: rgba(136,145,160,0.15); color: #8891a0; }}
-    .badge-meta {{ opacity: 0.7; color: #8891a0; }}
-    .source-health {{ font-size: 0.8rem; color: #8891a0; margin-top: 0.5rem; }}
-
-    /* Session quality badges */
-    .session-badge {{
-        display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px;
-        font-size: 0.72rem; font-weight: 500; margin-top: 0.4rem;
-    }}
-    .session-badge.warn {{ background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }}
-    .session-badge.info {{ background: rgba(96,165,250,0.1); color: #93c5fd; border: 1px solid rgba(96,165,250,0.2); }}
-    .session-badge.muted {{ background: rgba(136,145,160,0.1); color: #8891a0; border: 1px solid rgba(136,145,160,0.2); }}
-
-    /* SmartScore section */
-    .ss-section {{
-        display: flex; align-items: stretch; gap: 1rem;
-        margin: 0.75rem 0 0.5rem 0;
-        padding: 0.75rem;
-        background: linear-gradient(135deg, rgba(21,24,31,0.8), rgba(26,29,38,0.6));
-        border: 1px solid #2a2e3a;
-        border-radius: 10px;
-    }}
-    .ss-main {{ text-align: center; min-width: 72px; flex-shrink: 0; }}
-    .ss-score {{ font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }}
-    .ss-label {{ font-size: 0.72rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.2rem; }}
-    .ss-qual {{ font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.1rem; }}
-    .ss-comps {{ flex: 1; display: flex; flex-direction: column; gap: 0.3rem; justify-content: center; }}
-    .ss-comp {{ display: flex; align-items: center; gap: 0.4rem; }}
-    .ss-comp-label {{ font-size: 0.72rem; color: #8891a0; min-width: 3.2rem; text-transform: uppercase; letter-spacing: 0.04em; }}
-    .ss-comp-track {{ flex: 1; height: 4px; background: #1a1d26; border-radius: 2px; overflow: hidden; }}
-    .ss-comp-fill {{ height: 100%; border-radius: 2px; transition: width 0.3s ease; }}
-    .ss-comp-val {{ font-size: 0.7rem; color: #8891a0; min-width: 2rem; text-align: right; }}
-    .ss-spark {{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; min-width: 100px; }}
-    .ss-spark-label {{ font-size: 0.65rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.06em; }}
-
-    /* Distribution bar */
-    .dist-bar {{ display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }}
-    .dist-inline {{ margin-top: 0.5rem; }}
-    .dist-inline .dist-bar {{ margin: 0.3rem 0; }}
-    .dist-inline .dist-labels {{ font-size: 0.8rem; }}
-    .dist-bar .pos {{ background: #22b573; }}
-    .dist-bar .neg {{ background: #f85149; }}
-    .dist-bar .neu {{ background: #4b5563; }}
-    .dist-labels {{ display: flex; justify-content: space-around; font-size: 0.85rem; }}
-    .dist-labels span {{ display: flex; align-items: center; gap: 0.35rem; }}
-    .dist-labels .pos {{ color: #2ecc71; }}
-    .dist-labels .neg {{ color: #ff6b6b; }}
-    .dist-labels .neu {{ color: #8891a0; }}
-
-    /* News items */
-    .news-item {{
-        display: flex; gap: 0.75rem; padding: 0.75rem 0;
-        border-bottom: 1px solid rgba(42,46,58,0.4);
-    }}
-    .news-item:last-child {{ border-bottom: none; }}
-    .news-emoji {{ font-size: 1.2rem; flex-shrink: 0; margin-top: 0.15rem; }}
-    .news-content {{ flex: 1; min-width: 0; }}
-    .news-title {{ font-size: 0.9rem; font-weight: 600; line-height: 1.4; }}
-    .news-title a {{ color: #f0f2f5; text-decoration: none; }}
-    .news-title a:hover {{ color: #22b573; text-decoration: underline; }}
-    .news-meta {{ font-size: 0.8rem; color: #8891a0; margin-top: 0.25rem; display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }}
-    .news-body {{ font-size: 0.85rem; color: #8891a0; margin-top: 0.25rem; line-height: 1.5; }}
-    .port-badge {{
-        display: inline-block; padding: 0.1rem 0.45rem; border-radius: 100px;
-        font-size: 0.72rem; font-weight: 600;
-        background: rgba(34,197,94,0.12); color: #22b573;
-    }}
-    .sentiment-tag {{
-        display: inline-block; padding: 0.1rem 0.45rem; border-radius: 100px;
-        font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: 0.03em;
-    }}
-    .sentiment-tag.bullish {{ background: rgba(34,181,115,0.15); color: #22b573; }}
-    .sentiment-tag.bearish {{ background: rgba(248,81,73,0.15); color: #f85149; }}
-    .sentiment-tag.neutral {{ background: rgba(136,145,160,0.15); color: #8891a0; }}
-
-    /* Stats grid */
-    .stats-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }}
-    .stat-item {{ padding: 0.5rem 0; }}
-    .stat-label {{ font-size: 0.78rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.04em; }}
-    .stat-value {{ font-size: 0.9rem; font-weight: 500; display: block; margin-top: 0.15rem; }}
-    .stat-badge {{ display: inline-block; padding: 0.05rem 0.45rem; border-radius: 100px; font-size: 0.7rem; font-weight: 600; vertical-align: middle; margin-left: 0.25rem; }}
-    .stat-badge.ok {{ background: rgba(34,181,115,0.12); color: #22b573; }}
-    .stat-badge.warn {{ background: rgba(245,158,11,0.12); color: #f59e0b; }}
-    .stat-badge.danger {{ background: rgba(248,81,73,0.12); color: #f85149; }}
-    .de-note {{ color: #8891a0; font-size: 0.8rem; }}
-
-    /* Technical indicators */
-    .ti-preview {{ font-size: 0.85rem; color: #8891a0; margin-bottom: 0.75rem; }}
-    .ti-grid {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }}
-    .ti-item {{ padding: 0.5rem; text-align: center; }}
-    .ti-label {{ font-size: 0.78rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.04em; display: block; }}
-    .ti-value {{ font-size: 1rem; font-weight: 700; display: block; margin-top: 0.15rem; }}
-    .ti-sub {{ font-size: 0.8rem; color: #8891a0; display: block; margin-top: 0.1rem; }}
-
-    /* Cross-over badges */
-    .cross-badge {{
-        display: inline-block; padding: 0.25rem 0.65rem; border-radius: 6px;
-        font-size: 0.8rem; font-weight: 600; margin-right: 0.5rem; margin-top: 0.5rem;
-    }}
-    .cross-badge.bullish {{ background: rgba(34,181,115,0.12); color: #2ecc71; border: 1px solid rgba(34,181,115,0.25); }}
-    .cross-badge.bearish {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.25); }}
-
-    /* Volume spike badges */
-    .spike-badge {{
-        display: inline-block; padding: 0.25rem 0.65rem; border-radius: 6px;
-        font-size: 0.8rem; font-weight: 600;
-    }}
-    .spike-badge.huge {{ background: rgba(248,81,73,0.15); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.3); }}
-    .spike-badge.high {{ background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }}
-    .spike-badge.mid {{ background: rgba(34,181,115,0.1); color: #2ecc71; border: 1px solid rgba(34,181,115,0.2); }}
-
-    /* Proximity badges */
-    .prox-badge {{
-        display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px;
-        font-size: 0.78rem; font-weight: 500; margin-top: 0.35rem;
-    }}
-    .prox-badge.high {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 1px solid rgba(248,81,73,0.2); }}
-    .prox-badge.mid {{ background: rgba(34,181,115,0.1); color: #2ecc71; border: 1px solid rgba(34,181,115,0.2); }}
-    .prox-badge.low {{ background: rgba(136,145,160,0.1); color: #8891a0; border: 1px solid rgba(136,145,160,0.2); }}
-    .vwap-badge {{
-        display: inline-block; margin-top: 0.15rem; padding: 0.1rem 0.4rem;
-        border-radius: 4px; font-size: 0.7rem; font-weight: 600; line-height: 1.4;
-    }}
-    .vwap-badge.bull {{ background: rgba(34,181,115,0.1); color: #2ecc71; }}
-    .vwap-badge.bear {{ background: rgba(248,81,73,0.1); color: #ff6b6b; }}
-
-    /* Source calibration rows */
-    .cal-section {{ display: flex; flex-direction: column; gap: 0.4rem; padding: 0.5rem 0; }}
-    .cal-row {{ display: flex; align-items: center; gap: 0.5rem; }}
-    .cal-src {{ font-size: 0.75rem; color: #c0c5ce; min-width: 7rem; text-transform: uppercase; letter-spacing: 0.04em; }}
-    .cal-track {{ flex: 1; height: 6px; background: #1a1d26; border-radius: 3px; overflow: hidden; }}
-    .cal-fill {{ height: 100%; border-radius: 3px; transition: width 0.4s ease; }}
-    .cal-fill.good {{ background: #22b573; }}
-    .cal-fill.ok {{ background: #fbbf24; }}
-    .cal-fill.poor {{ background: #f85149; }}
-    .cal-pct {{ font-size: 0.8rem; font-weight: 600; min-width: 2.5rem; text-align: right; color: #c0c5ce; }}
-    .cal-votes {{ font-size: 0.72rem; color: #8891a0; min-width: 3.5rem; text-align: center; }}
-    .cal-beta {{ font-size: 0.65rem; color: #636a77; min-width: 4rem; text-align: right; font-family: monospace; }}
-    .cal-footnote {{ font-size: 0.7rem; color: #636a77; margin-top: 0.35rem; font-style: italic; }}
-
-    /* Track record accuracy */
-    .acc-row {{ display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }}
-    .acc-circle {{
-        width: 64px; height: 64px; border-radius: 50%; display: flex;
-        align-items: center; justify-content: center;
-        font-size: 1.05rem; font-weight: 800; flex-shrink: 0;
-    }}
-    .acc-circle.good {{ background: rgba(34,181,115,0.15); color: #2ecc71; border: 2px solid rgba(34,181,115,0.4); }}
-    .acc-circle.ok {{ background: rgba(245,158,11,0.15); color: #fbbf24; border: 2px solid rgba(245,158,11,0.4); }}
-    .acc-circle.poor {{ background: rgba(248,81,73,0.12); color: #ff6b6b; border: 2px solid rgba(248,81,73,0.3); }}
-    .acc-num {{ font-weight: 600; font-size: 0.95rem; }}
-    .acc-desc {{ font-size: 0.8rem; color: #8891a0; }}
-
-    /* FII/DII grid */
-    .fii-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }}
-    .fii-item {{ padding: 0.75rem; text-align: center; border-radius: 8px; border: 1px solid #2a2e3a; background: #1a1d26; }}
-    .fii-item.bearish {{ border-color: rgba(248,81,73,0.25); }}
-    .fii-label {{ font-size: 0.75rem; color: #8891a0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }}
-    .fii-value {{ font-size: 1.05rem; font-weight: 700; }}
-    .fii-item.bearish .fii-value {{ color: #ff6b6b; }}
-    .fii-item:not(.bearish) .fii-value {{ color: #2ecc71; }}
-    .fii-sub {{ font-size: 0.78rem; color: #8891a0; margin-top: 0.2rem; }}
-
-    /* Responsive */
-    @media (max-width: 768px) {{
-        .ti-grid {{ grid-template-columns: repeat(3, 1fr); }}
-    }}
-    @media (max-width: 640px) {{
-        .price-grid {{ grid-template-columns: repeat(2, 1fr); }}
-        .stats-grid {{ grid-template-columns: repeat(2, 1fr); }}
-        .ti-grid {{ grid-template-columns: repeat(2, 1fr); }}
-        .fii-grid {{ grid-template-columns: 1fr; }}
-        .sentiment-row {{ grid-template-columns: 1fr; text-align: center; }}
-        .card {{ padding: 0.85rem; }}
-        .cal-src {{ min-width: auto; flex-shrink: 0; }}
-        .cal-row {{ gap: 0.35rem; }}
-    }}
-
-    /* Price chart */
-    .chart-container {{
-        width: 100%; height: 380px;
-        border-radius: 10px;
-        overflow: hidden;
-        margin-top: 0.25rem;
-    }}
-    @media (max-width: 640px) {{
-        .chart-container {{ height: 280px; }}
-    }}
-    /* Accessibility: focus-visible rings */
-    a:focus-visible, button:focus-visible {{
-        outline: 2px solid #60a5fa;
-        outline-offset: 2px;
-        border-radius: 4px;
-    }}
-</style>
+<style>{_DASHBOARD_CSS}</style>
 </head>
 <body>
 <div class="dashboard" role="region" aria-label="NSE Stock Analysis Dashboard for {h(ticker)}">
