@@ -185,6 +185,7 @@ st.markdown("""
     .cs {color:#22b573;font-weight:700;min-width:5.5rem;}
     .cco {color:#8891a0;flex:1;font-size:0.75rem;}
     .cw {color:#6b7280;font-size:0.75rem;}
+    .cti {font-size:0.65rem;font-weight:700;margin-left:auto;flex-shrink:0;}
 
 </style>""", unsafe_allow_html=True)
 
@@ -1273,14 +1274,14 @@ else:
             for _ce in _cascade_results:
                 _dr = _ce["driver"]
                 _dir_icon = _CACHE["arrow_up"] if _ce["direction"] > 0 else _CACHE["arrow_down"]
-                _impact = _ce.get("impact", 1)
                 _n = _ce.get("matched_articles", 1)
-                _label = "Bearish" if _impact > 0 else "Bullish"
-                _color = "#f85149" if _impact > 0 else "#22b573"
                 _aff = ""
                 for _a in _ce["affects"]:
-                    _aff += f"""<div class="ct"><span class="cs">{_a['ticker']}</span><span class="cco">{_a['company']}</span><span class="cw">{_a['reason']}</span></div>"""
-                _rows += f"""<div class="cd"><div class="ch"><span class="cn">{_dir_icon} {_dr}</span><span class="cb" style="color:{_color}">{_label}</span><span class="cc">{_n} article{'s' if _n > 1 else ''}</span></div><div class="cticks">{_aff}</div></div>"""
+                    _ti = _a.get("ticker_impact", 1)
+                    _t_label = "Bullish" if _ti < 0 else "Bearish"
+                    _t_color = "#22b573" if _ti < 0 else "#f85149"
+                    _aff += f"""<div class="ct"><span class="cs">{_a['ticker']}</span><span class="cco">{_a['company']}</span><span class="cw">{_a['reason']}</span><span class="cti" style="color:{_t_color}">{_t_label}</span></div>"""
+                _rows += f"""<div class="cd"><div class="ch"><span class="cn">{_dir_icon} {_dr}</span><span class="cc">{_n} article{'s' if _n > 1 else ''}</span></div><div class="cticks">{_aff}</div></div>"""
             st.markdown(f"""<div class="card"><div class="card-title">Cascade / Ripple Effects</div><div class="cw">{_rows}</div></div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='text-align:center;padding:0.5rem 0 1.5rem'>", unsafe_allow_html=True)

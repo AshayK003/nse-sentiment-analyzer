@@ -235,29 +235,25 @@ def _render_cascade_html(cascade_effects):
     for effect in cascade_effects:
         driver = effect["driver"]
         direction = effect["direction"]
-        impact = effect.get("impact", 1)
         n_articles = effect.get("matched_articles", 1)
         icon = _ICON["arrow_up"] if direction > 0 else _ICON["arrow_down"]
-        if impact > 0:
-            dir_label = "Bearish"
-            dir_color = "#f85149"
-        else:
-            dir_label = "Bullish"
-            dir_color = "#22b573"
         affected_rows = ""
         for a in effect["affects"]:
             searched_cls = " cascade-searched" if a.get("searched") else ""
+            ti = a.get("ticker_impact", 1)
+            ticker_label = "Bullish" if ti < 0 else "Bearish"
+            ticker_color = "#22b573" if ti < 0 else "#f85149"
             affected_rows += f"""
             <div class="cascade-ticker{searched_cls}">
                 <span class="cascade-sym">{h(a['ticker'])}</span>
                 <span class="cascade-co">{h(a['company'])}</span>
                 <span class="cascade-why">{h(a['reason'])}</span>
+                <span class="cascade-ti" style="color:{ticker_color}">{ticker_label}</span>
             </div>"""
         driver_rows += f"""
         <div class="cascade-driver">
             <div class="cascade-header">
                 <span class="cascade-name">{icon} {h(driver)}</span>
-                <span class="cascade-bias" style="color:{dir_color}">{dir_label}</span>
                 <span class="cascade-count">{n_articles} article{'s' if n_articles > 1 else ''}</span>
             </div>
             <div class="cascade-tickers">

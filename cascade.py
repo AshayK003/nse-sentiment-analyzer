@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 # direction_up / direction_down are scanned in matched article text to infer
 # whether the commodity is RISING or FALLING. If no direction keywords match,
 # the default CASCADE_MAP direction is used as a fallback (arrow up + Bearish).
+# Per-ticker direction relative to commodity price rise:
+#   +1 = commodity rise is BAD for this ticker (Bearish on rise)
+#   -1 = commodity rise is GOOD for this ticker (Bullish on rise)
+# 4-tuple: (ticker, direction, bad_reason, good_reason)
 CASCADE_MAP = [
     {
         "driver": "Crude Oil",
@@ -39,14 +43,14 @@ CASCADE_MAP = [
             r"\bpetrol(?:ium)?\s+prices?\b",
         ],
         "affects": [
-            ("BPCL", "Higher input cost — OMC margins compress when crude rises", "Lower input cost — OMC margins expand when crude falls"),
-            ("IOC", "Higher input cost — OMCs absorb retail losses", "Lower input cost — OMCs benefit from falling crude"),
-            ("HINDPETRO", "Higher input cost — OMC margins follow crude", "Lower input cost — OMC margins recover as crude falls"),
-            ("ONGC", "Crude price decline hurts upstream realizations", "Crude price rally boosts upstream realizations"),
-            ("INDIGO", "ATF (jet fuel) cost rises — airline margins squeeze", "ATF (jet fuel) cost falls — airline margins improve"),
-            ("ASIANPAINT", "Raw material (solvents/resins) linked to crude", "Raw material costs ease with falling crude"),
-            ("BERGEPAINT", "Paint raw materials track crude derivatives", "Paint raw material costs ease with crude"),
-            ("KANSAINER", "Paint raw materials track crude derivatives", "Paint raw material costs ease with crude"),
+            ("BPCL", +1, "Higher input cost — OMC margins compress when crude rises", "Lower input cost — OMC margins expand when crude falls"),
+            ("IOC", +1, "Higher input cost — OMCs absorb retail losses", "Lower input cost — OMCs benefit from falling crude"),
+            ("HINDPETRO", +1, "Higher input cost — OMC margins follow crude", "Lower input cost — OMC margins recover as crude falls"),
+            ("ONGC", -1, "Crude price decline hurts upstream realizations", "Crude price rally boosts upstream realizations"),
+            ("INDIGO", +1, "ATF (jet fuel) cost rises — airline margins squeeze", "ATF (jet fuel) cost falls — airline margins improve"),
+            ("ASIANPAINT", +1, "Raw material (solvents/resins) linked to crude", "Raw material costs ease with falling crude"),
+            ("BERGEPAINT", +1, "Paint raw materials track crude derivatives", "Paint raw material costs ease with crude"),
+            ("KANSAINER", +1, "Paint raw materials track crude derivatives", "Paint raw material costs ease with crude"),
         ],
     },
     {
@@ -59,16 +63,16 @@ CASCADE_MAP = [
             r"\bforex\b",
         ],
         "affects": [
-            ("INFY", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("TCS", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("HCLTECH", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("WIPRO", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("TECHM", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("LTIM", "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
-            ("SUNPHARMA", "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
-            ("DRREDDY", "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
-            ("CIPLA", "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
-            ("DIVISLAB", "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
+            ("INFY", +1, "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("TCS", +1, "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("HCLTECH", +1, "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("WIPRO", +1, "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("TECHM", +1, "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("LTIM", +1, "Stronger rupee reduces INR value of USD revenue", "Weaker rupee = higher USD revenue value — positive for IT exports"),
+            ("SUNPHARMA", +1, "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
+            ("DRREDDY", +1, "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
+            ("CIPLA", +1, "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
+            ("DIVISLAB", +1, "Stronger rupee reduces INR value of USD pharma revenue", "Weaker rupee = higher USD pharma revenue value — positive for exports"),
         ],
     },
     {
@@ -81,8 +85,8 @@ CASCADE_MAP = [
             r"\bspot\s+gold\b",
         ],
         "affects": [
-            ("GOLDBEES", "Gold price decline impacts metal value", "Gold price rally benefits metal holdings"),
-            ("TITAN", "Gold price decline impacts jewellery demand & inventory", "Gold price rally boosts jewellery demand & inventory value"),
+            ("GOLDBEES", -1, "Gold price decline impacts metal value", "Gold price rally benefits metal holdings"),
+            ("TITAN", -1, "Gold price decline impacts jewellery demand & inventory", "Gold price rally boosts jewellery demand & inventory value"),
         ],
     },
     {
@@ -95,10 +99,10 @@ CASCADE_MAP = [
             r"\b(?:HRC|CRC)\s+steel\b",
         ],
         "affects": [
-            ("TATASTEEL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
-            ("JSWSTEEL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
-            ("SAIL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
-            ("JINDALSTEL", "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
+            ("TATASTEEL", -1, "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
+            ("JSWSTEEL", -1, "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
+            ("SAIL", -1, "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
+            ("JINDALSTEL", -1, "Steel price decline compresses revenue realisations", "Steel price rise boosts revenue realisations"),
         ],
     },
     {
@@ -110,10 +114,10 @@ CASCADE_MAP = [
             r"\bgas\s+prices?\b",
         ],
         "affects": [
-            ("GUJGASLTD", "Higher gas procurement cost — city gas margins compress", "Lower gas procurement cost — city gas margins expand"),
-            ("IGL", "Higher gas procurement cost — CNG/piped gas margins compress", "Lower gas procurement cost — CNG/piped gas margins expand"),
-            ("MGL", "Higher gas procurement cost — city gas margins compress", "Lower gas procurement cost — city gas margins expand"),
-            ("GAIL", "Higher gas prices — transmission margins benefit but volume may drop", "Higher gas prices — transmission margins benefit but volume may drop"),
+            ("GUJGASLTD", +1, "Higher gas procurement cost — city gas margins compress", "Lower gas procurement cost — city gas margins expand"),
+            ("IGL", +1, "Higher gas procurement cost — CNG/piped gas margins compress", "Lower gas procurement cost — CNG/piped gas margins expand"),
+            ("MGL", +1, "Higher gas procurement cost — city gas margins compress", "Lower gas procurement cost — city gas margins expand"),
+            ("GAIL", +1, "Higher gas prices — transmission margins benefit but volume may drop", "Higher gas prices — transmission margins benefit but volume may drop"),
         ],
     },
     {
@@ -124,9 +128,9 @@ CASCADE_MAP = [
             r"\bthermal\s+coal\b",
         ],
         "affects": [
-            ("COALINDIA", "Lower coal prices — revenue declines for Coal India", "Higher coal prices — revenue positive for Coal India"),
-            ("NTPC", "Higher fuel cost — power generation margins compress", "Lower fuel cost — power generation margins recover"),
-            ("TATAPOWER", "Higher fuel cost — power generation margins may compress", "Lower fuel cost — power generation margins may recover"),
+            ("COALINDIA", -1, "Lower coal prices — revenue declines for Coal India", "Higher coal prices — revenue positive for Coal India"),
+            ("NTPC", +1, "Higher fuel cost — power generation margins compress", "Lower fuel cost — power generation margins recover"),
+            ("TATAPOWER", +1, "Higher fuel cost — power generation margins may compress", "Lower fuel cost — power generation margins may recover"),
         ],
     },
     {
@@ -139,11 +143,11 @@ CASCADE_MAP = [
             r"\b(?:sugar|sweetener)\s+(?:surges?|falls?|rallies?|declines?|steady)",
         ],
         "affects": [
-            ("BAJAJHIND", "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
-            ("BALRAMPUR", "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
-            ("DHAMPUR", "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
-            ("TRIVENI", "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
-            ("DCMSHRIRAM", "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
+            ("BAJAJHIND", -1, "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
+            ("BALRAMPUR", -1, "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
+            ("DHAMPUR", -1, "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
+            ("TRIVENI", -1, "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
+            ("DCMSHRIRAM", -1, "Sugar price decline compresses mill realizations", "Sugar price rally boosts mill realizations"),
         ],
     },
     {
@@ -154,8 +158,8 @@ CASCADE_MAP = [
             r"\b(?:LME|CME)\s+alumi(?:num|nium)\b",
         ],
         "affects": [
-            ("HINDALCO", "Aluminum price decline compresses revenue realizations", "Aluminum price rally boosts revenue realizations"),
-            ("NATIONALUM", "Aluminum price decline compresses revenue realizations", "Aluminum price rally boosts revenue realizations"),
+            ("HINDALCO", -1, "Aluminum price decline compresses revenue realizations", "Aluminum price rally boosts revenue realizations"),
+            ("NATIONALUM", -1, "Aluminum price decline compresses revenue realizations", "Aluminum price rally boosts revenue realizations"),
         ],
     },
 ]
@@ -262,7 +266,7 @@ def detect_cascade(news_items, ticker_lookup=None, focus_ticker=None):
 
         # Build per-ticker mention patterns (word-boundary ticker + company name)
         ticker_pats = {}
-        for ticker, bad_reason, good_reason in entry["affects"]:
+        for ticker, ticker_dir, bad_reason, good_reason in entry["affects"]:
             company = (ticker_lookup or {}).get(ticker, "")
             pats = [re.compile(rf"\b{re.escape(ticker)}\b", re.IGNORECASE)]
             if company:
@@ -271,18 +275,19 @@ def detect_cascade(news_items, ticker_lookup=None, focus_ticker=None):
 
         # Check each ticker against all matching articles
         ticker_mentioned = {}
-        for ticker, pats in ticker_pats.items():
+        for ticker in ticker_pats:
             for text in matching_texts:
-                if any(p.search(text) for p in pats):
+                if any(p.search(text) for p in ticker_pats[ticker]):
                     ticker_mentioned[ticker] = True
                     break
 
-        # Build resolved list — pick reason by impact, mark searched
+        # Build resolved list — compute per-ticker impact, pick reason, mark searched
         any_mentioned = False
         resolved = []
-        for ticker, bad_reason, good_reason in entry["affects"]:
+        for ticker, ticker_dir, bad_reason, good_reason in entry["affects"]:
             company = (ticker_lookup or {}).get(ticker, ticker)
-            reason = good_reason if impact < 0 else bad_reason
+            ticker_impact = direction * ticker_dir
+            reason = good_reason if ticker_impact < 0 else bad_reason
             mentioned = ticker_mentioned.get(ticker, False)
             if mentioned:
                 any_mentioned = True
@@ -292,6 +297,7 @@ def detect_cascade(news_items, ticker_lookup=None, focus_ticker=None):
                 "company": company,
                 "mentioned": mentioned,
                 "searched": ticker == focus_ticker,
+                "ticker_impact": ticker_impact,
             })
 
         # Filter to mentioned tickers only (fallback to all if none mentioned)
