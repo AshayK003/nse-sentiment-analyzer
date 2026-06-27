@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-|[![Tests](https://img.shields.io/badge/tests-184%20passing-brightgreen)](#-testing)
+|[![Tests](https://img.shields.io/badge/tests-191%20passing-brightgreen)](#-testing)
 [![Security](https://img.shields.io/badge/security-XSS%20escaped-2ea44f)](#)
 [![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
 [![Streamlit Limits](https://img.shields.io/badge/resource%20limits-500%20cache%2C%206%2Fmin%20throttle-blueviolet)](.streamlit/config.toml)
@@ -51,7 +51,7 @@ Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH
 - **FII/DII institutional flow** — NSE India official FII/FPI and DII data with Net value. Glassmorphism card shows latest day's flow plus a 7-day history table. Auto-saves daily snapshots.
 - **VWAP + Pivot levels** — intraday fair value and classic support/resistance from yesterday's HLC
 - **Market Mood Index (MMI)** — 0–100 fear & greed gauge in the dashboard's Market Pulse card. 4 equally-weighted components: Trend Strength (Nifty vs 20-day SMA), VIX Fear Gauge (inverted India VIX), FII Money Flow (institutional confidence vs 21-day trailing average), Market Breadth (sector advance/decline across 10 sectoral indices). 5-zone system: Extreme Fear → Fear → Neutral → Greed → Extreme Greed. Sub-scores shown for each component. Zero extra API calls — assembled from yfinance + existing FII history.
-- **Cascade / Ripple Tracking** — when news mentions a macro driver (crude oil, rupee, gold, steel, natural gas, coal), the dashboard shows which other tickers are indirectly affected and why. Hand-curated relationship map covers 6 sectors and 20+ tickers. Scans the broader market news pool (not just ticker-filtered articles) so commodity headlines aren't missed. No extra network calls.
+- **Cascade / Ripple Tracking** — when news mentions a macro driver (crude oil, rupee, gold, steel, natural gas, coal), the dashboard shows which other tickers are indirectly affected and why. Hand-curated relationship map covers 6 sectors and 20+ tickers. Scans the broader market news pool (not just ticker-filtered articles) so commodity headlines aren't missed. **Direction inferred from article text** — detects up keywords (surge, jump, rally, gain, rise) vs down keywords (fall, crash, slump, plunge, weaken) to determine whether the commodity is rising or falling, then shows the correct impact: Bearish (red) when movement hurts tickers, Bullish (green) when it helps. Falls back to cautious Bearish when direction is unclear. No extra network calls.
 - **Resource protections** — per-session rate limiter (6 searches/min), auto-pruning cache (500-entry cap), DDGS fallback cooldown, and thread-safe rate-limit tracking (including DDGS) prevent quota exhaustion and race conditions under multi-user load. Configured in `.streamlit/config.toml`.
 - **XSS-safe rendering** — all user data (ticker names, company names) is HTML-escaped via `html.escape()` with single-quote support. Shareable `?ticker=` URLs are validated before API calls. RSS feed URLs are checked for `http://`/`https://` scheme.
 - **CSP hardened** — Content Security Policy `connect-src` restricted to known API domains (Yahoo Finance, Google News, Moneycontrol, Economic Times, LiveMint, NDTV Profit). No wildcard.
@@ -123,7 +123,7 @@ Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH
 3. **Fetch** — `get_stock_info()`, `search_news()`, and `get_fii_dii_flow()` run in parallel via `ThreadPoolExecutor(3)`. Stock data comes from yfinance, news from RSS (9+ sources) with DuckDuckGo fallback, FII/DII from NSE India. Total fetch time: ~2s.
 4. **Analyze** — `sentiment.py` scores each headline via VADER + financial lexicon, applies event-classifier corrections, then blends results using Bayesian source weights
 5. **Aggregate** — `aggregate_sentiment.compute_smartscore()` produces the 0–100 SmartScore from EWMA, event-adjusted sentiment, breadth, and volume
-6. **Cascade** — `cascade.detect_cascade()` scans the broader market news pool (not just ticker-filtered articles) for commodity/macro keywords (crude oil, rupee, gold, steel, natural gas, coal). When matched, affected tickers are listed with per-ticker impact reasons. No extra network calls.
+6. **Cascade** — `cascade.detect_cascade()` scans the broader market news pool (not just ticker-filtered articles) for commodity/macro keywords (crude oil, rupee, gold, steel, natural gas, coal). Direction inferred from article text (up/down keywords). When matched, affected tickers are listed with per-ticker impact reasons and correct Bearish/Bullish label. Falls back to cautious Bearish when direction is unclear. No extra network calls.
 7. **Indicators** — `indicators.py` computes RSI, SMA crossover, and MACD from 2-year OHLCV
 8. **Render** — `render.render_dashboard()` assembles a dark-themed HTML dashboard rendered via `st.components.v1.html()`
 9. **Vote** — Users rate signal accuracy (👍/👎). Votes update Beta posteriors for each source in `persistence.py`, which feeds back into step 4
@@ -252,7 +252,7 @@ nse-sentiment-analyzer/
     └── test_history_export.py     # CSV export
 ```
 
-**10 source modules**, **14 test files**, **184 tests**.
+**10 source modules**, **14 test files**, **191 tests**.
 
 ---
 
@@ -284,7 +284,7 @@ nse-sentiment-analyzer/
 ## Testing
 
 ```bash
-# Full suite (184 tests, mocked APIs, no network)
+# Full suite (191 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # With coverage

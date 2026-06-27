@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 # direction: +1 = commodity rise is bad for ticker, -1 = commodity fall is bad
 # Each commodity's tickers are a list of (symbol, impact_reason).
 # Impact_reason is a short sentence fragment shown in the UI.
+# direction_up / direction_down are scanned in matched article text to infer
+# whether the commodity is RISING or FALLING. If no direction keywords match,
+# the default CASCADE_MAP direction is used as a fallback (arrow up + Bearish).
 CASCADE_MAP = [
     {
         "driver": "Crude Oil",
@@ -124,6 +127,24 @@ CASCADE_MAP = [
     },
 ]
 
+# Direction indicators — words that signal commodity price direction.
+# Scanned in articles that already matched a commodity keyword.
+# High-precision only — avoid common words like "high", "up", "lower" that
+# create false positives in non-price contexts.
+_DIR_UP = re.compile(
+    r"\b(?:surges?|surged|jumps?|jumped|climbs?|climbed|"
+    r"rally|rallies|rallied|soars?|soared|rebounds?|rebounded|"
+    r"spikes?|spiked|hikes?|hiked|gains?|gained|rises?|rising)\b",
+    re.IGNORECASE,
+)
+_DIR_DOWN = re.compile(
+    r"\b(?:falls?|fell|drops?|dropped|declines?|declined|"
+    r"slumps?|slumped|plunges?|plunged|tumbles?|tumbled|"
+    r"sinks?|sank|crash(?:es|ed)?|collapses?|collapsed|"
+    r"weakens?|weakened|slides?|sliding)\b",
+    re.IGNORECASE,
+)
+
 # Pre-compile patterns for performance — keyed by driver name
 _COMPILED_PATTERNS = None
 
@@ -168,16 +189,36 @@ def detect_cascade(news_items, ticker_lookup=None):
     for entry in CASCADE_MAP:
         driver = entry["driver"]
         driver_patterns = patterns[driver]
-        # Count how many articles mention this commodity
-        match_count = 0
+        # Find which articles mention this commodity
+        matching_texts = []
         for text in texts:
             for pat in driver_patterns:
                 if pat.search(text):
-                    match_count += 1
+                    matching_texts.append(text)
                     break  # one match per article counted once
 
-        if match_count == 0:
+        if not matching_texts:
             continue
+
+        # Infer commodity price direction from matched articles
+        up_count = 0
+        down_count = 0
+        for text in matching_texts:
+            if _DIR_UP.search(text):
+                up_count += 1
+            if _DIR_DOWN.search(text):
+                down_count += 1
+
+        if up_count > down_count:
+            direction = 1  # commodity price rose
+        elif down_count > up_count:
+            direction = -1  # commodity price fell
+        else:
+            # No clear direction — fall back to CASCADE_MAP default
+            direction = entry["direction"]
+
+        # Net impact on ticker: +1 = Bad (Bearish), -1 = Good (Bullish)
+        impact = direction * entry["direction"]
 
         # Resolve company names for affected tickers
         resolved = []
@@ -187,9 +228,10 @@ def detect_cascade(news_items, ticker_lookup=None):
 
         results.append({
             "driver": driver,
-            "direction": entry["direction"],
+            "direction": direction,
+            "impact": impact if impact in (1, -1) else 1,
             "affects": resolved,
-            "matched_articles": match_count,
+            "matched_articles": len(matching_texts),
         })
 
     return results

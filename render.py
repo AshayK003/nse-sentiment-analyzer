@@ -235,10 +235,15 @@ def _render_cascade_html(cascade_effects):
     for effect in cascade_effects:
         driver = effect["driver"]
         direction = effect["direction"]
+        impact = effect.get("impact", 1)
         n_articles = effect.get("matched_articles", 1)
         icon = _ICON["arrow_up"] if direction > 0 else _ICON["arrow_down"]
-        dir_label = "Bearish"
-        dir_color = "#f85149"
+        if impact > 0:
+            dir_label = "Bearish"
+            dir_color = "#f85149"
+        else:
+            dir_label = "Bullish"
+            dir_color = "#22b573"
         affected_rows = ""
         for ticker, reason, company in effect["affects"]:
             affected_rows += f"""

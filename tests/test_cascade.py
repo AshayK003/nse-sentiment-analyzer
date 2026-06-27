@@ -134,6 +134,54 @@ class TestDetectCascade:
         drivers = [r["driver"] for r in results]
         assert "Coal" in drivers
 
+    def test_direction_inferred_up_on_rise_keywords(self):
+        """Commodity up keywords (surge, jump, rally) set direction=1."""
+        news = [{"title": "Crude oil prices surge on supply cuts", "body": ""}]
+        results = detect_cascade(news)
+        assert results[0]["direction"] == 1
+
+    def test_direction_inferred_down_on_fall_keywords(self):
+        """Commodity down keywords (fall, drop, slump) set direction=-1."""
+        news = [{"title": "Crude oil prices crash on demand fears", "body": ""}]
+        results = detect_cascade(news)
+        assert results[0]["direction"] == -1
+
+    def test_impact_bearish_when_commodity_rise_is_bad(self):
+        """Crude rising → bad for OMCs → impact=1 (Bearish)."""
+        news = [{"title": "Crude oil surges, Brent jumps above $86", "body": ""}]
+        results = detect_cascade(news)
+        assert results[0]["impact"] == 1
+
+    def test_impact_bullish_when_commodity_fall_is_good(self):
+        """Crude crashing → good for OMCs → impact=-1 (Bullish)."""
+        news = [{"title": "Crude oil prices crash on demand concerns", "body": ""}]
+        results = detect_cascade(news)
+        assert results[0]["impact"] == -1
+
+    def test_impact_bearish_on_gold_fall(self):
+        """Gold falling → bad for gold tickers → impact=1 (Bearish)."""
+        news = [{"title": "Gold prices slump to 3-month low", "body": ""}]
+        results = detect_cascade(news)
+        assert results[0]["impact"] == 1
+
+    def test_impact_bullish_on_gold_rise(self):
+        """Gold surging → good for gold tickers → impact=-1 (Bullish)."""
+        news = [{"title": "Gold prices rally to new record high", "body": ""}]
+        results = detect_cascade(news)
+        assert results[0]["impact"] == -1
+
+    def test_direction_falls_back_to_default_when_ambiguous(self):
+        """Mixed direction signals -> fall back to CASCADE_MAP default."""
+        news = [
+            {"title": "Crude oil prices surge on supply cuts", "body": ""},
+            {"title": "Brent crude falls on demand concerns", "body": ""},
+        ]
+        results = detect_cascade(news)
+        crude = [r for r in results if r["driver"] == "Crude Oil"][0]
+        # 1 up + 1 down = tie → fall back to CASCADE_MAP +1 default
+        assert crude["direction"] == 1
+        assert crude["impact"] == 1
+
     def test_matched_articles_count(self):
         """matched_articles should reflect how many articles mentioned the commodity."""
         news = [

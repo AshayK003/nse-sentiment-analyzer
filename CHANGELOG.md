@@ -5,12 +5,17 @@
 ### Fixed
 - **Cascade card invisible for most tickers** — `_parse_rss_feed()` was filtering out broader market headlines ("Crude oil surges", "Rupee weakens") via `_relevant()` before cascade could scan them. Now returns a separate `cascade_pool` containing all unfiltered market feed items; `detect_cascade()` scans this broader pool instead of ticker-filtered display items. On cache hit, falls back to display items (same as before) — benefit is on fresh fetches.
 - **Cascade direction label inverted** — Arrow was pointing down and label showed "Bullish" (green) for commodity price increases. Fixed: arrow now points up when commodity price rises, and the label is always "Bearish" (red), reflecting the negative impact on affected tickers.
+- **Cascade direction hardcoded — never matched article content** — `CASCADE_MAP.direction` was always used verbatim, regardless of whether the article said "crude surges" (price up) or "crude crashes" (price down). Now `detect_cascade()` scans matched article text for direction keywords (`surge`/`jump`/`rally` → up, `fall`/`crash`/`slump` → down) and infers whether the commodity is actually rising or falling. When detected, the `impact` field flags whether the movement is Bearish (bad for tickers) or Bullish (good). On ambiguous/no-direction articles, defaults to cautious (Bearish + CASCADE_MAP default arrow).
 - **UTF-8 `open()` crash on Windows** — `app.py` and `tests/test_changelog.py` called `open()` on CHANGELOG.md without `encoding="utf-8"`, causing `UnicodeDecodeError` on Windows with UTF-8 content. Added `encoding="utf-8"` at both call sites.
 
 ### Changed
 - **`_parse_rss_feed()` return signature** — Now returns `(relevant_items, all_items, label)` instead of `(items, label)`. `all_items` skips the `_relevant()` filter and includes every parsed market feed article.
 - **`search_news()` return signature** — Now returns `(display_items, cascade_pool, source_stats)` instead of `(items, source_stats)`. `cascade_pool` is a deduplicated superset of all fetched articles.
 - **`analyze_ticker()` cascade wiring** — Passes `cascade_pool` (broader set) instead of `news_items` to `detect_cascade()`.
+- **`detect_cascade()` result now includes `impact` field** — `+1` = Bearish (bad for tickers), `-1` = Bullish (good for tickers). Derived from: `inferred_article_direction × CASCADE_MAP.direction`. Used by `render.py` to show the correct green/red label instead of hardcoded "Bearish".
+- **`_render_cascade_html()` label now dynamic** — Reads `effect["impact"]` to show green "Bullish" (+22b573) or red "Bearish" (#f85149) instead of always red.
+- **Direction keyword regexes** — `_DIR_UP` and `_DIR_DOWN` compiled at module scope. 30+ total terms covering surge, jump, rally, climb, soar, rebound, spike, hike, gain, rise (up) and fall, drop, decline, slump, plunge, tumble, sink, crash, collapse, weaken, slide (down).
+- **191 tests** (was 184) — 7 new tests covering direction inference (up/down), impact calculation (Bullish/Bearish) for both crude and gold, and ambiguous-direction fallback.
 
 ## [2.8.0] — 2026-06-28
 
