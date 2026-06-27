@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.8.0] — 2026-06-28
+
+### Added
+- **Cascade / Ripple Tracking** — When news mentions a macro driver (crude oil, rupee, gold, steel, natural gas, coal), the dashboard now shows which other tickers are indirectly affected and why. Hand-curated relationship map covers 6 commodity groups and 20+ tickers across OMCs, aviation, paints, IT, gold, steel, city gas, coal/power, and logistics. No extra network calls — reuses already-fetched news text. See [`cascade.py`](cascade.py).
+- **184 tests** (was 171) — 13 new tests covering commodity keyword detection, multiple-commodity hits, false-positive rejection, company name resolution, and matched-article counting.
+
 ## [2.7.1] — 2026-06-27
 
 ### Fixed

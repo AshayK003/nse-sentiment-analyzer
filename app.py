@@ -48,6 +48,7 @@ from data_fetcher import (
 )
 from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
 from event_classifier import classify_headline, adjust_with_event
+from cascade import detect_cascade
 from indicators import get_technical_indicators
 from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history, history_to_csv, update_source_accuracy, load_entry_prices, save_entry_price, get_entry_info, calc_portfolio_pnl, load_fiidii_history, save_fiidii_snapshot, ENTRY_PRICES_FILE
 from render import render_dashboard, _is_valid_num
@@ -251,6 +252,7 @@ def analyze_ticker(ticker, company_name, quick=False):
             "vwap": None,
             "pivot_levels": None,
             "fii_data": fii_future.result(),
+            "cascade_effects": [],
         }
 
     use_finbert = os.environ.get("USE_FINBERT", "").strip().lower() in ("1", "true", "yes")
@@ -303,6 +305,9 @@ def analyze_ticker(ticker, company_name, quick=False):
     # Use weighted signal as the primary (and only) signal
     weighted_signal, blended_compound, weighted_emoji, source_breakdown = get_weighted_signal(headline_scores)
 
+    # Cascade/Ripple Tracking — scan news for commodity keywords
+    cascade_effects = detect_cascade(news_items, ticker_lookup=NSE_TICKERS)
+
     # Intraday tools — skip if yfinance is rate-limited to avoid extra API pressure
     from data_fetcher import _check_rate_limited
     vwap_data = None if _check_rate_limited() else compute_vwap(ticker)
@@ -332,6 +337,8 @@ def analyze_ticker(ticker, company_name, quick=False):
         "pivot_levels": None,  # set after TI fetch in main flow
         # FII/DII (fetched in parallel above)
         "fii_data": fii_future.result(),
+        # Cascade/ripple effects
+        "cascade_effects": cascade_effects,
     }
 
 

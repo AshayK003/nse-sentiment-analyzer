@@ -222,6 +222,49 @@ def render_sparkline(values, width=160, height=32, color="#22b573"):
 </svg>"""
 
 
+def _render_cascade_html(cascade_effects):
+    """Build the cascade/ripple effects HTML section.
+
+    Shows commodity drivers detected in news and the tickers they affect.
+    Returns empty string if no cascade effects match.
+    """
+    if not cascade_effects:
+        return ""
+
+    driver_rows = ""
+    for effect in cascade_effects:
+        driver = effect["driver"]
+        direction = effect["direction"]
+        n_articles = effect.get("matched_articles", 1)
+        icon = _ICON["arrow_up"] if direction < 0 else _ICON["arrow_down"]
+        dir_label = "Bullish" if direction < 0 else "Bearish"
+        dir_color = "#22b573" if direction < 0 else "#f85149"
+        affected_rows = ""
+        for ticker, reason, company in effect["affects"]:
+            affected_rows += f"""
+            <div class="cascade-ticker">
+                <span class="cascade-sym">{h(ticker)}</span>
+                <span class="cascade-co">{h(company)}</span>
+                <span class="cascade-why">{h(reason)}</span>
+            </div>"""
+        driver_rows += f"""
+        <div class="cascade-driver">
+            <div class="cascade-header">
+                <span class="cascade-name">{icon} {h(driver)}</span>
+                <span class="cascade-bias" style="color:{dir_color}">{dir_label}</span>
+                <span class="cascade-count">{n_articles} article{'s' if n_articles > 1 else ''}</span>
+            </div>
+            <div class="cascade-tickers">
+                {affected_rows}
+            </div>
+        </div>"""
+
+    return f"""<div class="card">
+    <div class="card-title">{_ICON["layout"]} Cascade / Ripple Effects</div>
+    <div class="cascade-wrap">{driver_rows}</div>
+</div>"""
+
+
 def _render_pivot_html(pivot_data):
     """Render classic pivot points as an HTML string."""
     if not pivot_data or not any(pivot_data.get(k) for k in ("pivot", "resistance", "support")):
@@ -373,6 +416,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     source_stats = result.get("source_stats", {})
     vwap_data = result.get("vwap", {})
     pivot_data = result.get("pivot_levels", {})
+    cascade_effects = result.get("cascade_effects", [])
 
     # Sentiment class
     _sent_map = {
@@ -843,6 +887,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         <div style="margin-top:0.5rem">{cross_50_html}{cross_200_html}</div>
         {_render_pivot_html(pivot_data)}
     </div>
+
+{_render_cascade_html(cascade_effects)}
 
     <!-- ═══ PRICE CHART ═══ -->
     <div class="card">
