@@ -28,6 +28,7 @@ _rate_limit_lock = threading.Lock()
 # Separate cooldown for DuckDuckGo (known to return 202/captcha under load)
 _DDGS_RATE_LIMITED_UNTIL = 0.0
 _DDGS_COOLDOWN = 60  # seconds
+_ddgs_rate_limit_lock = threading.Lock()
 def _check_rate_limited():
     """Return True if we're in a global rate-limit cooldown.
     Resets automatically after COOLDOWN seconds. Thread-safe."""
@@ -41,9 +42,9 @@ def _mark_rate_limited():
         _RATE_LIMITED_UNTIL = time.time() + _RATE_LIMIT_COOLDOWN
 def _mark_ddgs_rate_limited():
     """Set DDGS cooldown. Skips DuckDuckGo fallback for _DDGS_COOLDOWN seconds.
-    Thread-safe — uses the same lock as yfinance rate limiter."""
+    Thread-safe — uses its own lock, separate from yfinance rate limiter."""
     global _DDGS_RATE_LIMITED_UNTIL
-    with _rate_limit_lock:
+    with _ddgs_rate_limit_lock:
         _DDGS_RATE_LIMITED_UNTIL = time.time() + _DDGS_COOLDOWN
 # ─── yfinance: set browser User-Agent to avoid 429 rate limiting ───
 # yf.utils._session is semi-public (used by yfinance's own tests).
@@ -335,6 +336,47 @@ NSE_TICKERS = {
     "ZEEL": "Zee Entertainment",
     "ZENSARTECH": "Zensar Technologies",
     "ZYDUSLIFE": "Zydus Lifesciences",
+    # ── Tickers for alias resolution (kept alphabetically) ──
+    "ABBOTINDIA": "Abbott India",
+    "ALOKINDS": "Alok Industries",
+    "APLAPOLLO": "APL Apollo Tubes",
+    "ASHOKA": "Ashoka Buildcon",
+    "ASTERDM": "Aster DM Healthcare",
+    "ATGL": "Adani Total Gas",
+    "BANKINDIA": "Bank of India",
+    "CARBORUNIV": "Carborundum Universal",
+    "CENTURYTEX": "Century Textiles",
+    "CUMMINSIND": "Cummins India",
+    "DALBHARAT": "Dalmia Bharat",
+    "FRONTLINE": "Frontline Business Solutions",
+    "GRAPHITE": "Graphite India",
+    "GRSE": "Garden Reach Shipbuilders",
+    "GSPL": "Gujarat State Petronet",
+    "GUJALKALI": "Gujarat Alkalies",
+    "GUJFLUORO": "Gujarat Fluorochemicals",
+    "HERITGEFOOD": "Heritage Foods",
+    "HGINFRA": "HG Infra Engineering",
+    "HTMEDIA": "HT Media",
+    "JBCHEPHARM": "JB Chemicals & Pharmaceuticals",
+    "JMC": "JMC Projects",
+    "JYOTHYLAB": "Jyothy Labs",
+    "LTFOODS": "LT Foods",
+    "MAHLIFE": "Mahindra Lifespace Developers",
+    "MAHLOG": "Mahindra Logistics",
+    "MAHSEAMLES": "Maharashtra Seamless",
+    "MOTHERDAIRY": "Mother Dairy Fruit & Vegetable",
+    "NIACL": "New India Assurance Company",
+    "NIITTECH": "NIIT Technologies",
+    "OFSS": "Oracle Financial Services Software",
+    "OIL": "Oil India",
+    "PNCINFRA": "PNC Infratech",
+    "SHOPERSTOP": "Shoppers Stop",
+    "SIGNATURE": "Signature Global",
+    "SONATSOFTW": "Sonata Software",
+    "STARHEALTH": "Star Health and Allied Insurance",
+    "SUNTV": "Sun TV Network",
+    "TMCV": "Tata Motors CV",
+    "TMPV": "Tata Motors Passenger Vehicles",
 }
 # ─── Company name aliases for RSS headline matching ───
 # Maps common names/abbreviations → ticker symbols.
@@ -778,7 +820,6 @@ def get_cached_history(ticker):
     if cached is not None:
         return cached
     # Fallback: fetch directly from yfinance (cheap — yfinance caches internally)
-    import yfinance as yf
     for suffix in [".NS", ".BO", ""]:
         try:
             stock = yf.Ticker(f"{ticker}{suffix}")
@@ -999,16 +1040,6 @@ def _parse_date(d):
         return datetime(*d[:6]).isoformat()[:10]
     except Exception:
         return ""
-def _alias_terms(ticker):
-    """Get additional search terms from ALIASES dict for a ticker.
-    E.g., for ticker='SBIN', returns {'sbi', 'state', 'bank'}
-    since ALIASES has 'SBI' -> 'SBIN' and 'STATE BANK' -> 'SBIN'.
-    """
-    terms = set()
-    for alias_key, alias_ticker in ALIASES.items():
-        if alias_ticker == ticker:
-            terms.update(alias_key.lower().split())
-    return terms
 def _relevant(ticker, company_name, title, body):
     """Check if a headline is relevant to the given ticker/company.
     Uses phrase-level matching to avoid false positives:

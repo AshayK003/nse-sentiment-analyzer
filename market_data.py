@@ -104,37 +104,6 @@ def get_market_pulse():
     }
 
 
-def get_market_verdict(nifty_change_pct, vix_level):
-    """Determine market climate verdict from Nifty change and VIX level.
-
-    Args:
-        nifty_change_pct: float or None — Nifty 50 daily % change
-        vix_level: str — 'Low', 'Medium', 'High', or 'N/A'
-
-    Returns:
-        tuple of (verdict, icon, detail)
-    """
-    if vix_level is None or vix_level == "N/A":
-        return "Neutral", "\u26aa", "VIX data unavailable"
-
-    # Determine direction from Nifty change
-    is_up = nifty_change_pct is not None and nifty_change_pct >= 0.3
-    is_down = nifty_change_pct is not None and nifty_change_pct <= -0.3
-
-    if vix_level == "High":
-        if is_down:
-            return "Risky", "\U0001f534", "High VIX + market dropping — avoid new positions"
-        return "Cautious", "\U0001f7e0", "Elevated volatility — use stop-losses, size down"
-    elif vix_level == "Medium":
-        if is_up:
-            return "Bullish", "\U0001f7e2", "Positive momentum, normal volatility"
-        return "Neutral", "\u26aa", "Mixed conditions — stock-specific action"
-    else:  # Low VIX
-        if is_down:
-            return "Cautious", "\U0001f7e0", "Low VIX but weakness detected — wait for confirmation"
-        return "Bullish", "\U0001f7e2", "Low VIX — trending markets favor swing trades"
-
-
 # ─── Market Mood Index (MMI) ─────────────────────────────────────────────
 
 NSE_SECTOR_TICKERS = [

@@ -50,10 +50,10 @@ def get_technical_indicators(ticker, hist=None):
             return None
         close = hist["Close"]
 
-        # RSI (14)
+        # RSI (14) — Wilder's smoothing
         delta = close.diff()
-        gain = delta.where(delta > 0, 0).rolling(14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        gain = _wilders_smooth(delta.where(delta > 0, 0), 14)
+        loss = _wilders_smooth((-delta.where(delta < 0, 0)), 14)
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         # Guard: if gain=loss=0 (flat), RSI=NaN → neutral 50; if loss=0 → RSI=100

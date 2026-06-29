@@ -4,7 +4,7 @@ Enter any NSE ticker → get live price + news sentiment score + signal.
 Built with Streamlit + yfinance + VADER + custom financial lexicon.
 """
 
-__version__ = "2.7.1"
+__version__ = "2.9.0"
 
 import json
 import logging
@@ -361,7 +361,6 @@ def analyze_ticker(ticker, company_name, quick=False):
 
 def _fetch_portfolio_price(t):
     """Fetch price for one portfolio ticker — runs in worker thread."""
-    import yfinance as yf
     try:
         tk = yf.Ticker(t + ".NS")
         hist = tk.history(period="2d")

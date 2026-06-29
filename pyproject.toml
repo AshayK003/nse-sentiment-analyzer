@@ -1,3 +1,13 @@
+[project]
+name = "nse-sentiment-analyzer"
+version = "2.9.0"
+description = "Multi-source NSE stock sentiment analysis with SmartScore and technical indicators"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
