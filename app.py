@@ -67,6 +67,12 @@ st.set_page_config(
 
 # ─── Global UI constants & styles ───
 _CARET = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8891a0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="caret"><path d="m9 18 6-6-6-6"/></svg>'
+_ARROW_UP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>'
+_ARROW_DOWN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>'
+_DOT_GREEN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#22b573" stroke="none"><circle cx="12" cy="12" r="6"/></svg>'
+_DOT_RED = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#f85149" stroke="none"><circle cx="12" cy="12" r="6"/></svg>'
+_DOT_ORANGE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" stroke="none"><circle cx="12" cy="12" r="6"/></svg>'
+_DOT_GREY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#8891a0" stroke="none"><circle cx="12" cy="12" r="6"/></svg>'
 st.markdown("""<style>
 details.hermes-expander {
     background:rgba(255,255,255,0.03);
@@ -875,11 +881,17 @@ if _has_pulse or _has_vix:
     if _has_pulse:
         price = pulse_d["nifty_price"]
         chg = pulse_d["nifty_change_pct"]
-        arrow = "\u25b2" if chg is not None and chg >= 0 else "\u25bc"
-        cols[0].metric(
-            "Nifty 50",
-            f"{price:,.0f}",
-            f"{arrow} {chg:+.2f}%" if chg is not None else "N/A",
+        is_up = chg is not None and chg >= 0
+        _ac = "#22b573" if is_up else "#f85149"
+        _a_svg = _ARROW_UP_SVG.replace('stroke="currentColor"', f'stroke="{_ac}"') if is_up else _ARROW_DOWN_SVG.replace('stroke="currentColor"', f'stroke="{_ac}"')
+        _delta = f"{chg:+.2f}%" if chg is not None else "N/A"
+        cols[0].markdown(
+            '<div style="text-align:center;padding:0.25rem 0">'
+            '<div style="font-size:0.7rem;color:#8891a0;text-transform:uppercase;letter-spacing:0.04em;">Nifty 50</div>'
+            f'<div style="font-size:1.4rem;font-weight:700;color:#f0f2f5;">{price:,.0f}</div>'
+            f'<div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:0.85rem;font-weight:600;color:{_ac};">{_a_svg} {_delta}</div>'
+            '</div>',
+            unsafe_allow_html=True,
         )
     else:
         cols[0].metric("Nifty 50", "\u2014", "Unavailable")
@@ -895,11 +907,11 @@ if _has_pulse or _has_vix:
         m_color = _mc.get(zone, "#8891a0")
         # MMI icon based on zone
         _icons = {
-            "Extreme Greed": "\U0001f7e2",
-            "Greed": "\U0001f7e2",
-            "Neutral": "\u26aa",
-            "Fear": "\U0001f7e0",
-            "Extreme Fear": "\U0001f534",
+            "Extreme Greed": _DOT_GREEN,
+            "Greed": _DOT_GREEN,
+            "Neutral": _DOT_GREY,
+            "Fear": _DOT_ORANGE,
+            "Extreme Fear": _DOT_RED,
         }
         m_icon = _icons.get(zone, "\u26aa")
         # Sub-score summary
@@ -927,11 +939,16 @@ if _has_pulse or _has_vix:
         )
     # ─── Column 3: India VIX ───
     if _has_vix:
-        vix_dir = "\u2b06\ufe0f" if vix_d["change"] >= 0 else "\u2b07\ufe0f"
-        cols[2].metric(
-            "India VIX",
-            f"{vix_d['vix']:.1f}",
-            f"{vix_dir} {vix_d['change']:+.2f}",
+        vix_up = vix_d["change"] >= 0
+        _vc = "#f85149" if vix_up else "#22b573"
+        _v_svg = _ARROW_UP_SVG.replace('stroke="currentColor"', f'stroke="{_vc}"') if vix_up else _ARROW_DOWN_SVG.replace('stroke="currentColor"', f'stroke="{_vc}"')
+        cols[2].markdown(
+            '<div style="text-align:center;padding:0.25rem 0">'
+            '<div style="font-size:0.7rem;color:#8891a0;text-transform:uppercase;letter-spacing:0.04em;">India VIX</div>'
+            f'<div style="font-size:1.4rem;font-weight:700;color:#f0f2f5;">{vix_d["vix"]:.1f}</div>'
+            f'<div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:0.85rem;font-weight:600;color:{_vc};">{_v_svg} {vix_d["change"]:+.2f}</div>'
+            '</div>',
+            unsafe_allow_html=True,
         )
         if vix_d["level"] == "High":
             cols[2].markdown(
