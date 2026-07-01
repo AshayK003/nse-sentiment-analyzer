@@ -4,11 +4,6 @@
 
 **Multi-source sentiment + technical indicators for NSE equities & ETFs, in one dashboard.**
 
-<p align="center">
-  <a href="https://github.com/AshayK003/nse-sentiment-analyzer">
-    <img src="https://socialify.git.ci/AshayK003/nse-sentiment-analyzer/image?description=1&descriptionEditable=&font=Inter&language=1&name=1&pattern=Circuit%20Board&stargazers=1&theme=dark" alt="nse-sentiment-analyzer" width="700"/>
-  </a>
-</p>
 
 <p align="center">
   <a href="https://streamlit.io"><img src="https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white" alt="Streamlit"></a>
