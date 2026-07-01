@@ -1,9 +1,13 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=180&section=header&text=NSE%20Sentiment%20Analyzer&fontSize=48&fontAlignY=30&desc=Multi-source%20sentiment%20+%20technical%20indicators%20for%20NSE%20equities%20%26%20ETFs&descSize=14&descAlignY=48" width="100%"/>
+# NSE Stock Sentiment Analyzer
 
-<p>
-  <a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=15&duration=3500&pause=800&color=FF4B4B&center=true&vCenter=true&width=600&lines=SmartScore+0%E2%80%93100+with+Bayesian+calibration;Zero+API+keys,+zero+registration,+free+and+public;197+tests,+14+test+files,+all+APIs+mocked" alt="Typing SVG"/></a>
+**Multi-source sentiment + technical indicators for NSE equities & ETFs, in one dashboard.**
+
+<p align="center">
+  <a href="https://github.com/AshayK003/nse-sentiment-analyzer">
+    <img src="https://socialify.git.ci/AshayK003/nse-sentiment-analyzer/image?description=1&descriptionEditable=&font=Inter&language=1&name=1&pattern=Circuit%20Board&stargazers=1&theme=dark" alt="nse-sentiment-analyzer" width="700"/>
+  </a>
 </p>
 
 <p align="center">
@@ -413,8 +417,6 @@ If this tool saves you a bad trade or helps you learn, [buy the developer a chai
 This license ensures the code stays open and prevents closed-source monetization. Anyone who uses or modifies this code and runs it as a network service must release their changes under the same terms.
 
 ---
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=footer" width="100%"/>
 
 <div align="center">
   <sub>Built by <a href="https://x.com/sentinelcipher">@sentinelcipher</a></sub>
