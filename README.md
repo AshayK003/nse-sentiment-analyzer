@@ -1,19 +1,29 @@
 <div align="center">
 
-# NSE Stock Sentiment Analyzer
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=180&section=header&text=NSE%20Sentiment%20Analyzer&fontSize=48&fontAlignY=30&desc=Multi-source%20sentiment%20+%20technical%20indicators%20for%20NSE%20equities%20%26%20ETFs&descSize=14&descAlignY=48" width="100%"/>
 
-**Multi-source sentiment + technical indicators for NSE equities & ETFs, in one dashboard.**
+<p>
+  <a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=15&duration=3500&pause=800&color=FF4B4B&center=true&vCenter=true&width=600&lines=SmartScore+0%E2%80%93100+with+Bayesian+calibration;Zero+API+keys,+zero+registration,+free+and+public;197+tests,+14+test+files,+all+APIs+mocked" alt="Typing SVG"/></a>
+</p>
 
-[![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
-[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github)](https://github.com/AshayK003/nse-sentiment-analyzer)
-|[![Tests](https://img.shields.io/badge/tests-197%20passing-brightgreen)](#-testing)
-[![Security](https://img.shields.io/badge/security-XSS%20escaped-2ea44f)](#)
-[![UI: Dark Theme](https://img.shields.io/badge/UI-Dark%20Theme-13151a?logo=css3&logoColor=white)](https://nse-sentiment-analyzer.streamlit.app)
-[![Streamlit Limits](https://img.shields.io/badge/resource%20limits-500%20cache%2C%206%2Fmin%20throttle-blueviolet)](.streamlit/config.toml)
+<p align="center">
+  <a href="https://streamlit.io"><img src="https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white" alt="Streamlit"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-d9232d?style=flat" alt="License"></a>
+  <a href="https://github.com/AshayK003/nse-sentiment-analyzer"><img src="https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github&logoColor=white" alt="Stars"></a>
+  <a href="#-testing"><img src="https://img.shields.io/badge/tests-197%20passing-22c55e?style=flat" alt="Tests"></a>
+  <a href="#"><img src="https://img.shields.io/badge/security-XSS%20escaped-2ea44f?style=flat" alt="Security"></a>
+  <a href="https://nse-sentiment-analyzer.streamlit.app"><img src="https://img.shields.io/badge/UI-Dark%20Theme-13151a?style=flat&logo=css3&logoColor=white" alt="Theme"></a>
+  <a href=".streamlit/config.toml"><img src="https://img.shields.io/badge/cache%20limit-500-7c3aed?style=flat" alt="Cache"></a>
+</p>
 
-[Launch App](https://nse-sentiment-analyzer.streamlit.app) &nbsp;·&nbsp; [Report Bug](https://github.com/AshayK003/nse-sentiment-analyzer/issues) &nbsp;·&nbsp; [Request Feature](mailto:darkcharon3301@gmail.com)
+<p align="center">
+  <a href="https://nse-sentiment-analyzer.streamlit.app"><b>Launch App</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/AshayK003/nse-sentiment-analyzer/issues">Report Bug</a>
+  &nbsp;·&nbsp;
+  <a href="mailto:darkcharon3301@gmail.com">Request Feature</a>
+</p>
 
 </div>
 
@@ -404,8 +414,12 @@ This license ensures the code stays open and prevents closed-source monetization
 
 ---
 
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=120&section=footer" width="100%"/>
+
 <div align="center">
   <sub>Built by <a href="https://x.com/sentinelcipher">@sentinelcipher</a></sub>
   <br/>
   <sub>Not financial advice. Always do your own research.</sub>
+  <br/><br/>
+  <img src="https://komarev.com/ghpvc/?username=AshayK003&repo=nse-sentiment-analyzer&style=flat&color=6b7280" alt="Profile Views"/>
 </div>
