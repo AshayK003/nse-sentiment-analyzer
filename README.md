@@ -10,7 +10,7 @@
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-d9232d?style=flat" alt="License"></a>
   <a href="https://github.com/AshayK003/nse-sentiment-analyzer"><img src="https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github&logoColor=white" alt="Stars"></a>
-  <a href="#-testing"><img src="https://img.shields.io/badge/tests-197%20passing-22c55e?style=flat" alt="Tests"></a>
+  <a href="#-testing"><img src="https://img.shields.io/badge/tests-205%20passing-22c55e?style=flat" alt="Tests"></a>
   <a href="#"><img src="https://img.shields.io/badge/security-XSS%20escaped-2ea44f?style=flat" alt="Security"></a>
   <a href="https://nse-sentiment-analyzer.streamlit.app"><img src="https://img.shields.io/badge/UI-Dark%20Theme-13151a?style=flat&logo=css3&logoColor=white" alt="Theme"></a>
   <a href=".streamlit/config.toml"><img src="https://img.shields.io/badge/cache%20limit-500-7c3aed?style=flat" alt="Cache"></a>
@@ -64,6 +64,7 @@ Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH
 - **Resource protections** — per-session rate limiter (6 searches/min), auto-pruning cache (500-entry cap), DDGS fallback cooldown, and thread-safe rate-limit tracking (including DDGS) prevent quota exhaustion and race conditions under multi-user load. Configured in `.streamlit/config.toml`.
 - **XSS-safe rendering** — all user data (ticker names, company names) is HTML-escaped via `html.escape()` with single-quote support. Shareable `?ticker=` URLs are validated before API calls. RSS feed URLs are checked for `http://`/`https://` scheme.
 - **CSP hardened** — Content Security Policy `connect-src` restricted to known API domains (Yahoo Finance, Google News, Moneycontrol, Economic Times, LiveMint, NDTV Profit). No wildcard.
+- **3-tier price history cache** — L1 memory → L2 disk (`.price_cache/` JSON files) → L3 network (yfinance). Disk cache survives Streamlit Cloud restarts with 7-day TTL, so recurring users get instant price loads instead of waiting on yfinance. Auto-evicts stale entries.
 
 **All data sources are free and public. Zero API keys required. No registration.**
 
@@ -129,7 +130,7 @@ Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH
 
 1. **Input** — User types a ticker or company name (e.g., "HDFC Bank", "Zomato", "RELIANCE")
 2. **Resolve** — `resolve_ticker()` maps the input to an NSE ticker via 5-tier chain: local dict → aliases → Yahoo REST → yfinance SDK → direct probe. Returns `(ticker, company_name)`.
-3. **Fetch** — `get_stock_info()`, `search_news()`, and `get_fii_dii_flow()` run in parallel via `ThreadPoolExecutor(3)`. Stock data comes from yfinance, news from RSS (9+ sources) with DuckDuckGo fallback, FII/DII from NSE India. Total fetch time: ~2s.
+3. **Fetch** — `get_stock_info()`, `search_news()`, and `get_fii_dii_flow()` run in parallel via `ThreadPoolExecutor(3)`. Stock data comes from a 3-tier cache: L1 (in-memory dict, instant), L2 (`.price_cache/` disk cache, survives restarts), or L3 (yfinance network call). News from RSS (9+ sources) with DuckDuckGo fallback, FII/DII from NSE India. Total fetch time: ~2s.
 4. **Analyze** — `sentiment.py` scores each headline via VADER + financial lexicon, applies event-classifier corrections, then blends results using Bayesian source weights
 5. **Aggregate** — `aggregate_sentiment.compute_smartscore()` produces the 0–100 SmartScore from EWMA, event-adjusted sentiment, breadth, and volume
 6. **Cascade** — `cascade.detect_cascade()` scans the broader market news pool (not just ticker-filtered articles) for commodity/macro keywords (crude oil, rupee, gold, steel, natural gas, coal, sugar, aluminum). Direction inferred from article text (40+ up/down keywords). Per-ticker sensitivity: each ticker has its own direction (e.g., ONGC benefits from crude rise, OMCs are hurt). Ticker mention scanning limits results to tickers actually mentioned in articles. `focus_ticker` filters to only commodities affecting the searched ticker. Falls back to cautious Bearish when direction is unclear. No extra network calls.
@@ -243,6 +244,7 @@ nse-sentiment-analyzer/
 │   ├── track_record.json   # Vote history
 │   ├── source_accuracy.json # Bayesian posteriors per source
 │   └── sentiment_history.csv # Daily SmartScore time series
+├── .price_cache/           # L2 disk cache for price history (gitignored)
 └── tests/
     ├── conftest.py         # Fixtures: tmp data dir, mock stock data
     ├── test_analyze_ticker.py    # Full pipeline end-to-end
@@ -261,7 +263,7 @@ nse-sentiment-analyzer/
     └── test_history_export.py     # CSV export
 ```
 
-**10 source modules**, **14 test files**, **197 tests**.
+**10 source modules**, **14 test files**, **205 tests**.
 
 ---
 
@@ -293,7 +295,7 @@ nse-sentiment-analyzer/
 ## Testing
 
 ```bash
-# Full suite (197 tests, mocked APIs, no network)
+# Full suite (205 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # With coverage

@@ -4,7 +4,7 @@ Enter any NSE ticker → get live price + news sentiment score + signal.
 Built with Streamlit + yfinance + VADER + custom financial lexicon.
 """
 
-__version__ = "2.9.0"
+__version__ = "2.10.0"
 
 import json
 import logging

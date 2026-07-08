@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.10.0] — 2026-07-08
+
+### Added
+- **L2 disk cache for price history** — `get_cached_history()` now has a 3-tier cache: L1 (in-memory dict, same session), L2 (`.price_cache/` JSON files on disk, survives Streamlit Cloud restarts), and L3 (yfinance network call). 7-day TTL for disk cache entries. Cache directory auto-cleaned via LRU eviction when the in-memory limit is exceeded. Significantly faster cold starts after Streamlit Cloud deployments.
+- **`get_stock_info()` deduplication** — The persistence cache hit path now populates `_hist_cache` via `get_cached_history()`, removing 14 lines of duplicated yfinance fetch logic. Eliminates redundant network calls on subsequent technical indicator computation.
+- **205 tests** (was 197) — 8 new tests covering L1/L2/L3 hit paths, LRU eviction, disk cache corruption fallback, mtime-based eviction, nonexistent tickers, and disk write-through verification.
+
+### Fixed
+- **Static dates in aggregate sentiment test** — `test_history_affects_recency` used hardcoded 2026-06 dates that would fail in 2027. Now generates dates dynamically relative to current time.
+
 ## [2.9.0] — 2026-06-27
 
 ### Added
