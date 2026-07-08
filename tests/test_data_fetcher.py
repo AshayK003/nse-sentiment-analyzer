@@ -359,3 +359,102 @@ class TestFormatting:
         assert result == "2026-06-18"
         assert _parse_date(None) == ""
         assert _parse_date((2026,)) == ""
+
+
+class TestRetryFetch:
+    """Tests for the _retry_fetch() generator."""
+
+    def test_default_attempts(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=True)
+
+        assert list(_retry_fetch()) == [0, 1, 2]
+
+    def test_custom_attempts_one(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=True)
+
+        assert list(_retry_fetch(max_attempts=1)) == [0]
+
+    def test_custom_attempts_five(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=True)
+
+        assert list(_retry_fetch(max_attempts=5)) == [0, 1, 2, 3, 4]
+
+    def test_backoff_sleep_values(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=False)
+        sleep_mock = mocker.patch("data_fetcher.time.sleep")
+        mocker.patch("data_fetcher.random.random", return_value=0.5)
+
+        list(_retry_fetch(max_attempts=3, base_wait=1, backoff=2))
+
+        assert sleep_mock.call_count == 2
+
+        first_sleep = sleep_mock.call_args_list[0][0][0]
+        second_sleep = sleep_mock.call_args_list[1][0][0]
+
+        assert first_sleep == 1.25      # 1 + (1*0.5*0.5)
+        assert second_sleep == 2.5      # 2 + (2*0.5*0.5)
+
+    def test_backoff_power_three(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=False)
+        sleep_mock = mocker.patch("data_fetcher.time.sleep")
+        mocker.patch("data_fetcher.random.random", return_value=0.5)
+
+        list(_retry_fetch(max_attempts=4, base_wait=1, backoff=3))
+
+        third_sleep = sleep_mock.call_args_list[2][0][0]
+
+        assert third_sleep == 11.25     # 9 + (9*0.5*0.5)
+
+    def test_rate_limited_skips_sleep(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=True)
+        sleep_mock = mocker.patch("data_fetcher.time.sleep")
+
+        list(_retry_fetch())
+
+        sleep_mock.assert_not_called()
+
+    def test_not_rate_limited_sleeps(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=False)
+        sleep_mock = mocker.patch("data_fetcher.time.sleep")
+        mocker.patch("data_fetcher.random.random", return_value=0)
+
+        list(_retry_fetch())
+
+        assert sleep_mock.call_count == 2
+
+    def test_jitter_changes_sleep(self, mocker):
+        from data_fetcher import _retry_fetch
+
+        mocker.patch("data_fetcher._check_rate_limited", return_value=False)
+
+        sleep_mock = mocker.patch("data_fetcher.time.sleep")
+
+        mocker.patch("data_fetcher.random.random", side_effect=[0.2, 0.8])
+
+        list(_retry_fetch(max_attempts=2))
+
+        first = sleep_mock.call_args_list[0][0][0]
+
+        sleep_mock.reset_mock()
+
+        mocker.patch("data_fetcher.random.random", side_effect=[0.8, 0.2])
+
+        list(_retry_fetch(max_attempts=2))
+
+        second = sleep_mock.call_args_list[0][0][0]
+
+        assert first != second
