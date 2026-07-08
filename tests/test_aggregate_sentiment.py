@@ -108,15 +108,12 @@ class TestSmartScore:
         # No history
         result_no_hist, _ = compute_smartscore(scores, adjusted)
 
-        # With history of strong negative scores
+        # With history of strong negative scores from the past 7 days
+        from datetime import datetime, timedelta
+        today = datetime.now()
         history = [
-            {"date": "2026-06-10", "avg_compound": "-0.8"},
-            {"date": "2026-06-11", "avg_compound": "-0.7"},
-            {"date": "2026-06-12", "avg_compound": "-0.6"},
-            {"date": "2026-06-15", "avg_compound": "-0.5"},
-            {"date": "2026-06-16", "avg_compound": "-0.4"},
-            {"date": "2026-06-17", "avg_compound": "-0.2"},
-            {"date": "2026-06-18", "avg_compound": "-0.1"},
+            {"date": (today - timedelta(days=i)).strftime("%Y-%m-%d"), "avg_compound": str(-0.8 + 0.1*(7-i))}
+            for i in range(7, 0, -1)
         ]
         result_with_hist, _ = compute_smartscore(scores, adjusted, history)
 

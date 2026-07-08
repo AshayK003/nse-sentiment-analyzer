@@ -6,6 +6,8 @@ import yfinance as yf
 import requests
 import feedparser
 import html
+import os
+import pandas as pd
 import time
 import logging
 import streamlit as st
@@ -800,35 +802,76 @@ def _probe_ticker_direct(query):
     return None, None
 # In-memory 1y price history cache, populated by get_stock_info,
 # consumed by get_technical_indicators to avoid duplicate yfinance calls
+_PRICE_CACHE_DIR = ".price_cache"
+_CACHE_TTL_DAYS = 7
+os.makedirs(_PRICE_CACHE_DIR, exist_ok=True)
+
 _hist_cache = {}
-_hist_cache_lock = threading.Lock()
+_hist_cache_lock = threading.RLock()
 _MAX_CACHED_TICKERS = 50
 def _evict_hist_cache():
-    """Evict oldest entries when cache exceeds _MAX_CACHED_TICKERS."""
+    """Evict oldest entries when cache exceeds _MAX_CACHED_TICKERS and clear stale L2 disk cache."""
     with _hist_cache_lock:
         while len(_hist_cache) > _MAX_CACHED_TICKERS:
             # dict preserves insertion order (Python 3.7+) — pop first key
             _hist_cache.pop(next(iter(_hist_cache)), None)
+    
+    # Evict stale L2 disk cache
+    if os.path.exists(_PRICE_CACHE_DIR):
+        now = time.time()
+        for filename in os.listdir(_PRICE_CACHE_DIR):
+            filepath = os.path.join(_PRICE_CACHE_DIR, filename)
+            if os.path.isfile(filepath):
+                try:
+                    if (now - os.path.getmtime(filepath)) > _CACHE_TTL_DAYS * 86400:
+                        os.remove(filepath)
+                except Exception:
+                    pass
+
 def get_cached_history(ticker):
-    """Return 1y price history for a ticker, from memory cache or yfinance.
+    """Return 1y price history for a ticker, from memory cache, disk cache, or yfinance.
     Populated by get_stock_info() to share the yfinance 1y OHLCV fetch.
-    Falls back to a direct yfinance call if the in-memory cache is empty
-    (e.g. after a persistence cache hit that skipped the fetch path).
     """
     with _hist_cache_lock:
         cached = _hist_cache.get(ticker)
     if cached is not None:
         return cached
-    # Fallback: fetch directly from yfinance (cheap — yfinance caches internally)
+
+    # Sanitize ticker to prevent path traversal
+    safe_ticker = re.sub(r"[^A-Za-z0-9._-]", "_", ticker)
+    
+    # L2 Fallback: check disk cache
+    cache_path = os.path.join(_PRICE_CACHE_DIR, f"{safe_ticker}.json")
+    if os.path.exists(cache_path):
+        try:
+            if (time.time() - os.path.getmtime(cache_path)) <= _CACHE_TTL_DAYS * 86400:
+                hist = pd.read_json(cache_path, orient="index")
+                with _hist_cache_lock:
+                    _hist_cache[ticker] = hist
+                    needs_evict = len(_hist_cache) > _MAX_CACHED_TICKERS
+                if needs_evict:
+                    _evict_hist_cache()
+                return hist
+        except Exception as e:
+            logger.debug(f"Cache read error for {ticker}: {e}")  # Corrupted or unreadable, fall through to L3
+
+    # L3 Fallback: fetch directly from yfinance (cheap — yfinance caches internally)
     for suffix in [".NS", ".BO", ""]:
         try:
             stock = yf.Ticker(f"{ticker}{suffix}")
             hist = stock.history(period="2y")
             if hist is not None and not hist.empty:
+                try:
+                    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                    hist.to_json(cache_path, orient="index", date_format="iso")
+                except Exception as e:
+                    logger.debug(f"Cache write error for {ticker}: {e}")
+                
                 with _hist_cache_lock:
                     _hist_cache[ticker] = hist
-                    while len(_hist_cache) > _MAX_CACHED_TICKERS:
-                        _hist_cache.pop(next(iter(_hist_cache)), None)
+                    needs_evict = len(_hist_cache) > _MAX_CACHED_TICKERS
+                if needs_evict:
+                    _evict_hist_cache()
                 return hist
         except Exception:
             continue
@@ -872,19 +915,7 @@ def get_stock_info(ticker):
         # Populate in-memory history cache so downstream (get_cached_history,
         # get_technical_indicators) don't re-fetch from yfinance.
         if ticker not in _hist_cache:
-            for suffix in [".NS", ".BO", ""]:
-                try:
-                    _s = yf.Ticker(f"{ticker}{suffix}")
-                    _h = _s.history(period="2y")
-                    if _h is not None and not _h.empty:
-                        with _hist_cache_lock:
-                            _hist_cache[ticker] = _h
-                            # Inline eviction to avoid re-entrant lock deadlock
-                            while len(_hist_cache) > _MAX_CACHED_TICKERS:
-                                _hist_cache.pop(next(iter(_hist_cache)), None)
-                        break
-                except Exception:
-                    continue
+            get_cached_history(ticker)
         return cached
     # Global rate-limit cooldown — if yfinance recently 429'd us, wait and retry
     if _check_rate_limited():

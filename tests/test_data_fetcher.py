@@ -458,3 +458,213 @@ class TestRetryFetch:
         second = sleep_mock.call_args_list[0][0][0]
 
         assert first != second
+
+
+class TestHistoryCache:
+    """Tests for the 3-tier price history caching system in data_fetcher."""
+
+    def _clear_caches(self):
+        """Helper to clear both L1 (in-memory) and L2 (disk) caches."""
+        import os
+        import shutil
+        import data_fetcher
+        
+        with data_fetcher._hist_cache_lock:
+            data_fetcher._hist_cache.clear()
+            
+        if os.path.exists(data_fetcher._PRICE_CACHE_DIR):
+            shutil.rmtree(data_fetcher._PRICE_CACHE_DIR)
+        
+        # Recreate since we moved makedirs to module level in data_fetcher.py
+        os.makedirs(data_fetcher._PRICE_CACHE_DIR, exist_ok=True)
+
+    def setup_method(self):
+        """Clean up caches before each test to ensure a clean state."""
+        self._clear_caches()
+
+    def teardown_method(self):
+        """Clean up caches after each test to prevent side effects."""
+        self._clear_caches()
+
+    def _make_dummy_df(self):
+        import pandas as pd
+        dates = pd.date_range(end="2026-06-18", periods=5, freq="B")
+        return pd.DataFrame({
+            "Close": [100.0, 101.0, 99.0, 100.5, 102.0],
+            "High": [101.0, 102.0, 100.0, 101.5, 103.0],
+            "Low": [99.0, 100.0, 98.0, 99.5, 101.0],
+            "Volume": [1000000] * 5,
+            "Open": [99.5, 100.5, 98.5, 100.0, 101.5]
+        }, index=dates)
+
+    def test_l1_first_call_fetches_from_network(self, mocker):
+        from data_fetcher import get_cached_history, _PRICE_CACHE_DIR
+        import data_fetcher
+        import os
+
+        df = self._make_dummy_df()
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = df
+        mock_yf = mocker.patch("data_fetcher.yf.Ticker", return_value=mock_ticker)
+
+        result = get_cached_history("TEST")
+        assert result is not None
+        assert result.equals(df)
+        mock_yf.assert_called_once_with("TEST.NS")
+        
+        # Verify L2 disk cache was written
+        assert os.path.exists(os.path.join(_PRICE_CACHE_DIR, "TEST.json"))
+
+    def test_l1_second_call_returns_cached(self, mocker):
+        from data_fetcher import get_cached_history
+        import data_fetcher
+
+        df = self._make_dummy_df()
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = df
+        mock_yf = mocker.patch("data_fetcher.yf.Ticker", return_value=mock_ticker)
+
+        res1 = get_cached_history("TEST")
+        res2 = get_cached_history("TEST")
+
+        assert res1 is res2  # returns exact same object from memory (L1)
+        assert mock_yf.call_count == 1  # yfinance called only once
+
+    def test_l1_different_tickers(self, mocker):
+        from data_fetcher import get_cached_history
+        import data_fetcher
+
+        df1 = self._make_dummy_df()
+        df2 = self._make_dummy_df()
+        mock_ticker1 = mocker.MagicMock()
+        mock_ticker1.history.return_value = df1
+        mock_ticker2 = mocker.MagicMock()
+        mock_ticker2.history.return_value = df2
+
+        def side_effect(ticker_name):
+            if "TEST1" in ticker_name:
+                return mock_ticker1
+            return mock_ticker2
+
+        mocker.patch("data_fetcher.yf.Ticker", side_effect=side_effect)
+
+        res1 = get_cached_history("TEST1")
+        res2 = get_cached_history("TEST2")
+
+        assert res1.equals(df1)
+        assert res2.equals(df2)
+        assert "TEST1" in data_fetcher._hist_cache
+        assert "TEST2" in data_fetcher._hist_cache
+
+    def test_l1_lru_eviction(self, mocker):
+        from data_fetcher import get_cached_history
+        import data_fetcher
+
+        # Mock cache size to 2
+        mocker.patch.object(data_fetcher, "_MAX_CACHED_TICKERS", 2)
+
+        df = self._make_dummy_df()
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = df
+        mocker.patch("data_fetcher.yf.Ticker", return_value=mock_ticker)
+
+        get_cached_history("T1")
+        get_cached_history("T2")
+        assert "T1" in data_fetcher._hist_cache
+        assert "T2" in data_fetcher._hist_cache
+
+        # Access T3, which should evict T1 (oldest inserted)
+        get_cached_history("T3")
+        assert "T1" not in data_fetcher._hist_cache
+        assert "T2" in data_fetcher._hist_cache
+        assert "T3" in data_fetcher._hist_cache
+
+    def test_l2_eviction_via_mtime(self, mocker):
+        import os
+        import time
+        import data_fetcher
+        from data_fetcher import _evict_hist_cache
+
+        # Create cache directory
+        os.makedirs(data_fetcher._PRICE_CACHE_DIR, exist_ok=True)
+        f_fresh = os.path.join(data_fetcher._PRICE_CACHE_DIR, "FRESH.json")
+        f_stale = os.path.join(data_fetcher._PRICE_CACHE_DIR, "STALE.json")
+
+        # Create empty files
+        with open(f_fresh, "w") as f:
+            f.write("{}")
+        with open(f_stale, "w") as f:
+            f.write("{}")
+
+        # Mock mtimes: stale is 8 days old, fresh is now
+        now = time.time()
+        mtimes = {
+            f_fresh: now,
+            f_stale: now - (9 * 86400)
+        }
+        mocker.patch("os.path.getmtime", side_effect=lambda path: mtimes[path])
+        mocker.patch("os.path.isfile", return_value=True)
+
+        _evict_hist_cache()
+
+        assert os.path.exists(f_fresh)
+        assert not os.path.exists(f_stale)
+
+    def test_l2_hit_l1_miss(self, mocker):
+        import os
+        from data_fetcher import get_cached_history
+        import data_fetcher
+
+        df = self._make_dummy_df()
+        os.makedirs(data_fetcher._PRICE_CACHE_DIR, exist_ok=True)
+        cache_path = os.path.join(data_fetcher._PRICE_CACHE_DIR, "TEST.json")
+        df.to_json(cache_path, orient="index", date_format="iso")
+
+        # Ensure L1 cache is empty
+        assert "TEST" not in data_fetcher._hist_cache
+
+        # Mock yfinance to ensure L3 is NOT called
+        mock_yf = mocker.patch("data_fetcher.yf.Ticker")
+
+        result = get_cached_history("TEST")
+        assert result is not None
+        # Since JSON conversion loses exact timezone metadata or details, compare values
+        assert list(result.columns) == list(df.columns)
+        assert len(result) == len(df)
+        assert "TEST" in data_fetcher._hist_cache
+        mock_yf.assert_not_called()
+
+    def test_l2_corrupted_state_graceful_fallback(self, mocker):
+        import os
+        from data_fetcher import get_cached_history
+        import data_fetcher
+
+        os.makedirs(data_fetcher._PRICE_CACHE_DIR, exist_ok=True)
+        cache_path = os.path.join(data_fetcher._PRICE_CACHE_DIR, "CORRUPT.json")
+        with open(cache_path, "w") as f:
+            f.write("invalid json contents")
+
+        # Mock L3 yfinance to return valid data
+        df = self._make_dummy_df()
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = df
+        mock_yf = mocker.patch("data_fetcher.yf.Ticker", return_value=mock_ticker)
+
+        # Should fall back to L3 and succeed instead of throwing JSONDecodeError
+        result = get_cached_history("CORRUPT")
+        assert result is not None
+        assert result.equals(df)
+        assert mock_yf.call_count > 0
+
+    def test_nonexistent_ticker(self, mocker):
+        from data_fetcher import get_cached_history
+        import pandas as pd
+
+        # yfinance returns empty DataFrame
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = pd.DataFrame()
+        mocker.patch("data_fetcher.yf.Ticker", return_value=mock_ticker)
+
+        result = get_cached_history("NONEXISTENT")
+        assert result is None
+

@@ -22,6 +22,7 @@ env/
 
 # Data
 data/
+.price_cache/
 
 # Env
 .env

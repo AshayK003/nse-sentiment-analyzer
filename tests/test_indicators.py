@@ -22,10 +22,16 @@ class TestTechnicalIndicators:
     """Tests for get_technical_indicators()."""
 
     def setup_method(self):
-        """Clear in-memory history cache between tests to avoid cross-test contamination."""
+        """Clear L1 in-memory and L2 disk history cache between tests to avoid cross-test contamination."""
+        import os
+        import data_fetcher
         from data_fetcher import _hist_cache, _hist_cache_lock
         with _hist_cache_lock:
             _hist_cache.clear()
+        # Remove any L2 disk cache entries for the test ticker
+        cache_path = os.path.join(data_fetcher._PRICE_CACHE_DIR, "RELIANCE.json")
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
 
     def _call(self, mocker, hist_df):
         """Call get_technical_indicators with mocked yfinance and Streamlit cache."""
@@ -37,7 +43,8 @@ class TestTechnicalIndicators:
         importlib.reload(mod)
         from indicators import get_technical_indicators as gti
 
-        mocker.patch("yfinance.Ticker", return_value=_make_ticker_mock(hist_df))
+        # Patch data_fetcher.yf.Ticker so the L3 fallback inside get_cached_history is intercepted
+        mocker.patch("data_fetcher.yf.Ticker", return_value=_make_ticker_mock(hist_df))
         return gti("RELIANCE")
 
     def test_rsi_computed(self, mocker):
