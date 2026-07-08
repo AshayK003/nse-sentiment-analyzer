@@ -73,28 +73,58 @@ def _map_minus1_1_to_0_1(val):
 
 
 def compute_smartscore(headline_scores, event_adjusted_scores, history=None):
-    """Compute SmartScore (0-100) from headline scores and optional history.
+    """Compute the SmartScore (0–100) using four normalized sentiment components.
 
-    Args:
-        headline_scores: list of dicts with 'compound' key (raw VADER scores)
-        event_adjusted_scores: list of floats (event-blended compound scores)
-        history: optional list of past daily dicts from sentiment_history.csv.
-                 Each dict must have 'date' and 'avg_compound' keys.
-                 Sorted oldest-first.
+SmartScore combines multiple signals into a single metric that summarizes
+overall market sentiment.
 
-    Returns:
-        dict with keys:
-            smartscore: float 0-100
-            s_recency: float 0-1
-            s_events: float 0-1
-            s_breadth: float 0-1
-            s_volume: float 0-1
-            headline_count: int
-            pos_count: int
-            neg_count: int
-            signal: str — "BULLISH", "NEUTRAL", or "BEARISH"
-            signal_emoji: str
-            history_scores: list of float — past SmartScores for sparkline
+Components
+----------
+1. Recency (45%)
+    Exponentially Weighted Moving Average (EWMA) of recent daily
+    event-adjusted sentiment using a 36-hour half-life.
+
+2. Event-adjusted Sentiment (25%)
+    Average of today's event-adjusted headline sentiment scores.
+
+3. Headline Breadth (20%)
+    Measures whether positive headlines outnumber negative headlines.
+
+4. News Volume (10%)
+    Log-normalized headline count to reward broader news coverage
+    without allowing volume to dominate the score.
+
+Formula
+-------
+SmartScore = 100 × (
+    0.45 × S_recency +
+    0.25 × S_events +
+    0.20 × S_breadth +
+    0.10 × S_volume
+)
+
+The final score is clamped to the range 0–100.
+
+Signal Thresholds
+-----------------
+SmartScore >= 65      → BULLISH
+40 <= SmartScore < 65 → NEUTRAL
+SmartScore < 40       → BEARISH
+
+Args:
+    headline_scores:
+        List of dictionaries containing raw VADER compound scores.
+
+    event_adjusted_scores:
+        List of event-adjusted compound sentiment scores.
+
+    history:
+        Optional historical daily sentiment records used for EWMA
+        calculation.
+
+Returns:
+    Dictionary containing the SmartScore, individual component scores,
+    headline statistics, market signal, and historical SmartScore values.
     """
     n = len(headline_scores)
 
