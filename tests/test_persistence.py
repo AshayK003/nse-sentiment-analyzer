@@ -154,3 +154,91 @@ class TestTrackRecord:
         assert len(loaded) == 2
         assert loaded[0]["ticker"] == "SBIN"
         assert loaded[1]["ticker"] == "TCS"
+
+
+class TestUpdateSourceAccuracy:
+    """Tests for Bayesian source accuracy updates."""
+
+    def test_correct_vote_existing_source(self, mocker):
+        from persistence import update_source_accuracy
+
+        accuracy = {
+            "Economic Times": {"alpha": 8.0, "beta": 4.0}
+        }
+        mocker.patch("persistence.load_source_accuracy", return_value=accuracy)
+        save_mock = mocker.patch("persistence.save_source_accuracy")
+
+        update_source_accuracy("Economic Times", True)
+
+        saved = save_mock.call_args.args[0]
+        assert saved["Economic Times"]["alpha"] == 9.0
+        assert saved["Economic Times"]["beta"] == 4.0
+
+    def test_incorrect_vote_existing_source(self, mocker):
+        from persistence import update_source_accuracy
+
+        accuracy = {
+            "Moneycontrol": {"alpha": 7.0, "beta": 3.0}
+        }
+        mocker.patch("persistence.load_source_accuracy", return_value=accuracy)
+        save_mock = mocker.patch("persistence.save_source_accuracy")
+
+        update_source_accuracy("Moneycontrol", False)
+
+        saved = save_mock.call_args.args[0]
+        assert saved["Moneycontrol"]["alpha"] == 7.0
+        assert saved["Moneycontrol"]["beta"] == 4.0
+
+    def test_new_source_correct_vote(self, mocker):
+        from persistence import update_source_accuracy
+
+        mocker.patch("persistence.load_source_accuracy", return_value={})
+        save_mock = mocker.patch("persistence.save_source_accuracy")
+
+        update_source_accuracy("NewSource", True)
+
+        saved = save_mock.call_args.args[0]
+        assert saved["NewSource"]["alpha"] == 7.0
+        assert saved["NewSource"]["beta"] == 6.0
+
+    def test_new_source_incorrect_vote(self, mocker):
+        from persistence import update_source_accuracy
+
+        mocker.patch("persistence.load_source_accuracy", return_value={})
+        save_mock = mocker.patch("persistence.save_source_accuracy")
+
+        update_source_accuracy("NewSource", False)
+
+        saved = save_mock.call_args.args[0]
+        assert saved["NewSource"]["alpha"] == 6.0
+        assert saved["NewSource"]["beta"] == 7.0
+
+    def test_unknown_source_uses_default_prior(self, mocker):
+        from persistence import update_source_accuracy
+
+        mocker.patch("persistence.load_source_accuracy", return_value={})
+        save_mock = mocker.patch("persistence.save_source_accuracy")
+
+        update_source_accuracy("Unknown", True)
+
+        saved = save_mock.call_args.args[0]
+        assert saved["Unknown"]["alpha"] == 7.0
+        assert saved["Unknown"]["beta"] == 6.0
+
+    def test_multiple_sequential_votes(self, mocker):
+        from persistence import update_source_accuracy
+
+        accuracy = {
+            "Economic Times": {"alpha": 8.0, "beta": 4.0}
+        }
+        mocker.patch("persistence.load_source_accuracy", return_value=accuracy)
+        save_mock = mocker.patch("persistence.save_source_accuracy")
+
+        update_source_accuracy("Economic Times", True)
+        update_source_accuracy("Economic Times", True)
+        update_source_accuracy("Economic Times", True)
+        update_source_accuracy("Economic Times", False)
+
+        saved = save_mock.call_args.args[0]
+        assert saved["Economic Times"]["alpha"] == 11.0
+        assert saved["Economic Times"]["beta"] == 5.0
