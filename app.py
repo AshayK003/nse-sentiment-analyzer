@@ -74,14 +74,14 @@ _DOT_RED = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#f85149" strok
 _DOT_ORANGE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" stroke="none"><circle cx="12" cy="12" r="6"/></svg>'
 _DOT_GREY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#8891a0" stroke="none"><circle cx="12" cy="12" r="6"/></svg>'
 st.markdown("""<style>
-details.hermes-expander {
+details.news-expander {
     background:rgba(255,255,255,0.03);
     border:1px solid rgba(255,255,255,0.06);
     border-radius:8px;
     padding:0.5rem 0.75rem;
     margin-bottom:0.5rem;
 }
-details.hermes-expander summary {
+details.news-expander summary {
     cursor:pointer;
     display:flex;
     align-items:center;
@@ -91,11 +91,11 @@ details.hermes-expander summary {
     color:#e4e6eb;
     list-style:none;
 }
-details.hermes-expander summary::-webkit-details-marker { display:none; }
-details.hermes-expander summary .caret {
+details.news-expander summary::-webkit-details-marker { display:none; }
+details.news-expander summary .caret {
     transition:transform 0.2s;
 }
-details.hermes-expander[open] summary .caret {
+details.news-expander[open] summary .caret {
     transform:rotate(90deg);
 }
 </style>""", unsafe_allow_html=True)
@@ -807,7 +807,7 @@ with st.sidebar:
 
     # ─── Changelog & Feedback ───
     _FILE_TEXT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>'
-    st.markdown(f'<details class="hermes-expander"><summary>{_CARET}{_FILE_TEXT_SVG} What\'s New</summary>', unsafe_allow_html=True)
+    st.markdown(f'<details class="news-expander"><summary>{_CARET}{_FILE_TEXT_SVG} What\'s New</summary>', unsafe_allow_html=True)
     try:
         if "_changelog_cache" not in st.session_state:
             with open("CHANGELOG.md", encoding="utf-8") as f:
@@ -1331,7 +1331,7 @@ with st.expander("🔒 Privacy & Data Policy"):
 
 # ─── DISCLAIMER ───
 _ALERT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
-st.markdown(f'<details class="hermes-expander"><summary>{_CARET}{_ALERT_SVG} Disclaimer</summary>', unsafe_allow_html=True)
+st.markdown(f'<details class="news-expander"><summary>{_CARET}{_ALERT_SVG} Disclaimer</summary>', unsafe_allow_html=True)
 st.markdown(f"""
 **Not financial advice.** This tool provides data-driven sentiment analysis and technical indicators for educational and informational purposes only. Nothing on this platform constitutes investment advice, a recommendation, or a solicitation to buy or sell securities.
 

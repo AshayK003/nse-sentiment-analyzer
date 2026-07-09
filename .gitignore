@@ -1,3 +1,6 @@
+# Internal engineering files — never committed
+internals/
+
 # Python
 __pycache__/
 *.pyc
@@ -37,7 +40,3 @@ gumroad-description.md
 landing.html
 linkedin-post-draft.md
 x-thread.md
-
-# Internal engineering notes
-engineering_memory.md
-
