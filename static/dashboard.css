@@ -12,7 +12,7 @@ body {
 ::-webkit-scrollbar-track { background: #0a0b0f; }
 ::-webkit-scrollbar-thumb { background: #2a2e3a; border-radius: 3px; }
 
-/* Cards */
+/* Cards css */
 .card {
     background: #15181f;
     border: 1px solid #2a2e3a;
