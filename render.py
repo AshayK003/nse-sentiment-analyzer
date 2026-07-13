@@ -799,7 +799,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'nonce-{_nonce}' https://unpkg.com; style-src 'unsafe-inline'; font-src fonts.gstatic.com fonts.googleapis.com; img-src *; connect-src 'self' https://query1.finance.yahoo.com https://query2.finance.yahoo.com https://news.google.com https://www.moneycontrol.com https://economictimes.indiatimes.com https://www.livemint.com https://feeds.feedburner.com;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>{_DASHBOARD_CSS}</style>
 </head>
 <body>
@@ -850,7 +850,7 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
             <div>
                 <div class="sentiment-hero {sent_class}">{primary_emoji_svg} {primary_signal}</div>
                 <div class="sentiment-caption">Based on {len(news_items)} articles \u00b7 Weighted across {len(source_breakdown)} sources</div>
-                <div class="rec-callout {sent_class}">{rec_icon} {rec_text} \u2014 {rec_detail}</div>
+                <div class="rec-callout {sent_class}">{rec_icon} {rec_text} &middot; {rec_detail}</div>
             </div>
             <div class="confidence-box">
                 <div class="confidence-num {sent_class}">{confidence_pct:.0f}%</div>

@@ -59,7 +59,7 @@ from intraday import compute_vwap, compute_pivot_levels, get_vix
 
 # ─── Page config ───
 st.set_page_config(
-    page_title="NSE Bull/Bear Edge — AI-Powered Sentiment Analyzer",
+    page_title="NSE Bull/Bear Edge | AI-Powered Sentiment Analyzer",
     page_icon="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%2322b573' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='12' y1='20' x2='12' y2='10'/><line x1='18' y1='20' x2='18' y2='4'/><line x1='6' y1='20' x2='6' y2='16'/></svg>",
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -135,10 +135,27 @@ st.markdown("""
     /* Custom header */
     .custom-header {display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0 1.5rem 0;border-bottom:1px solid #1e2028;margin-bottom:1.5rem;}
     .custom-header .left {display:flex;align-items:center;gap:0.75rem;}
-    .custom-header .logo {font-size:1.75rem;font-weight:800;letter-spacing:-0.03em;background:linear-gradient(135deg,#22b573,#0d9488);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .custom-header .logo {font-size:1.75rem;font-weight:800;letter-spacing:-0.03em;color:#22b573;}
     .custom-header .tagline {font-size:0.8rem;color:#6b7280;margin-top:0.1rem;}
     .custom-header .gh-btn {display:inline-flex;align-items:center;gap:0.4rem;padding:0.4rem 0.75rem;border:1px solid #1e2028;border-radius:8px;color:#e4e6eb;font-size:0.8rem;font-weight:500;text-decoration:none;transition:all 0.2s ease;}
     .custom-header .gh-btn:hover {border-color:#22b573;color:#22b573;background:rgba(34,181,115,0.05);}
+    /* Search button */
+    .search-wrap {width:100%;height:38px;display:flex;align-items:center;justify-content:center;}
+    .search-btn {width:38px;height:38px;background:rgba(19,21,26,0.6);border:1px solid #1e2028;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#e4e6eb;transition:all 0.2s ease;padding:0;}
+    .search-btn:hover {border-color:rgba(34,181,115,0.3);background:rgba(34,181,115,0.08);}
+    /* Footer classes */
+    .footer-contact {text-align:center;font-size:0.85rem;color:#6b7280;margin-bottom:0.5rem;}
+    .footer-contact a {color:#22b573;text-decoration:none;}
+    .footer-disclaimer {display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;}
+    .footer-support {text-align:center;margin-bottom:0.5rem;}
+    .footer-support span {color:#6b7280;font-size:0.75rem;font-style:italic;}
+    .chai-wrap {display:flex;justify-content:center;margin-top:12px;}
+    .chai-btn {display:inline-flex;flex-direction:column;align-items:center;justify-content:center;background:#ffffff;padding:8px 32px;border-radius:16px;text-decoration:none;border:1px solid #e5e7eb;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05),0 2px 4px -2px rgba(0,0,0,0.05);transition:transform 0.2s;}
+    .chai-btn:hover {transform:translateY(-1px);}
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+    }
     /* Recalculate height now that header/footer are hidden */
     .block-container {padding-top:1rem !important;padding-bottom:0 !important;}
 
@@ -1067,14 +1084,8 @@ with btn_col:
     search_trigger_id = "svgsrch"
     st.markdown(
         f"""
-        <div style="width:100%;height:38px;display:flex;align-items:center;justify-content:center;">
-        <button id="{search_trigger_id}"
-                style="width:38px;height:38px;background:rgba(19,21,26,0.6);
-                       border:1px solid #1e2028;border-radius:8px;cursor:pointer;
-                       display:flex;align-items:center;justify-content:center;
-                       color:#e4e6eb;transition:all 0.2s ease;padding:0;"
-                onmouseover="this.style.borderColor='rgba(34,181,115,0.3)';this.style.background='rgba(34,181,115,0.08)'"
-                onmouseout="this.style.borderColor='#1e2028';this.style.background='rgba(19,21,26,0.6)'"
+        <div class="search-wrap">
+        <button id="{search_trigger_id}" class="search-btn"
                 title="Search ticker" aria-label="Search ticker">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1360,35 +1371,29 @@ st.markdown('</details>', unsafe_allow_html=True)
 
 # ─── FOOTER ───
 st.markdown("---")
-st.caption("Built with Streamlit + yfinance + VADER · FinBERT · Bayesian Calibration · Financial Lexicon | Data from Yahoo Finance + RSS News")
+st.caption("Built with Streamlit + yfinance + VADER &middot; FinBERT &middot; Bayesian Calibration &middot; Financial Lexicon | Data from Yahoo Finance + RSS News")
 st.markdown(
-    f'<div style="text-align:center;font-size:0.85rem;color:#6b7280;margin-bottom:0.5rem;">'
-    f'Feature requests: <a href="mailto:{CONTACT["email"]}" '
-    f'style="color:#22b573;text-decoration:none;">{CONTACT["email"]}</a> · '
-    f'<a href="{CONTACT["x_url"]}" '
-    f'style="color:#22b573;text-decoration:none;">{CONTACT["x_handle"]}</a></div>',
+    f'<div class="footer-contact">'
+    f'Feature requests: <a href="mailto:{CONTACT["email"]}">'
+    f'{CONTACT["email"]}</a> &middot; '
+    f'<a href="{CONTACT["x_url"]}">'
+    f'{CONTACT["x_handle"]}</a></div>',
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:#8891a0;">'
+    '<span class="footer-disclaimer">'
     '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
     ' Not financial advice. This tool is for educational purposes only. Trading stocks carries financial risk. Consult a SEBI-registered advisor before making investment decisions.</span>',
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div style="text-align:center;margin-bottom:0.5rem;">'
-    '<span style="color:#6b7280;font-size:0.75rem;font-style:italic;">'
-    'Like this tool? Support the developer with a chai.</span></div>',
+    '<div class="footer-support">'
+    '<span>Like this tool? Support the developer with a chai.</span></div>',
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div style="display:flex;justify-content:center;margin-top:12px">'
-    f'<a href="{CONTACT["chai_url"]}" target="_blank" rel="noopener noreferrer" '
-    'style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;'
-    'background:#ffffff;padding:8px 32px;border-radius:16px;text-decoration:none;'
-    'border:1px solid #e5e7eb;'
-    'box-shadow:0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);'
-    'transition:transform 0.2s;" aria-label="Support on Chai4Me">'
+    '<div class="chai-wrap">'
+    f'<a href="{CONTACT["chai_url"]}" target="_blank" rel="noopener noreferrer" class="chai-btn" aria-label="Support on Chai4Me">'
     '<img src="https://chai4.me/icons/wordmark.png" alt="Support on Chai4Me" style="height:32px;object-fit:contain;"/>'
     '</a></div>',
     unsafe_allow_html=True,
