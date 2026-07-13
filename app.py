@@ -1,7 +1,7 @@
 """
 NSE Stock Sentiment Analyzer
 Enter any NSE ticker → get live price + news sentiment score + signal.
-Built with Streamlit + yfinance + VADER + custom financial lexicon.
+Built with Streamlit + yfinance + VADER + custom financial lexicon for indian markets.
 """
 
 __version__ = "2.10.0"
