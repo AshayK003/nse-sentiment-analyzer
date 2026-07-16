@@ -1,6 +1,20 @@
 # Changelog
 
-## [2.10.0] — 2026-07-08
+## [2.11.0] — 2026-07-16
+
+### Fixed
+
+- **Missing `yfinance` import in app.py** — `_fetch_portfolio_price()` called `yf.Ticker()` but `import yfinance as yf` was nowhere in the module. Crashed with `NameError` on any portfolio price refresh. Fixed with a one-line import.
+
+- **Broken pyproject.toml build backend** — `build-backend` was set to the nonexistent `setuptools.backends._legacy:_Backend`. Changed to `setuptools.build_meta`. `pip install -e .` and `python -m build` now work.
+
+- **`analyze_ticker()` quick mode leaked futures** — The `quick=True` path submitted all 3 parallel tasks (stock + news + FII) but then returned before consuming the news future. The `ThreadPoolExecutor.__exit__` blocked waiting for the news search to finish, negating the purpose of quick mode. Restructured so quick mode only submits stock + FII (2 workers), skipping news entirely.
+
+- **Persistence read/write race conditions** — `load_source_accuracy()` and `load_sentiment_history()` had no thread locks while their write counterparts (`update_source_accuracy()`, `save_sentiment_history()`) did. Added `with _accuracy_lock` / `with _history_lock` to both readers. Changed all three locks to `RLock` for safe reentrancy since `update_source_accuracy()` calls `load_source_accuracy()` internally.
+
+### Tests
+
+- **218 passed, 0 failed** — zero regressions.
 
 ### Added
 - **L2 disk cache for price history** — `get_cached_history()` now has a 3-tier cache: L1 (in-memory dict, same session), L2 (`.price_cache/` JSON files on disk, survives Streamlit Cloud restarts), and L3 (yfinance network call). 7-day TTL for disk cache entries. Cache directory auto-cleaned via LRU eviction when the in-memory limit is exceeded. Significantly faster cold starts after Streamlit Cloud deployments.

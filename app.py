@@ -13,6 +13,7 @@ import os
 import re
 import time
 import pandas as pd
+import yfinance as yf
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -253,23 +254,19 @@ def analyze_ticker(ticker, company_name, quick=False):
     When quick=True (briefing mode), skips expensive news search and sentiment
     analysis — just returns price-only snapshot.
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    # Parallelize independent network calls: stock info + news + FII/DII
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        stock_future = pool.submit(get_stock_info, ticker)
-        news_future = pool.submit(search_news, ticker, company_name)
-        fii_future = pool.submit(get_fii_dii_flow)
-        stock_data = stock_future.result()
-
-    if not stock_data:
-        # Discard pending results if stock data failed
-        news_future.cancel()
-        fii_future.cancel()
-        return None
+    from concurrent.futures import ThreadPoolExecutor
 
     if quick:
-        # Briefing mode: skip news-heavy pipeline, return price-only snapshot
+        # Briefing mode: only fetch stock info + FII/DII, skip expensive news
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            stock_future = pool.submit(get_stock_info, ticker)
+            fii_future = pool.submit(get_fii_dii_flow)
+            stock_data = stock_future.result()
+
+        if not stock_data:
+            fii_future.cancel()
+            return None
+
         return {
             "stock_data": stock_data,
             "news_items": [],
@@ -294,6 +291,18 @@ def analyze_ticker(ticker, company_name, quick=False):
             "fii_data": fii_future.result(),
             "cascade_effects": [],
         }
+
+    # Full mode: parallel stock info + news + FII/DII
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        stock_future = pool.submit(get_stock_info, ticker)
+        news_future = pool.submit(search_news, ticker, company_name)
+        fii_future = pool.submit(get_fii_dii_flow)
+        stock_data = stock_future.result()
+
+    if not stock_data:
+        news_future.cancel()
+        fii_future.cancel()
+        return None
 
     use_finbert = os.environ.get("USE_FINBERT", "").strip().lower() in ("1", "true", "yes")
     pipe_finbert = None

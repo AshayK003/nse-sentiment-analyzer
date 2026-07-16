@@ -28,9 +28,9 @@ CACHE_TTL = 15 * 60  # 15 minutes
 MAX_CACHE_ENTRIES = 500  # drop oldest entries when exceeding this (prevents unbounded growth under multi-user load)
 
 # Thread locks — separate for CSV history, source accuracy, and FII/DII (different files)
-_history_lock = threading.Lock()
-_accuracy_lock = threading.Lock()
-_fiidii_lock = threading.Lock()
+_history_lock = threading.RLock()
+_accuracy_lock = threading.RLock()
+_fiidii_lock = threading.RLock()
 
 
 # ─── Helpers ───
@@ -195,18 +195,19 @@ def load_sentiment_history(ticker, days=10):
     Returns list of dicts sorted by date ascending (oldest first).
     Returns [] if file missing or ticker not found.
     """
-    records = []
-    try:
-        with open(HISTORY_FILE, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row.get("ticker") == ticker:
-                    records.append(row)
-    except (FileNotFoundError, IOError):
-        return []
+    with _history_lock:
+        records = []
+        try:
+            with open(HISTORY_FILE, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get("ticker") == ticker:
+                        records.append(row)
+        except (FileNotFoundError, IOError):
+            return []
 
-    records.sort(key=lambda r: r.get("date", ""))
-    return records[-days:]
+        records.sort(key=lambda r: r.get("date", ""))
+        return records[-days:]
 
 
 def save_sentiment_history(ticker, row_data):
@@ -290,16 +291,17 @@ def load_source_accuracy():
     Starts with an informative Beta(weight*10+1, (1-weight)*10+1) prior
     centered on the hand-tuned default weights.
     """
-    try:
-        data = _load_json(ACCURACY_FILE, None)
-        if data:
-            return data
-    except Exception:
-        pass
-    return {
-        src: {"alpha": w * 10 + 1, "beta": (1 - w) * 10 + 1}
-        for src, w in SOURCE_WEIGHTS_PRIOR.items()
-    }
+    with _accuracy_lock:
+        try:
+            data = _load_json(ACCURACY_FILE, None)
+            if data:
+                return data
+        except Exception:
+            pass
+        return {
+            src: {"alpha": w * 10 + 1, "beta": (1 - w) * 10 + 1}
+            for src, w in SOURCE_WEIGHTS_PRIOR.items()
+        }
 
 
 def save_source_accuracy(data):

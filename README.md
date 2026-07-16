@@ -10,7 +10,7 @@
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-d9232d?style=flat" alt="License"></a>
   <a href="https://github.com/AshayK003/nse-sentiment-analyzer"><img src="https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github&logoColor=white" alt="Stars"></a>
-  <a href="#-testing"><img src="https://img.shields.io/badge/tests-205%20passing-22c55e?style=flat" alt="Tests"></a>
+  <a href="#-testing"><img src="https://img.shields.io/badge/tests-218%20passing-22c55e?style=flat" alt="Tests"></a>
   <a href="#"><img src="https://img.shields.io/badge/security-XSS%20escaped-2ea44f?style=flat" alt="Security"></a>
   <a href="https://nse-sentiment-analyzer.streamlit.app"><img src="https://img.shields.io/badge/UI-Dark%20Theme-13151a?style=flat&logo=css3&logoColor=white" alt="Theme"></a>
   <a href=".streamlit/config.toml"><img src="https://img.shields.io/badge/cache%20limit-500-7c3aed?style=flat" alt="Cache"></a>
