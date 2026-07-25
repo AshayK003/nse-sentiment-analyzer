@@ -1,0 +1,16 @@
+{
+    "include": ["src"],
+    "exclude": ["tests", ".venv", "venv", "__pycache__"],
+    "pythonVersion": "3.11",
+    "typeCheckingMode": "basic",
+    "reportMissingImports": false,
+    "reportMissingModuleSource": false,
+    "reportAttributeAccessIssue": false,
+    "reportArgumentType": false,
+    "reportOptionalMemberAccess": false,
+    "strictParameterNoneValue": false,
+    "strictListInference": false,
+    "strictDictionaryInference": false,
+    "strictSetInference": false,
+    "useLibraryCodeForTypes": true
+}

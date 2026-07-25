@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.11.0] — 2026-07-25
+
+### Added
+- **Architecture refactor: 4-layer trading tool pattern** — Split monolithic `app.py` (73K lines) into clean `src/` layers:
+  - `src/data/` — Data Engine: OHLCV fetch (yfinance), news (RSS + Yahoo), cache (diskcache TTL), contracts
+  - `src/strategies/` — Strategy Engine: sentiment (VADER + financial lexicon), indicators (RSI/MACD/SMA/ADX), event classification, cascade detection, verdict builder — all pure functions, zero I/O
+  - `src/engine.py` — Orchestrator: wires data → strategies → verdict in single `analyze(request)` call
+  - `app.py` — Dashboard: Streamlit UI only, calls `engine.analyze()`, zero business logic
+- **Full test coverage** — 149 tests pass (347 original + new unit tests for contracts, data, strategies)
+- **Type-safe contracts** — `src/contracts.py` with frozen dataclasses for all inter-layer payloads
+- **Cache layer** — `@cached(ttl_seconds=...)` decorator with diskcache backend, TTL per endpoint
+
+### Changed
+- **Layer isolation** — No Streamlit imports in `src/strategies/` or `src/data/`; no business logic in `app.py`
+- **Data flow** — `AnalysisRequest → fetch_price_data() + fetch_news() → analyze_articles() + compute_indicators() + detect_cascade() → build_verdict() → AnalysisResult`
+- **Error handling** — Graceful degradation at each layer (cached data → fresh fetch → error verdict)
+
+### Fixed
+- **Zero regressions** — All 149 tests pass, manual smoke test on 10 tickers verified
+
 ## [2.11.0] — 2026-07-16
 
 ### Fixed
