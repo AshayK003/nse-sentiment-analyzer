@@ -54,6 +54,16 @@ class OHLCV:
     volume: int
     ticker: str = ""
 
+    def __post_init__(self):
+        if any(math.isnan(v) for v in (self.open, self.high, self.low, self.close)):
+            raise ValueError("OHLCV contains NaN")
+        if self.high < max(self.open, self.close) or self.low > min(self.open, self.close):
+            raise ValueError("Invalid OHLC relationship")
+
+    @property
+    def typical_price(self) -> float:
+        return (self.high + self.low + self.close) / 3
+
 
 @dataclass(frozen=True)
 class Headline:
