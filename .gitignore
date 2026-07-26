@@ -24,7 +24,7 @@ env/
 *.err
 
 # Data
-data/
+/data/
 .price_cache/
 
 # Env
