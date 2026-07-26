@@ -89,7 +89,7 @@ class AdaptiveClusterLearner:
             ngram_range=(1, 2),
             stop_words="english",
             min_df=1,
-            max_df=0.95,
+            max_df=1.0,  # Allow all terms, don't filter by document frequency
         )
         self._fitted = False
         self._last_calibration = 0.0
@@ -109,6 +109,9 @@ class AdaptiveClusterLearner:
                         for c in self.clusters.values():
                             all_headlines.extend(c.get("headlines", []))
                         if all_headlines:
+                            # Need at least 2 docs for max_df to work
+                            if len(all_headlines) == 1:
+                                all_headlines.append("dummy document for cold start")
                             self.vectorizer.fit(all_headlines)
                             self._fitted = True
                 logger.info(f"Loaded {len(self.clusters)} adaptive clusters from disk")
@@ -136,7 +139,9 @@ class AdaptiveClusterLearner:
     def _vectorize(self, text: str) -> np.ndarray:
         """Vectorize a single headline."""
         if not self._fitted:
-            self.vectorizer.fit([text])
+            # Cold start: need at least 2 docs for max_df to work
+            # Fit on the text plus a dummy document to satisfy min/max_df
+            self.vectorizer.fit([text, "dummy document for cold start"])
             self._fitted = True
         return self.vectorizer.transform([text]).toarray()[0]
 
@@ -286,91 +291,116 @@ class DisseminationClusterer:
     Clusters related news articles to measure dissemination breadth.
 
     Based on FinGPT (arXiv:2412.10823):
-    - Cluster articles by content similarity (TF-IDF + DBSCAN)
+    - Group articles by shared financial entities (tickers, commodities, sectors)
     - Cluster size = dissemination breadth = market impact proxy
-    - Large clusters = high-impact events
+    - Large multi-source clusters = high-impact events
     """
 
     def __init__(self):
+        # Financial entity keywords for grouping
+        self.commodity_keywords = {
+            "crude": ["crude", "brent", "wti", "oil", "petroleum"],
+            "gold": ["gold", "bullion", "yellow metal"],
+            "silver": ["silver"],
+            "copper": ["copper"],
+            "aluminum": ["aluminum", "aluminium"],
+            "natural_gas": ["natural gas", "lng", "cng"],
+            "coal": ["coal", "thermal coal"],
+            "sugar": ["sugar"],
+            "steel": ["steel", "iron ore"],
+        }
+        self.sector_keywords = {
+            "banking": ["bank", "rbi", "rate", "interest", "lending", "deposit"],
+            "it": ["it ", "software", "technology", "tech ", "services"],
+            "pharma": ["pharma", "drug", "medicine", "clinical", "fda"],
+            "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle"],
+            "energy": ["power", "energy", "renewable", "solar", "wind"],
+            "cement": ["cement", "construction", "infrastructure"],
+            "metals": ["metal", "steel", "aluminum", "copper", "zinc"],
+        }
+        # Simple TF-IDF for fallback similarity
         self.vectorizer = TfidfVectorizer(
-            max_features=300,
+            max_features=200,
             ngram_range=(1, 2),
             stop_words="english",
             min_df=1,
+            max_df=0.85,
+            sublinear_tf=True,
         )
         self._fitted = False
 
+    def _extract_entities(self, text: str) -> set:
+        """Extract financial entities (commodities, sectors) from text."""
+        text_lower = text.lower()
+        entities = set()
+        for entity, keywords in self.commodity_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                entities.add(f"commodity:{entity}")
+        for entity, keywords in self.sector_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                entities.add(f"sector:{entity}")
+        return entities
+
+    def _get_article_signature(self, article: dict) -> frozenset:
+        """Create a signature for grouping: entities only (tickers kept separate)."""
+        text = f"{article.get('title', '')}. {article.get('body', '')}"
+        entities = self._extract_entities(text)
+        return frozenset(entities)
+
     def cluster_articles(self, articles: list[dict]) -> list[dict]:
         """
-        Cluster articles by content similarity.
+        Cluster articles by shared financial entities.
 
-        Args:
-            articles: list of {"title": str, "body": str, "source": str, "ticker": str}
-
-        Returns:
-            list of clusters, each with:
-            - "articles": list of article indices
-            - "size": int
-            - "dissemination_score": float (0-1, normalized size)
-            - "representative": str (centroid article title)
-            - "sources": list of unique sources
-            - "tickers": list of unique tickers mentioned
+        Returns list of clusters with:
+        - articles: list of article indices
+        - size: int
+        - dissemination_score: float (0-1, normalized size + source diversity)
+        - representative: str (title of first article)
+        - sources: list of unique sources
+        - tickers: list of unique tickers
         """
-        with _dissemination_lock:
-            if not articles or len(articles) < DISSEMINATION_MIN_CLUSTER_SIZE:
-                return []
+        if not articles or len(articles) < DISSEMINATION_MIN_CLUSTER_SIZE:
+            return []
 
-            # Build combined text for each article
-            texts = []
-            for a in articles:
-                text = f"{a.get('title', '')}. {a.get('body', '')}"
-                texts.append(text)
+        # Group by entity signature
+        signature_groups = defaultdict(list)
+        for idx, article in enumerate(articles):
+            sig = self._get_article_signature(article)
+            signature_groups[sig].append(idx)
 
-            # Vectorize
-            if not self._fitted:
-                self.vectorizer.fit(texts)
-                self._fitted = True
-            X = self.vectorizer.transform(texts).toarray()
+        # Filter groups with at least 2 articles
+        valid_groups = {sig: idxs for sig, idxs in signature_groups.items() if len(idxs) >= DISSEMINATION_MIN_CLUSTER_SIZE}
 
-            # DBSCAN clustering
-            clustering = DBSCAN(eps=0.7, min_samples=DISSEMINATION_MIN_CLUSTER_SIZE, metric="cosine")
-            labels = clustering.fit_predict(X)
+        if not valid_groups:
+            return []
 
-            # Build cluster summaries
-            clusters = defaultdict(list)
-            for idx, label in enumerate(labels):
-                if label >= 0:  # -1 = noise
-                    clusters[label].append(idx)
+        # Build cluster summaries
+        clusters = []
+        max_size = max(len(idxs) for idxs in valid_groups.values())
 
-            results = []
-            max_size = max((len(v) for v in clusters.values()), default=1)
+        for sig, indices in valid_groups.items():
+            sources = list({articles[i].get("source", "Unknown") for i in indices})
+            tickers = list({t for i in indices for t in articles[i].get("ticker", "").upper().split() if t})
+            entities = list(sig)
 
-            for label, indices in clusters.items():
-                if len(indices) < DISSEMINATION_MIN_CLUSTER_SIZE:
-                    continue
+            # Dissemination score = normalized size * source diversity
+            size_score = min(len(indices) / max(10, max_size), 1.0)
+            source_diversity = min(len(sources) / 5.0, 1.0)  # max 5 sources
+            dissemination_score = (0.7 * size_score) + (0.3 * source_diversity)
 
-                # Representative = article closest to centroid
-                cluster_vecs = X[indices]
-                centroid = cluster_vecs.mean(axis=0)
-                dists = np.linalg.norm(cluster_vecs - centroid, axis=1)
-                rep_idx = indices[int(np.argmin(dists))]
+            clusters.append({
+                "articles": indices,
+                "size": len(indices),
+                "dissemination_score": round(dissemination_score, 3),
+                "representative": articles[indices[0]].get("title", "")[:120],
+                "sources": sources,
+                "tickers": tickers,
+                "entities": entities,
+            })
 
-                sources = list({articles[i].get("source", "Unknown") for i in indices})
-                tickers = list({articles[i].get("ticker", "") for i in indices if articles[i].get("ticker")})
-
-                results.append({
-                    "articles": indices,
-                    "size": len(indices),
-                    "dissemination_score": min(len(indices) / max(10, max_size), 1.0),
-                    "representative": articles[rep_idx].get("title", "")[:120],
-                    "sources": sources,
-                    "tickers": tickers,
-                })
-
-            # Sort by dissemination score (largest first)
-            results.sort(key=lambda c: c["dissemination_score"], reverse=True)
-            return results[:DISSEMINATION_MAX_CLUSTERS]
-
+        # Sort by dissemination score (largest, most diverse first)
+        clusters.sort(key=lambda c: c["dissemination_score"], reverse=True)
+        return clusters[:DISSEMINATION_MAX_CLUSTERS]
 
 # ─── Singleton instances ───
 _adaptive_learner: AdaptiveClusterLearner | None = None
