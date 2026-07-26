@@ -14,7 +14,6 @@ Thanks for considering a contribution. This project is open-source under AGPL v3
 - [Suggesting Features](#suggesting-features)
 - [Development Setup](#development-setup)
 - [Testing](#testing)
-- [Architecture Overview](#architecture-overview)
 - [PR Workflow](#pr-workflow)
 - [Style Guide](#style-guide)
 - [Commit Conventions](#commit-conventions)
@@ -110,7 +109,7 @@ This project takes testing seriously. Every new feature and bug fix must include
 ### Running Tests
 
 ```bash
-# Full suite (149 tests, mocked APIs, no network)
+# Full suite (205 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # With coverage
@@ -129,62 +128,6 @@ python -m pytest tests/test_indicators.py::TestIndicators::test_rsi -v
 - **Use `pytest-mock`** for patching. Fixtures in `conftest.py` provide `tmp_data_dir` for isolated file I/O and `sample_hist` DataFrame for indicators.
 - **Tests should be deterministic** — no reliance on current date, network state, or random seeds. If you need dates, generate them dynamically relative to now.
 - **Markers** — use `@pytest.mark.slow` for tests that hit real APIs (opt-in, not run by default), `@pytest.mark.regression` for tests covering previously-fixed bugs.
-
-### Layer-Specific Test Patterns
-
-| Layer | Test File | Focus |
-|-------|-----------|-------|
-| **Contracts** | `tests/data/test_contracts.py` | Dataclass validation, serialization, field constraints |
-| **Data Engine** | `tests/test_data_fetcher.py` | Mock yfinance/RSS, cache behavior, error handling |
-| **Strategy Engine** | `tests/test_sentiment.py`, `tests/test_indicators.py`, `tests/test_cascade.py` | Pure functions, fixture data, property-based tests |
-| **Orchestrator** | `tests/test_analyze_ticker.py` | Full pipeline end-to-end with mocked data layer |
-| **Dashboard** | `tests/test_render.py` | HTML output validation, XSS safety |
-
----
-
-## Architecture Overview
-
-The codebase follows a **four-layer trading tool pattern** (Data → Strategy → Orchestrator → Dashboard):
-
-```
-src/
-├── app.py                          # Dashboard (Streamlit only)
-├── engine.py                       # Orchestrator: analyze(request) → AnalysisResult
-├── contracts.py                    # Frozen dataclasses (inter-layer payloads)
-├── data/                           # DATA ENGINE
-│   ├── yahoo.py                    # OHLCV + price data (yfinance + cache)
-│   ├── rss.py                      # News fetcher (RSS + Yahoo fallback)
-│   └── cache.py                    # TTL diskcache decorator
-└── strategies/                     # STRATEGY ENGINE (pure functions)
-    ├── sentiment.py                # VADER + financial lexicon
-    ├── indicators.py               # RSI, MACD, SMA, Bollinger, ADX
-    ├── classifier.py               # 19 event types, keyword-based
-    ├── cascade.py                  # Macro driver → ticker effects
-    └── verdict.py                  # Signal composition (sentiment + tech + cascade)
-```
-
-### Layer Responsibilities
-
-| Layer | Responsibility | Characteristics |
-|-------|----------------|-----------------|
-| **Data Engine** (`src/data/`) | Fetch raw data from external APIs (yfinance, RSS, NSE) | Network I/O, caching, retry logic, error handling |
-| **Strategy Engine** (`src/strategies/`) | Pure logic — take data, produce signals/verdicts | No network I/O, pure functions, deterministic |
-| **Orchestrator** (`src/engine.py`) | Ties data + strategies together into single briefing | Calls data layer → calls strategy layer → assembles result |
-| **Dashboard** (`app.py`) | User interface (Streamlit, TradingView chart) | Presentation only. No business logic. No data fetching logic. |
-
-### Data Flow
-
-```
-User Input (ticker) → AnalysisRequest
-    ↓
-Data Engine: fetch_price_data() + fetch_news()
-    ↓
-Strategy Engine: analyze_articles() + compute_indicators() + detect_cascade()
-    ↓
-Orchestrator: build_verdict() → AnalysisResult
-    ↓
-Dashboard: renders Verdict + Charts + Articles
-```
 
 ---
 
@@ -214,8 +157,8 @@ Dashboard: renders Verdict + Charts + Articles
 
 - **Sync-first** — no async. Parallelism via `concurrent.futures.ThreadPoolExecutor`.
 - **Mock all external APIs** in tests.
-- **Use `@cached(ttl_seconds=...)`** from `src.data.cache` for API response caching.
-- **Prefer deletion over abstraction** — YAGNI as a principle. When in doubt, leave it out.
+- **Use `cache_get`/`cache_set`** from `persistence.py` for API response caching.
+- **Prefer deletion over abstraction** — YAGNI. When in doubt, leave it out.
 - **Lucide SVGs** for all UI icons — no emojis where an SVG serves the same purpose.
 - **AGPL v3 header** — new files should include the license header comment.
 
@@ -267,5 +210,4 @@ docs: update README with 3-tier cache overview
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the **GNU AGPL v3** — same as the project. See [LICENSE](LICENSE).
 By contributing, you agree that your contributions will be licensed under the **GNU AGPL v3** — same as the project. See [LICENSE](LICENSE).
