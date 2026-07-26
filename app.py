@@ -1363,6 +1363,8 @@ st.markdown(f"""
 - **Price data** — Yahoo Finance free tier has 15-20 min delay. Not suitable for intraday trading without real-time feeds.
 - **NSE intraday (VWAP)** — yfinance intraday history for Indian stocks is spotty; many tickers return incomplete data.
 - **Sentiment model** — VADER is a general-purpose model, not trained on Indian financial news. However, we've expanded it with a 123-term Indian financial lexicon covering common abbreviations (NPA, PAT, EBITDA, AUM, ROE, ROCE), IPO/capital market terms (oversubscribed), banking context (slippage, provisioning, infusion), fund flows (inflow, outflow), Hinglish terms (tezi, mandi, tej, mand), and general financial context. Accuracy is improved over vanilla VADER but still below a finance-tuned model.
+- **Adaptive Sentiment Engine** — Learns from your price reactions, not labels. Requires ~10+ data points per cluster to produce meaningful predictions. Cold-start predictions default to 0%. Calibrates every 72h against ground truth. Does not use FinBERT unless `USE_FINBERT=true`.
+- **Dissemination Clustering** — Groups articles by shared financial entities (commodities, sectors). Clusters with <2 articles are ignored. Score reflects cluster size × source diversity, not predictive power.
 - **SmartScore** — This is a custom composite metric. It has not been backtested or validated against actual returns. A score of 52 vs 48 is not a meaningful difference.
 - **Event classifier** — Keyword-based rules can sometimes misclassify headlines. "SEBI clears merger" is now correctly classified as regulatory approval (positive) rather than penalty.
 - **News sources** — RSS headlines are often trailing the market move. DuckDuckGo fallback (used when RSS returns little) is noisy and unreliable.
