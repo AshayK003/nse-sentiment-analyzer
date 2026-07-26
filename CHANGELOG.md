@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.12.0] — 2026-07-26
+
+### Added
+- **Adaptive TF-IDF Cluster Learner** — Learns sentiment from actual price reactions, not labels. Groups headlines into semantic neighborhoods via TF-IDF, tracks realized average price reaction per cluster, auto-adapts as market regimes shift (no retraining). Recalibrates ensemble weights every 72h against ground-truth price moves. Based on *Hybrid News Sentiment Engine* (arXiv:2606.03457).
+- **News Dissemination Breadth Clustering** — Clusters related articles by content similarity (TF-IDF + DBSCAN) to measure dissemination breadth = market impact proxy. Large multi-source clusters = high-impact events. Based on *FinGPT* (arXiv:2412.10823).
+- **Per-headline price reaction predictions** — Dashboard shows expected 1h/4h price moves for each headline based on adaptive cluster learning.
+- **Dissemination score (0-1) in dashboard** — Confidence weight derived from cluster size and source diversity.
+
+### Changed
+- `search_news()` now returns 5-tuple: `(articles, cascade_pool, source_stats, dissemination_clusters, dissemination_score)`
+- `analyze_ticker()` consumes dissemination clusters and passes them to `render_dashboard()`
+- `render_dashboard()` displays dissemination clusters as confidence indicators
+
+### Tests
+- **218 passed, 0 failed** — zero regressions.
+- 8 new tests in `test_adaptive_sentiment.py` covering cluster learner updates, predictions, calibration, dissemination clustering, and edge cases.
+
 ## [2.11.0] — 2026-07-16
 
 ### Fixed

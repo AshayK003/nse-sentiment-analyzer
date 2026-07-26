@@ -294,11 +294,13 @@ class TestNewsCaching:
         mock_ddgs = mocker.patch("data_fetcher.DDGS")
         mocker.patch("data_fetcher.cache_set")
 
-        articles, cascade_pool, stats = search_news("RELIANCE", "Reliance Industries",
-                                      max_results=5)
+        articles, cascade_pool, stats, dissemination_clusters, dissemination_score = search_news("RELIANCE", "Reliance Industries",
+                                              max_results=5)
         assert len(articles) == 1
         assert articles[0]["title"] == "Cached article"
         assert cascade_pool == articles  # on cache hit, cascade pool = display items
+        assert dissemination_clusters == []  # single article -> no clusters
+        assert dissemination_score == 0.0
         mock_feed.assert_not_called()
         mock_ddgs.assert_not_called()
 
@@ -315,7 +317,7 @@ class TestNewsCaching:
         mocker.patch("data_fetcher.DDGS", side_effect=Exception("No DDGS"))
         mocker.patch("data_fetcher.cache_set")
 
-        articles, cascade_pool, stats = search_news("RELIANCE", "Reliance Industries",
+        articles, cascade_pool, stats, _, _ = search_news("RELIANCE", "Reliance Industries",
                                       max_results=5)
         assert articles == []
         assert cascade_pool == []

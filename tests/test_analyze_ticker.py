@@ -32,7 +32,7 @@ def mock_deps(mocker):
         {"title": "Test Company maintains guidance", "body": "",
          "date": "2026-06-16", "url": "https://example.com/3", "source": "LiveMint"},
     ]
-    mocker.patch("app.search_news", return_value=(news_items, news_items, {"Economic Times": 1, "Moneycontrol": 1, "LiveMint": 1}))
+    mocker.patch("app.search_news", return_value=(news_items, news_items, {"Economic Times": 1, "Moneycontrol": 1, "LiveMint": 1}, [], 0.0))
 
     # ── Sentiment (VADER returns deterministic scores for known phrases) ──
     # Patch analyze_headline_sentiment to return scores based on keywords
@@ -143,7 +143,7 @@ class TestAnalyzeTicker:
     def test_returns_neutral_on_empty_news(self, mock_deps):
         """When no news is found, signal is NEUTRAL and SmartScore is 50."""
         from app import analyze_ticker
-        mock_deps.patch("app.search_news", return_value=([], [], {}))
+        mock_deps.patch("app.search_news", return_value=([], [], {}, [], 0.0))
         result = analyze_ticker("TEST", "Test Company Ltd")
 
         assert result is not None

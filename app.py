@@ -312,7 +312,7 @@ def analyze_ticker(ticker, company_name, quick=False):
 
     sia = None if use_finbert else get_sia()
     # Retrieve news result from parallel future (already fetched above)
-    news_items, cascade_pool, source_stats = news_future.result()
+    news_items, cascade_pool, source_stats, dissemination_clusters, dissemination_score = news_future.result()
 
     # Phase 1: Sentiment scoring (FinBERT or VADER+events)
     headline_scores = []

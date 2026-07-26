@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from duckduckgo_search import DDGS
 from persistence import cache_get, cache_set
+from adaptive_sentiment import get_dissemination_clusterer, compute_dissemination_score, get_dissemination_clusters
 logger = logging.getLogger(__name__)
 # ─── Global rate-limit cooldown ───
 # When yfinance returns 429, all yfinance calls skip for this duration
@@ -1208,7 +1209,9 @@ def search_news(ticker, company_name, max_results=10):
         news, health = cached
         # Return full cached list for cascade_pool so commodity detection
         # has more articles to scan, even on cache hit.
-        return news[:max_results], news, health
+        dissemination_clusters = get_dissemination_clusters(news)
+        dissemination_score = compute_dissemination_score(news)
+        return news[:max_results], news, health, dissemination_clusters, dissemination_score
     seen_urls = set()
     all_results = []
     cascade_pool = []
@@ -1270,20 +1273,25 @@ def search_news(ticker, company_name, max_results=10):
         except Exception as e:
             logger.debug("DuckDuckGo fallback failed for %s: %s", ticker, e)
             _mark_ddgs_rate_limited()
-        # Reconcile DuckDuckGo additions into cascade_pool
-        for item in all_results:
-            if item["url"] not in cascade_urls:
-                cascade_urls.add(item["url"])
-                cascade_pool.append(item)
+    # Reconcile DuckDuckGo additions into cascade_pool
+    for item in all_results:
+        if item["url"] not in cascade_urls:
+            cascade_urls.add(item["url"])
+            cascade_pool.append(item)
     all_results.sort(key=lambda x: x["date"], reverse=True)
     cascade_pool.sort(key=lambda x: x["date"], reverse=True)
+
+    # Compute dissemination clusters for the cascade_pool (broader market awareness)
+    dissemination_clusters = get_dissemination_clusters(cascade_pool)
+    dissemination_score = compute_dissemination_score(cascade_pool)
+
     if all_results:
         cache_set(f"news_{ticker}", (all_results, source_stats))
     else:
         # Cache empty results briefly to avoid hammering feeds on every search
         cache_set(f"news_{ticker}", ([], source_stats), ttl=60)
         st.info("ℹ️ News feed unavailable. Showing price data only.")
-    return all_results[:max_results], cascade_pool, source_stats
+    return all_results[:max_results], cascade_pool, source_stats, dissemination_clusters, dissemination_score
 
 
 def _ddgs_commodity_search(all_items, seen_urls):
