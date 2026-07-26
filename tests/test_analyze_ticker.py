@@ -2,18 +2,11 @@
 Integration test for analyze_ticker() — verifies the orchestration pipeline
 connects modules correctly. Mocks at module boundaries (data_fetcher, sentiment,
 event_classifier, indicators, market_data, persistence).
-
-NOTE: These tests are for the LEGACY monolithic app.py architecture.
-The project has been refactored to a 4-layer architecture (Data → Strategy → Orchestrator → UI).
-These tests are kept for reference but are skipped since they test the old interface.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-
-# Skip all tests in this module - they test the old monolithic app.py interface
-pytestmark = pytest.mark.skip(reason="Legacy tests for old monolithic app.py architecture. Project now uses 4-layer architecture (src.engine.analyze).")
 
 
 @pytest.fixture
