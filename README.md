@@ -74,6 +74,8 @@ Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH
 
 ## Architecture
 
+See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full system diagram, module responsibilities, data flow, and design decisions.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  app.py                   Streamlit entry point, UI layout  │
@@ -297,7 +299,7 @@ nse-sentiment-analyzer/
 ## Testing
 
 ```bash
-# Full suite (205 tests, mocked APIs, no network)
+# Full suite (180 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # With coverage
@@ -376,30 +378,7 @@ This tool is for **educational and informational purposes only**. Nothing on thi
 
 ## Contributing
 
-### What We Need
-
-- **Financial lexicon expansion** — more Indian-market-specific terms for VADER
-- **News source integration** — additional Indian financial RSS feeds
-- **NSE ticker updates** — new listings, delistings, symbol changes
-- **UI improvements** — accessibility, mobile responsiveness, i18n
-- **Bug fixes** — open an issue first with reproduction steps
-- **Test coverage** — edge cases for empty results, partial data, rate limits
-
-### PR Workflow
-
-1. **Open an issue** describing the change (bug → reproduction; feature → use case)
-2. **Fork and branch** from `master`
-3. **Write tests first** for any new logic
-4. **Run the full suite** — `python -m pytest tests/ -q` must pass
-5. **Keep diffs small** — one logical change per PR
-6. **Commit messages** — prefixed by type: `fix:`, `feat:`, `test:`, `docs:`, `refactor:`
-
-### Avoid
-
-- Adding new dependencies without a strong reason
-- Introducing async patterns (this project is sync-first)
-- Patching symptoms instead of root causes
-- Proposing features requiring paid APIs or API keys
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for guidelines on PR workflow, testing requirements, and what we need/avoid.
 
 ---
 
