@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # ─── Config ───
 ADAPTIVE_CACHE_FILE = DATA_DIR / "adaptive_clusters.json"
 CLUSTER_MIN_SAMPLES = 2  # DBSCAN min_samples
-CLUSTER_EPS = 0.55  # TF-IDF cosine distance threshold - tighter for better discrimination
+CLUSTER_EPS = 0.40  # TF-IDF cosine distance threshold - tighter for better discrimination (beats vs misses)
 MAX_CLUSTERS = 50  # prevent unbounded growth
 CALIBRATION_WINDOW_HOURS = 72  # recalibrate every 3 days
 MIN_CLUSTER_SIZE_FOR_CALIBRATION = 3
@@ -149,6 +149,12 @@ class AdaptiveClusterLearner:
     Learns sentiment from price reactions, not labels.
 
     Algorithm:
+    - Groups headlines into semantic neighborhoods via TF-IDF
+    - Tracks realized average price reaction per cluster
+    - Auto-adapts as market regimes shift (no retraining)
+    - Calibrates ensemble weights against ground-truth price moves
+    """
+
     def __init__(self):
             self.clusters: dict[int, dict] = {}  # cluster_id -> {centroid, headlines, reactions, weight}
             # Use TfidfVectorizer with custom tokenization for Indian financial text
@@ -454,52 +460,44 @@ class DisseminationClusterer:
     """
 
     def __init__(self):
-        # Financial entity keywords for grouping
-        self.commodity_keywords = {
-            "crude": ["crude", "brent", "wti", "oil", "petroleum", "crudeoil"],
-            "gold": ["gold", "bullion", "yellow metal", "goldprices", "goldprices"],
-            "silver": ["silver", "silverprices"],
-            "copper": ["copper", "copperprices"],
-            "aluminum": ["aluminum", "aluminium", "aluminiumprices"],
-            "natural_gas": ["natural gas", "lng", "cng", "naturalgas", "lngprices"],
-            "coal": ["coal", "thermal coal", "coalprices"],
-            "sugar": ["sugar", "sugarprices"],
-            "steel": ["steel", "iron ore", "steelprices", "ironore"],
-            "copper": ["copper", "copperprices"],
-            "aluminum": ["aluminum", "aluminium", "aluminiumprices"],
-            "zinc": ["zinc", "zincprices"],
-            "lead": ["lead", "leadprices"],
-            "nickel": ["nickel", "nickelprices"],
-            "natural_gas": ["natural gas", "lng", "cng", "naturalgas"],
-            "coal": ["coal", "thermal coal"],
-            "sugar": ["sugar", "sugarprices"],
-            "cotton": ["cotton", "cottonprices"],
-            "wheat": ["wheat", "wheatprices"],
-            "rice": ["rice", "riceprices"],
-            "soybean": ["soybean", "soy", "soybeanprices"],
-            "palm_oil": ["palm oil", "crude palm oil", "cpo", "palmoilprices"],
-            "rubber": ["rubber", "natural rubber", "rubberprices"],
-        }
-        self.sector_keywords = {
-            "banking": ["bank", "rbi", "rate", "interest", "lending", "deposit", "npa", "provisioning", "netinterestmargin", "nim", "casa", "casa ratio"],
-            "it": ["it ", "software", "technology", "tech ", "services", "digital", "cloud", "saas", "erp", "consulting", "outsourcing", "bpo", "kpo", "ites"],
-            "pharma": ["pharma", "drug", "medicine", "clinical", "fda", "usfda", "dcgi", "cdsco", "and", "anda", "bioequivalence", "generics", "api", "formulations", "cmo", "cdo", "r&d", "pipeline", "approval", "launch", "patent", "exclusivity"],
-            "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle", "twowheeler", "threewheeler", "fourwheeler", "commercial vehicle", "passenger vehicle", "tractor", "cv", "pv", "ev", "hybrid", "ice", "bs6", "bsvi", "fame", "fameii", "plis", "plischeme", "subsidy", "charging", "infrastructure", "battery", "range", "rangeanxiety"],
-            "energy": ["power", "energy", "renewable", "solar", "wind", "hydro", "thermal", "nuclear", "greenenergy", "cleanenergy", "greenhydrogen", "hydrogen", "batterystorage", "pumpedstorage", "transmission", "distribution", "grid", "smartgrid", "microgrid", "rooftop", "utilityscale", "rooftopsolar", "groundmount", "floating", "canal", "canaltop", "hybrid", "roundtheclock", "rtc", "firm", "intermittent", "variable", "capacityutilisation", "plantloadfactor", "plf", "capacityaddition", "capacityaddition", "commissioning", "synchronisation", "financialclosure", "ppa", "powerpurchaseagreement", "tariff", "bid", "auction", "reverseauction", "discom", "discoms", "stateutility", "stateutilities", "centralutility", "centralutilities", "generator", "generators", "generatingcompany", "generatingcompanies", "ipp", "ipps", "captive", "merchant", "exchange", "exchange", "powerxchange", "pxt", "hindustantimes", "iex", "pxil", "term", "shortterm", "mediumterm", "longterm", "dayahead", "realtime", "rtm", "dam", "gdam", "rtm", "gtam", "greenterm", "green", "renewableenergycertificates", "rec", "recs", "energycertificates", "energycertificate"],
-            "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle"],
-            "energy": ["power", "energy", "renewable", "solar", "wind"],
-            "cement": ["cement", "construction", "infrastructure"],
-            "metals": ["metal", "steel", "aluminum", "copper", "zinc"],
-        }
-        # Simple TF-IDF for fallback similarity
-        self.vectorizer = HashingVectorizer(
-            n_features=200,
-            ngram_range=(1, 2),
-            stop_words="english",
-            alternate_sign=False,
-            norm="l2",
-        )
-        self._fitted = True
+            # Financial entity keywords for grouping
+            self.commodity_keywords = {
+                "crude": ["crude", "brent", "wti", "oil", "petroleum", "crudeoil"],
+                "gold": ["gold", "bullion", "yellow metal", "goldprices", "goldprices"],
+                "silver": ["silver", "silverprices"],
+                "copper": ["copper", "copperprices"],
+                "aluminum": ["aluminum", "aluminium", "aluminiumprices"],
+                "natural_gas": ["natural gas", "lng", "cng", "naturalgas", "lngprices"],
+                "coal": ["coal", "thermal coal", "coalprices"],
+                "sugar": ["sugar", "sugarprices"],
+                "steel": ["steel", "iron ore", "steelprices", "ironore"],
+                "cotton": ["cotton", "cottonprices"],
+                "wheat": ["wheat", "wheatprices"],
+                "rice": [" rice ", "riceprices", "rice prices", "rice price"],
+                "soybean": ["soybean", "soy", "soybeanprices"],
+                "palm_oil": ["palm oil", "crude palm oil", "cpo", "palmoilprices"],
+                "rubber": ["rubber", "natural rubber", "rubberprices"],
+            }
+            self.sector_keywords = {
+                "banking": ["bank", "rbi", "rate", "interest", "lending", "deposit", "npa", "provisioning", "netinterestmargin", "nim", "casa", "casa ratio"],
+                "it": ["it ", "software", "technology", "tech ", "services", "digital", "cloud", "saas", "erp", "consulting", "outsourcing", "bpo", "kpo", "ites"],
+                "pharma": ["pharma", "drug", "medicine", "clinical", "fda", "usfda", "dcgi", "cdsco", "and", "anda", "bioequivalence", "generics", "api", "formulations", "cmo", "cdo", "r&d", "pipeline", "approval", "launch", "patent", "exclusivity"],
+                "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle", "twowheeler", "threewheeler", "fourwheeler", "commercial vehicle", "passenger vehicle", "tractor", "cv", "pv", "ev", "hybrid", "ice", "bs6", "bsvi", "fame", "fameii", "plis", "plischeme", "subsidy", "charging", "infrastructure", "battery", "range", "rangeanxiety"],
+                "energy": ["power", "energy", "renewable", "solar", "wind", "hydro", "thermal", "nuclear", "greenenergy", "cleanenergy", "greenhydrogen", "hydrogen", "batterystorage", "pumpedstorage", "transmission", "distribution", "grid", "smartgrid", "microgrid", "rooftop", "utilityscale", "rooftopsolar", "groundmount", "floating", "canal", "canaltop", "hybrid", "roundtheclock", "rtc", "firm", "intermittent", "variable", "capacityutilisation", "plantloadfactor", "plf", "capacityaddition", "capacityaddition", "commissioning", "synchronisation", "financialclosure", "ppa", "powerpurchaseagreement", "tariff", "bid", "auction", "reverseauction", "discom", "discoms", "stateutility", "stateutilities", "centralutility", "centralutilities", "generator", "generators", "generatingcompany", "generatingcompanies", "ipp", "ipps", "captive", "merchant", "exchange", "exchange", "powerxchange", "pxt", "hindustantimes", "iex", "pxil", "term", "shortterm", "mediumterm", "longterm", "dayahead", "realtime", "rtm", "dam", "gdam", "rtm", "gtam", "greenterm", "green", "renewableenergycertificates", "rec", "recs", "energycertificates", "energycertificate"],
+                "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle"],
+                "energy": ["power", "energy", "renewable", "solar", "wind"],
+                "cement": ["cement", "construction", "infrastructure"],
+                "metals": ["metal", "steel", "aluminum", "copper", "zinc"],
+            }
+            # Simple TF-IDF for fallback similarity
+            self.vectorizer = HashingVectorizer(
+                n_features=200,
+                ngram_range=(1, 2),
+                stop_words="english",
+                alternate_sign=False,
+                norm="l2",
+            )
+            self._fitted = True
 
     def _extract_entities(self, text: str) -> set:
         """Extract financial entities (commodities, sectors) from text."""

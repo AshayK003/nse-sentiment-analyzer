@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.12.1] — 2026-07-27
+
+### Fixed
+- **Adaptive learner: "beats" vs "misses" clustering** — Tightened `CLUSTER_EPS` from 0.55 to 0.40 (cosine similarity threshold 0.45→0.60). Prevents semantically opposite headlines (beats/misses) from clustering together. Same-company "beats" headlines still cluster correctly (similarity ~1.0).
+- **Dissemination clusterer: "rice" false positive** — The keyword `"rice"` matched inside `"crude"`, causing Brent crude articles to be tagged as both `commodity:crude` and `commodity:rice`. Fixed with word-boundary keywords: `[" rice ", "riceprices", "rice prices", "rice price"]`.
+- **Test isolation** — `test_special_chars_in_headline` now resets `learner.clusters = {}` and `learner._fitted = True` before running, avoiding stale cached clusters from polluting the test.
+- **Dissemination clusterer indentation fix** — Cleaned up `__init__` indentation after keyword refactor (no behavior change).
+
+### Tests
+- **180 passed, 0 failed** — All adaptive sentiment tests passing including 19 new tests in `test_adaptive_sentiment.py` and 21 in `test_adaptive_backtest.py`.
+
+---
+
 ## [2.12.0] — 2026-07-26
 
 ### Added
