@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import DBSCAN
 
@@ -37,12 +38,78 @@ logger = logging.getLogger(__name__)
 # ─── Config ───
 ADAPTIVE_CACHE_FILE = DATA_DIR / "adaptive_clusters.json"
 CLUSTER_MIN_SAMPLES = 2  # DBSCAN min_samples
-CLUSTER_EPS = 0.65  # TF-IDF cosine distance threshold
+CLUSTER_EPS = 0.55  # TF-IDF cosine distance threshold - tighter for better discrimination
 MAX_CLUSTERS = 50  # prevent unbounded growth
 CALIBRATION_WINDOW_HOURS = 72  # recalibrate every 3 days
 MIN_CLUSTER_SIZE_FOR_CALIBRATION = 3
 DISSEMINATION_MIN_CLUSTER_SIZE = 2
 DISSEMINATION_MAX_CLUSTERS = 20
+
+# Indian market specific config
+INDIAN_MARKET_HOURS = (9, 15, 30)  # 9:15 AM - 3:30 PM IST
+PRE_MARKET_HOURS = (9, 0)  # Pre-market 9:00 AM
+POST_MARKET_HOURS = (15, 30)  # Post-market 3:30 PM
+MARKET_HOLIDAYS_2024 = [
+    "2024-01-26", "2024-03-08", "2024-03-25", "2024-03-29", "2024-04-11",
+    "2024-04-17", "2024-05-01", "2024-06-17", "2024-07-17", "2024-08-15",
+    "2024-10-02", "2024-11-01", "2024-11-15", "2024-12-25"
+]
+
+# Indian market specific financial vocabulary
+INDIAN_FINANCIAL_ENTITIES = {
+    "indices": ["nifty", "nifty50", "banknifty", "banknifty", "niftybank", "sensex", "niftyit", "niftyauto", "niftypharma", "niftyfmcg", "niftybank", "niftymetal", "niftypsubank", "niftyprivatebank", "niftyrealty", "niftyenergy", "niftymedia", "niftycommodities", "niftyconsumption", "niftypse", "niftyinfra", "niftyserv"],
+    "sectors": ["banking", "bankingsector", "it", "informationtechnology", "pharma", "pharmaceuticals", "auto", "automobile", "fmcg", "consumergoods", "metals", "metal", "cement", "cementsector", "power", "energy", "realty", "realestate", "telecom", "telecommunications", "media", "entertainment", "capitalgoods", "construction", "infrastructure", "oil", "gas", "oilgas", "chemicals", "chemical", "textiles", "textile", "paper", "sugar", "fertilizers", "fertiliser", "pesticides", "agrochemicals", "specialtychemicals", "specialitychemicals"],
+    "commodities": ["crude", "crudeoil", "brent", "wti", "gold", "silver", "copper", "aluminum", "aluminium", "zinc", "lead", "nickel", "naturalgas", "lng", "cng", "coal", "thermalcoal", "sugar", "cotton", "wheat", "rice", "soybean", "soy", "palmoil", "crudepalm", "rubber", "jute"],
+    "currencies": ["rupee", "inr", "usd", "dollar", "usdinr", "eurinr", "gbpinr", "jpyinr", "rupeeweakens", "rupeestrengthens", "rupeeweakens", "rupeestrengthens"],
+    "indices": ["nifty", "nifty50", "banknifty", "banknifty", "sensex", "bse", "nse", "niftyit", "niftyauto", "niftypharma", "niftyfmcg", "niftybank", "niftymetal", "niftypsubank", "niftyprivatebank", "niftyrealty", "niftyenergy", "niftymedia", "niftycommodities", "niftyconsumption", "niftypse", "niftyinfra", "niftyserv"],
+    "corporate_actions": ["dividend", "bonus", "split", "buyback", "buybackoffer", "rightsissue", "rights", "ipo", "fpo", "qip", "preferentialallotment", "esop", "stocksplit", "stocksplit", "facevaluesplit", "demerger", "merger", "acquisition", "acquisition", "takeover", "openoffer", "delisting"],
+    "regulatory": ["sebi", "rbi", "irdai", "pfda", "fda", "usfda", "dcgi", "cdsco", "sebiorder", "sebicircular", "rbicircular", "rbidirection", "rbiorder", "irdaiorder", "irdaicircular"],
+    "regulators": ["sebi", "rbi", "irdai", "pfda", "fda", "usfda", "dcgi", "cdsco", "cbia", "nclt", "nclat", "sat", "satorder"],
+    "ratings": ["upgrade", "downgrade", "upgrade", "downgrade", "outlook", "positive", "negative", "stable", "creditrating", "ratingupgrade", "ratingdowngrade", "outlookpositive", "outlooknegative", "outlookstable"],
+    "financial_metrics": ["eps", "epsgrowth", "pe", "pb", "roe", "roce", "roic", "debt", "debttoequity", "currentratio", "quickratio", "interestcoverage", "operatingmargin", "netmargin", "revenuegrowth", "profitgrowth", "epsgrowth", "bookvalue", "dividendyield", "payout", "fcf", "freecashflow", "roa", "roic"],
+    "corporate_keywords": ["beats", "misses", "beats", "misses", "beats", "misses", "surges", "plunges", "surges", "plunges", "rises", "falls", "surges", "plunges", "jumps", "drops", "rallies", "corrects", "surges", "plunges", "gains", "loses", "advances", "declines", "rallies", "corrects"],
+}
+
+# Indian market specific financial phrases
+INDIAN_FINANCIAL_PHRASES = [
+    "beats estimates", "misses estimates", "beats estimates", "misses estimates",
+    "beats expectations", "misses expectations", "beats expectations", "misses expectations",
+    "surpasses estimates", "misses estimates", "exceeds estimates", "falls short",
+    "surpasses expectations", "falls short of expectations", "exceeds expectations", "falls short of estimates",
+    "posts profit", "reports loss", "swings to profit", "swings to loss",
+    "turns profitable", "turns loss-making", "returns to profit", "slips into red",
+    "net profit rises", "net profit falls", "net profit jumps", "net profit drops",
+    "revenue rises", "revenue falls", "revenue jumps", "revenue drops",
+    "margin expands", "margin contracts", "margin improves", "margin contracts",
+    "operating margin expands", "operating margin contracts",
+    "net margin expands", "net margin contracts",
+    "eps rises", "eps falls", "eps jumps", "eps drops",
+    "eps beats estimates", "eps misses estimates",
+    "revenue beats estimates", "revenue misses estimates",
+    "profit beats estimates", "profit misses estimates",
+    "ebitda beats estimates", "ebitda misses estimates",
+    "margin beats estimates", "margin misses estimates",
+    "dividend announced", "dividend declared", "dividend recommended",
+    "bonus shares", "stock split", "face value split",
+    "buyback announced", "buyback open", "buyback closes",
+    "rights issue", "rights issue price", "rights issue ratio",
+    "ipo opens", "ipo closes", "ipo subscribed", "ipo oversubscribed",
+    "listing gains", "listing discount", "premium listing",
+    "sebi approves", "rbi approves", "rbi rejects", "sebi rejects",
+    "rbi policy", "repo rate", "reverse repo", "cash reserve ratio", "statutory liquidity ratio",
+    "crr", "slr", "msf", "bank rate", "liquidity", "inflation", "cpi", "wpi",
+    "gdp", "gdp growth", "iip", "industrial production", "core sector",
+    "pmi", "manufacturing pmi", "services pmi", "composite pmi",
+    "fii", "fpi", "dii", "mutual funds", "insurance companies", "banks", "fii buying", "fii selling", "dii buying", "dii selling",
+    "fii net buyers", "fii net sellers", "dii net buyers", "dii net sellers",
+    "block deal", "bulk deal", "bulk deals", "block deals",
+    "insider trading", "insider buying", "insider selling",
+    "pledge", "pledged shares", "unpledge", "unpledged shares",
+    "promoter holding", "promoter stake", "promoter pledge", "promoter unpledge",
+    "institutional holding", "institutional stake", "mutual fund holding", "insurance holding",
+    "foreign holding", "foreign stake", "fpi holding", "fii holding",
+    "retail holding", "retail stake", "hni holding", "hni stake",
+]
 
 # Thread safety
 _adaptive_lock = threading.RLock()
@@ -67,7 +134,13 @@ def _serialize_cluster(cluster: dict) -> dict:
 
 def _deserialize_cluster(data: dict) -> dict:
     """Convert JSON back to working cluster dict."""
-    return data  # Already JSON-serializable types
+    out = {}
+    for k, v in data.items():
+        if k == "centroid" and isinstance(v, list):
+            out[k] = np.array(v)
+        else:
+            out[k] = v
+    return out
 
 
 # ─── Adaptive TF-IDF Cluster Learner ───
@@ -76,25 +149,53 @@ class AdaptiveClusterLearner:
     Learns sentiment from price reactions, not labels.
 
     Algorithm:
-    1. On new headline + subsequent price move: vectorize headline, assign to cluster
-    2. Each cluster tracks: centroid, headlines[], price_reactions[], count
-    3. Prediction: find nearest cluster, return its average price reaction
-    4. Calibration: every 72h, recompute cluster weights by correlation with actual moves
-    """
-
     def __init__(self):
-        self.clusters: dict[int, dict] = {}  # cluster_id -> {centroid, headlines, reactions, weight}
-        self.vectorizer = TfidfVectorizer(
-            max_features=500,
-            ngram_range=(1, 2),
-            stop_words="english",
-            min_df=1,
-            max_df=1.0,  # Allow all terms, don't filter by document frequency
-        )
-        self._fitted = False
-        self._last_calibration = 0.0
-        self._load()
-
+            self.clusters: dict[int, dict] = {}  # cluster_id -> {centroid, headlines, reactions, weight}
+            # Use TfidfVectorizer with custom tokenization for Indian financial text
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            import re
+        
+            def custom_tokenizer(text):
+                """Custom tokenizer optimized for Indian financial news."""
+                text = text.lower()
+                # Tokenize: words + financial symbols
+                tokens = re.findall(r'\b[a-z]+\b|\d+(?:\.\d+)?%?|\$?\d+(?:\.\d+)?[kmbt]?', text)
+            
+                # Create unigrams
+                unigrams = tokens
+            
+                # Create financial bigrams (adjacent words)
+                bigrams = [f"{tokens[i]}_{tokens[i+1]}" for i in range(len(tokens)-1)]
+            
+                # Create financial trigrams
+                trigrams = [f"{tokens[i]}_{tokens[i+1]}_{tokens[i+2]}" for i in range(len(tokens)-2)]
+            
+                # Financial n-grams with special handling for key phrases
+                all_grams = unigrams + bigrams + trigrams
+            
+                # Add special financial phrase markers
+                text_lower = ' '.join(tokens)
+                financial_markers = []
+                for phrase in INDIAN_FINANCIAL_PHRASES:
+                    if phrase in ' '.join(tokens):
+                        financial_markers.append(f"__PHRASE__{phrase.replace(' ', '_')}")
+            
+                return all_grams + financial_markers
+        
+            self.vectorizer = TfidfVectorizer(
+                max_features=8000,
+                ngram_range=(1, 3),
+                stop_words="english",
+                min_df=1,
+                max_df=0.95,
+                sublinear_tf=True,
+                tokenizer=custom_tokenizer,
+            )
+            self._fitted = False
+            self._last_calibration = 0.0
+            self._load()
+            # Pre-fit on financial corpus to handle cold start
+            self._prefit_vectorizer()
     def _load(self):
         """Load clusters from disk."""
         try:
@@ -103,21 +204,55 @@ class AdaptiveClusterLearner:
                     data = json.load(f)
                     self.clusters = {int(k): _deserialize_cluster(v) for k, v in data.get("clusters", {}).items()}
                     self._last_calibration = data.get("last_calibration", 0.0)
-                    if self.clusters:
-                        # Re-fit vectorizer on all stored headlines
-                        all_headlines = []
-                        for c in self.clusters.values():
-                            all_headlines.extend(c.get("headlines", []))
-                        if all_headlines:
-                            # Need at least 2 docs for max_df to work
-                            if len(all_headlines) == 1:
-                                all_headlines.append("dummy document for cold start")
-                            self.vectorizer.fit(all_headlines)
-                            self._fitted = True
+                    # Re-fit vectorizer on stored headlines to match vocabulary
+                    all_headlines = []
+                    for c in self.clusters.values():
+                        all_headlines.extend(c.get("headlines", []))
+                    if all_headlines:
+                        self.vectorizer.fit(all_headlines)
+                        self._fitted = True
                 logger.info(f"Loaded {len(self.clusters)} adaptive clusters from disk")
         except Exception as e:
             logger.warning(f"Failed to load adaptive clusters: {e}")
             self.clusters = {}
+
+    def _prefit_vectorizer(self):
+        """Pre-fit vectorizer on financial corpus to handle cold start."""
+        financial_corpus = [
+            "Reliance beats quarterly estimates profit growth",
+            "TCS misses quarterly estimates profit decline",
+            "INFY beats quarterly earnings revenue growth",
+            "HDFC Bank beats profit estimates net interest income",
+            "ICICI Bank misses profit estimates provisions rise",
+            "Crude oil surges on supply fears OPEC cuts",
+            "Brent crude rises on OPEC production cuts",
+            "Gold prices steady on safe haven demand",
+            "Rupee weakens against dollar RBI intervention",
+            "RBI keeps rates unchanged repo rate unchanged",
+            "Bank Nifty surges on rate cut hopes credit growth",
+            "IT stocks rally on weak rupee dollar strength",
+            "Pharma stocks rally on FDA approval clinical trials",
+            "Auto stocks surge on festive demand rural recovery",
+            "Metal stocks rally on China stimulus infrastructure",
+            "Cement stocks surge on infrastructure spending budget",
+            "Power stocks rally on demand growth capacity addition",
+            "FMCG stocks steady on rural demand consumption",
+            "Real estate stocks surge on housing demand low rates",
+            "Telecom stocks rally on tariff hike subscriber growth",
+            # Explicit negation examples for training
+            "company beats estimates revenue profit beats",
+            "company misses estimates revenue profit misses",
+            "earnings beat revenue beat profit beat",
+            "earnings miss revenue miss profit miss",
+            "profit beats estimates beats estimates",
+            "profit misses estimates misses estimates",
+            "quarterly results beat expectations",
+            "quarterly results miss expectations",
+            "stock rises on beat results",
+            "stock falls on miss results",
+        ]
+        self.vectorizer.fit(financial_corpus)
+        self._fitted = True
 
     def _save(self):
         """Persist clusters to disk."""
@@ -137,12 +272,7 @@ class AdaptiveClusterLearner:
         return max(self.clusters.keys(), default=-1) + 1
 
     def _vectorize(self, text: str) -> np.ndarray:
-        """Vectorize a single headline."""
-        if not self._fitted:
-            # Cold start: need at least 2 docs for max_df to work
-            # Fit on the text plus a dummy document to satisfy min/max_df
-            self.vectorizer.fit([text, "dummy document for cold start"])
-            self._fitted = True
+        """Vectorize a single headline using HashingVectorizer (no fitting needed)."""
         return self.vectorizer.transform([text]).toarray()[0]
 
     def _cosine_sim(self, a: np.ndarray, b: np.ndarray) -> float:
@@ -245,40 +375,67 @@ class AdaptiveClusterLearner:
 
             return best_reaction
 
-    def calibrate(self, recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float]):
+    def calibrate(self, recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float], force: bool = False):
         """
         Recalibrate cluster weights based on prediction accuracy.
         Called periodically (every 72h) with recent ground-truth data.
+        
+        Args:
+            recent_headlines: List of recent headlines
+            recent_moves_1h: List of actual 1h price moves
+            recent_moves_4h: List of actual 4h price moves
+            force: If True, skip the 72-hour cooldown check
         """
         with _adaptive_lock:
             if not self.clusters or len(recent_headlines) < MIN_CLUSTER_SIZE_FOR_CALIBRATION:
                 return
 
             now = time.time()
-            if now - self._last_calibration < CALIBRATION_WINDOW_HOURS * 3600:
+            if not force and now - self._last_calibration < CALIBRATION_WINDOW_HOURS * 3600:
                 return
 
-            # For each cluster, compute correlation between its predictions and actual moves
+            # For each cluster, compute how well its average reaction predicts actual moves
             for cid, cluster in self.clusters.items():
                 if "centroid" not in cluster or not cluster["reactions_1h"]:
                     continue
 
-                predictions = []
-                actuals = []
-                centroid = np.array(cluster["centroid"])
-
-                for hl, move_1h, move_4h in zip(recent_headlines, recent_moves_1h, recent_moves_4h):
+                # Collect actual moves for headlines that belong to this cluster
+                cluster_actuals = []
+                for hl, move_1h in zip(recent_headlines, recent_moves_1h):
                     vec = self._vectorize(hl)
-                    sim = self._cosine_sim(vec, centroid)
-                    if sim > 0.3:  # only count if cluster is relevant
-                        predictions.append(sim * np.mean(cluster["reactions_1h"]))
-                        actuals.append(move_1h)
+                    sim = self._cosine_sim(vec, np.array(cluster["centroid"]))
+                    if sim >= (1 - CLUSTER_EPS):  # headline belongs to this cluster
+                        cluster_actuals.append(move_1h)
 
-                if len(predictions) >= 3:
-                    corr = np.corrcoef(predictions, actuals)[0, 1]
-                    if not np.isnan(corr):
-                        # Weight = max(0, correlation)^2 — only positive predictive power counts
-                        cluster["weight"] = float(max(0.0, corr) ** 2)
+                if len(cluster_actuals) >= 3:
+                    # Compare cluster's average reaction vs actual outcomes
+                    cluster_mean = np.mean(cluster["reactions_1h"])
+                    
+                    # Direction agreement: how often does sign(cluster_mean) == sign(actual)?
+                    correct_direction = sum(1 for a in cluster_actuals if 
+                        (cluster_mean > 0 and a > 0) or (cluster_mean < 0 and a < 0) or (cluster_mean == 0 and a == 0))
+                    direction_accuracy = correct_direction / len(cluster_actuals)
+                    
+                    # Magnitude accuracy: how close is magnitude?
+                    magnitude_errors = [abs(cluster_mean - a) for a in cluster_actuals]
+                    mean_magnitude_error = np.mean(magnitude_errors)
+                    magnitude_accuracy = max(0, 1 - (mean_magnitude_error / (abs(cluster_mean) + 1)))
+                    
+                    # Combined weight: direction accuracy weighted more heavily
+                    cluster["weight"] = float(0.7 * direction_accuracy + 0.3 * magnitude_accuracy)
+                    
+                    # Track calibration history
+                    if "calibration_history" not in cluster:
+                        cluster["calibration_history"] = []
+                    cluster["calibration_history"].append({
+                        "timestamp": now,
+                        "direction_accuracy": direction_accuracy,
+                        "magnitude_accuracy": magnitude_accuracy,
+                        "weight": cluster["weight"],
+                        "sample_size": len(cluster_actuals)
+                    })
+                    # Keep only last 10 calibrations
+                    cluster["calibration_history"] = cluster["calibration_history"][-10:]
 
             self._last_calibration = now
             self._save()
@@ -299,35 +456,50 @@ class DisseminationClusterer:
     def __init__(self):
         # Financial entity keywords for grouping
         self.commodity_keywords = {
-            "crude": ["crude", "brent", "wti", "oil", "petroleum"],
-            "gold": ["gold", "bullion", "yellow metal"],
-            "silver": ["silver"],
-            "copper": ["copper"],
-            "aluminum": ["aluminum", "aluminium"],
-            "natural_gas": ["natural gas", "lng", "cng"],
+            "crude": ["crude", "brent", "wti", "oil", "petroleum", "crudeoil"],
+            "gold": ["gold", "bullion", "yellow metal", "goldprices", "goldprices"],
+            "silver": ["silver", "silverprices"],
+            "copper": ["copper", "copperprices"],
+            "aluminum": ["aluminum", "aluminium", "aluminiumprices"],
+            "natural_gas": ["natural gas", "lng", "cng", "naturalgas", "lngprices"],
+            "coal": ["coal", "thermal coal", "coalprices"],
+            "sugar": ["sugar", "sugarprices"],
+            "steel": ["steel", "iron ore", "steelprices", "ironore"],
+            "copper": ["copper", "copperprices"],
+            "aluminum": ["aluminum", "aluminium", "aluminiumprices"],
+            "zinc": ["zinc", "zincprices"],
+            "lead": ["lead", "leadprices"],
+            "nickel": ["nickel", "nickelprices"],
+            "natural_gas": ["natural gas", "lng", "cng", "naturalgas"],
             "coal": ["coal", "thermal coal"],
-            "sugar": ["sugar"],
-            "steel": ["steel", "iron ore"],
+            "sugar": ["sugar", "sugarprices"],
+            "cotton": ["cotton", "cottonprices"],
+            "wheat": ["wheat", "wheatprices"],
+            "rice": ["rice", "riceprices"],
+            "soybean": ["soybean", "soy", "soybeanprices"],
+            "palm_oil": ["palm oil", "crude palm oil", "cpo", "palmoilprices"],
+            "rubber": ["rubber", "natural rubber", "rubberprices"],
         }
         self.sector_keywords = {
-            "banking": ["bank", "rbi", "rate", "interest", "lending", "deposit"],
-            "it": ["it ", "software", "technology", "tech ", "services"],
-            "pharma": ["pharma", "drug", "medicine", "clinical", "fda"],
+            "banking": ["bank", "rbi", "rate", "interest", "lending", "deposit", "npa", "provisioning", "netinterestmargin", "nim", "casa", "casa ratio"],
+            "it": ["it ", "software", "technology", "tech ", "services", "digital", "cloud", "saas", "erp", "consulting", "outsourcing", "bpo", "kpo", "ites"],
+            "pharma": ["pharma", "drug", "medicine", "clinical", "fda", "usfda", "dcgi", "cdsco", "and", "anda", "bioequivalence", "generics", "api", "formulations", "cmo", "cdo", "r&d", "pipeline", "approval", "launch", "patent", "exclusivity"],
+            "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle", "twowheeler", "threewheeler", "fourwheeler", "commercial vehicle", "passenger vehicle", "tractor", "cv", "pv", "ev", "hybrid", "ice", "bs6", "bsvi", "fame", "fameii", "plis", "plischeme", "subsidy", "charging", "infrastructure", "battery", "range", "rangeanxiety"],
+            "energy": ["power", "energy", "renewable", "solar", "wind", "hydro", "thermal", "nuclear", "greenenergy", "cleanenergy", "greenhydrogen", "hydrogen", "batterystorage", "pumpedstorage", "transmission", "distribution", "grid", "smartgrid", "microgrid", "rooftop", "utilityscale", "rooftopsolar", "groundmount", "floating", "canal", "canaltop", "hybrid", "roundtheclock", "rtc", "firm", "intermittent", "variable", "capacityutilisation", "plantloadfactor", "plf", "capacityaddition", "capacityaddition", "commissioning", "synchronisation", "financialclosure", "ppa", "powerpurchaseagreement", "tariff", "bid", "auction", "reverseauction", "discom", "discoms", "stateutility", "stateutilities", "centralutility", "centralutilities", "generator", "generators", "generatingcompany", "generatingcompanies", "ipp", "ipps", "captive", "merchant", "exchange", "exchange", "powerxchange", "pxt", "hindustantimes", "iex", "pxil", "term", "shortterm", "mediumterm", "longterm", "dayahead", "realtime", "rtm", "dam", "gdam", "rtm", "gtam", "greenterm", "green", "renewableenergycertificates", "rec", "recs", "energycertificates", "energycertificate"],
             "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle"],
             "energy": ["power", "energy", "renewable", "solar", "wind"],
             "cement": ["cement", "construction", "infrastructure"],
             "metals": ["metal", "steel", "aluminum", "copper", "zinc"],
         }
         # Simple TF-IDF for fallback similarity
-        self.vectorizer = TfidfVectorizer(
-            max_features=200,
+        self.vectorizer = HashingVectorizer(
+            n_features=200,
             ngram_range=(1, 2),
             stop_words="english",
-            min_df=1,
-            max_df=0.85,
-            sublinear_tf=True,
+            alternate_sign=False,
+            norm="l2",
         )
-        self._fitted = False
+        self._fitted = True
 
     def _extract_entities(self, text: str) -> set:
         """Extract financial entities (commodities, sectors) from text."""
@@ -463,7 +635,7 @@ def get_dissemination_clusters(articles: list[dict]) -> list[dict]:
 
 def calibrate_adaptive_learner(recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float]):
     """Trigger calibration of adaptive learner weights."""
-    get_adaptive_learner().calibrate(recent_headlines, recent_moves_1h, recent_moves_4h)
+    get_adaptive_learner().calibrate(recent_headlines, recent_moves_1h, recent_moves_4h, force=True)
 
 
 # ─── Integration helpers for data_fetcher.py ───
