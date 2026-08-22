@@ -23,8 +23,8 @@ env/
 *.log
 *.err
 
-# Data
-data/
+# Data (runtime caches; data/tickers.json and data/aliases.json are tracked)
+data/*.cache*
 .price_cache/
 
 # Env
