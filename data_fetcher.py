@@ -360,6 +360,122 @@ def _nf(v):
         return None
     f = float(v)
     return None if math.isnan(f) else f
+def _fetch_info_with_retry(ticker, suffixes):
+    """Phase 1: best-effort metadata fetch with retry and suffix fallback.
+    Returns (info_dict_or_None, name_fallback)."""
+    info = None
+    name_fallback = ticker
+    for suffix in suffixes:
+        stock = yf.Ticker(f"{ticker}{suffix}")
+        for attempt in _retry_fetch(max_attempts=3, base_wait=0.5):
+            try:
+                raw = stock.info
+                if raw and isinstance(raw, dict) and len(raw) > 10:
+                    info = raw
+                    name_fallback = info.get("longName", info.get("shortName", ticker))
+                    break
+            except Exception as e:
+                # Any yfinance error could be rate-limiting
+                if "429" in str(e) or "Too Many" in str(e) or "Rate Limit" in str(e):
+                    _mark_rate_limited()
+                continue  # retry same suffix with backoff before trying next
+        if info:
+            break  # found valid info, stop trying suffixes
+    return info, name_fallback
+
+
+def _fetch_history_with_retry(ticker, suffixes):
+    """Phase 2: required price-history fetch with retry and suffix fallback."""
+    for suffix in suffixes:
+        stock = yf.Ticker(f"{ticker}{suffix}")
+        for attempt in _retry_fetch(max_attempts=3, base_wait=1):
+            try:
+                raw = stock.history(period="2y")
+                if raw is not None and not raw.empty:
+                    return raw
+            except Exception as e:
+                logger.debug("History retry %s failed: %s", attempt, e)
+                continue  # retry with backoff
+    return None
+
+
+def _retry_sparse_info(info, hist, ticker, suffixes):
+    """Phases 2b/2c: after history (which took ~3-6s), retry metadata if it
+    failed or was sparse — yfinance .info is flaky for Indian stocks and the
+    rate-limit may have cleared. Patches sector/industry into info.
+    Returns (possibly-replaced) info dict."""
+    if info is None and hist is not None:
+        for suffix in suffixes:
+            stock = yf.Ticker(f"{ticker}{suffix}")
+            try:
+                raw = stock.info
+                if raw and isinstance(raw, dict) and len(raw) > 10:
+                    info = raw
+                    break
+            except Exception as e:
+                logger.debug("Info retry failed: %s", e)
+                continue
+    # Targeted sector/industry fetch: skip when info is a full response
+    # (30+ keys) — fields are legitimately absent for ETFs/index funds.
+    _sec = info.get("sector") if info else None
+    _ind = info.get("industry") if info else None
+    _info_sparse = info is None or len(info) < 30
+    _has_na = _sec == "N/A" or _ind == "N/A"
+    if (_info_sparse or _has_na) and ((_sec is None or _sec == "N/A") or (_ind is None or _ind == "N/A")):
+        for suffix in suffixes:
+            try:
+                stock = yf.Ticker(f"{ticker}{suffix}")
+                raw = stock.info
+                if raw and isinstance(raw, dict):
+                    if not _sec or _sec == "N/A":
+                        _sec = raw.get("sector")
+                    if not _ind or _ind == "N/A":
+                        _ind = raw.get("industry")
+                    if _sec and _sec != "N/A" and _ind and _ind != "N/A":
+                        break
+            except Exception as e:
+                logger.debug("Sector/industry fetch failed: %s", e)
+                continue
+        if info is None:
+            info = {}
+        if _sec and _sec != "N/A":
+            info["sector"] = _sec
+        if _ind and _ind != "N/A":
+            info["industry"] = _ind
+    return info
+
+
+def _build_price_fields(hist, info):
+    """Extract price/volume fields from history (preferred) or info fallback.
+    Returns (current_price, change, change_pct, day_high, day_low, volume)
+    or None if no usable data source."""
+    if hist is not None and not hist.empty:
+        current_price = _nf(hist["Close"].iloc[-1])
+        prev_close = _nf(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
+        if current_price is not None and prev_close is not None:
+            change = float(current_price - prev_close)
+            change_pct = float((change / prev_close) * 100) if prev_close != 0 else 0.0
+        else:
+            change = None
+            change_pct = None
+        day_high = _nf(hist["High"].iloc[-1])
+        day_low = _nf(hist["Low"].iloc[-1])
+        vol_raw = hist["Volume"].iloc[-1]
+        volume = int(vol_raw) if not math.isnan(vol_raw) else 0
+        return current_price, change, change_pct, day_high, day_low, volume
+    if info:
+        current_price = _nf(info.get("currentPrice")) or _nf(info.get("regularMarketPrice"))
+        return (
+            current_price,
+            _nf(info.get("regularMarketChange")),
+            _nf(info.get("regularMarketChangePercent")),
+            _nf(info.get("dayHigh")),
+            _nf(info.get("dayLow")),
+            int(_nf(info.get("volume")) or 0),
+        )
+    return None
+
+
 def get_stock_info(ticker):
     """Fetch stock data from yfinance with retry and backoff.
     Two-phase approach:
@@ -387,120 +503,27 @@ def get_stock_info(ticker):
                 st.warning("Still rate-limited. Please try again in a moment.")
                 return None
     suffixes = [".NS", ".BO", ""]
-    info = None
-    hist = None
-    name_fallback = ticker
     try:
-        # ── Phase 1: info (best-effort metadata) ──
-        for suffix in suffixes:
-            stock = yf.Ticker(f"{ticker}{suffix}")
-            for attempt in _retry_fetch(max_attempts=3, base_wait=0.5):
-                try:
-                    raw = stock.info
-                    if raw and isinstance(raw, dict) and len(raw) > 10:
-                        info = raw
-                        name_fallback = info.get("longName", info.get("shortName", ticker))
-                        break
-                except Exception as e:
-                    # Any yfinance error could be rate-limiting
-                    if "429" in str(e) or "Too Many" in str(e) or "Rate Limit" in str(e):
-                        _mark_rate_limited()
-                    continue  # retry same suffix with backoff before trying next
-            if info:
-                break  # found valid info, stop trying suffixes
-        # ── Phase 2: history (required price data) ──
-        for suffix in suffixes if not hist else []:
-            stock = yf.Ticker(f"{ticker}{suffix}")
-            for attempt in _retry_fetch(max_attempts=3, base_wait=1):
-                try:
-                    raw = stock.history(period="2y")
-                    if raw is not None and not raw.empty:
-                        hist = raw
-                        break
-                except Exception as e:
-                    logger.debug("History retry %s failed: %s", attempt, e)
-                    continue  # retry with backoff
-            if hist is not None:
-                break  # found valid history
-        # ── Phase 2b: retry info if it failed (rate-limit may have cleared
-        #    during the history phase which took ~3-6s) ──
-        if info is None and hist is not None:
-            for suffix in suffixes:
-                stock = yf.Ticker(f"{ticker}{suffix}")
-                try:
-                    raw = stock.info
-                    if raw and isinstance(raw, dict) and len(raw) > 10:
-                        info = raw
-                        name_fallback = info.get("longName", info.get("shortName", ticker))
-                        break
-                except Exception as e:
-                    logger.debug("Info retry failed: %s", e)
-                    continue
-        # ── Phase 2c: targeted sector/industry fetch ──
-        #    yfinance .info is flaky for Indian stocks — sometimes returns
-        #    partial dicts or None. Retry specifically for sector/industry.
-        #    Skip if info was a full response (30+ keys) — fields are legitimately
-        #    absent for ETFs/index funds, retrying won't help.
-        _sec = info.get("sector") if info else None
-        _ind = info.get("industry") if info else None
-        _info_sparse = info is None or len(info) < 30
-        _has_na = _sec == "N/A" or _ind == "N/A"
-        if (_info_sparse or _has_na) and ((_sec is None or _sec == "N/A") or (_ind is None or _ind == "N/A")):
-            for suffix in suffixes:
-                try:
-                    stock = yf.Ticker(f"{ticker}{suffix}")
-                    raw = stock.info
-                    if raw and isinstance(raw, dict):
-                        if not _sec or _sec == "N/A":
-                            _sec = raw.get("sector")
-                        if not _ind or _ind == "N/A":
-                            _ind = raw.get("industry")
-                        if _sec and _sec != "N/A" and _ind and _ind != "N/A":
-                            break
-                except Exception as e:
-                    logger.debug("Sector/industry fetch failed: %s", e)
-                    continue
-            # Patch into info dict (create one if it was None)
-            if info is None:
-                info = {}
-            if _sec and _sec != "N/A":
-                info["sector"] = _sec
-            if _ind and _ind != "N/A":
-                info["industry"] = _ind
-        # ── Build result dict ──
-        if hist is not None and not hist.empty:
-            with _hist_cache_lock:
-                _hist_cache[ticker] = hist
-                while len(_hist_cache) > _MAX_CACHED_TICKERS:
-                    _hist_cache.pop(next(iter(_hist_cache)), None)
-            current_price = _nf(hist["Close"].iloc[-1])
-            prev_close = _nf(hist["Close"].iloc[-2]) if len(hist) > 1 else current_price
-            if current_price is not None and prev_close is not None:
-                change = float(current_price - prev_close)
-                change_pct = float((change / prev_close) * 100) if prev_close != 0 else 0.0
-            else:
-                change = None
-                change_pct = None
-            day_high = _nf(hist["High"].iloc[-1])
-            day_low = _nf(hist["Low"].iloc[-1])
-            vol_raw = hist["Volume"].iloc[-1]
-            volume = int(vol_raw) if not math.isnan(vol_raw) else 0
-        elif info:
-            # No history but info is available — use info fields for price
-            current_price = _nf(info.get("currentPrice")) or _nf(info.get("regularMarketPrice"))
-            change = _nf(info.get("regularMarketChange"))
-            change_pct = _nf(info.get("regularMarketChangePercent"))
-            day_high = _nf(info.get("dayHigh"))
-            day_low = _nf(info.get("dayLow"))
-            vol_raw = info.get("volume")
-            volume = int(vol_raw) if vol_raw is not None and not math.isnan(float(vol_raw)) else 0
-        else:
+        info, name_fallback = _fetch_info_with_retry(ticker, suffixes)
+        hist = _fetch_history_with_retry(ticker, suffixes)
+        info = _retry_sparse_info(info, hist, ticker, suffixes)
+
+        prices = _build_price_fields(hist, info)
+        if prices is None:
             # Neither info nor history — give up
             st.error(
                 f"Could not fetch data for {ticker}. "
                 "Yahoo Finance may be rate-limited — wait a moment and try again."
             )
             return None
+        current_price, change, change_pct, day_high, day_low, volume = prices
+
+        if hist is not None and not hist.empty:
+            with _hist_cache_lock:
+                _hist_cache[ticker] = hist
+                while len(_hist_cache) > _MAX_CACHED_TICKERS:
+                    _hist_cache.pop(next(iter(_hist_cache)), None)
+
         result = {
             "name": info.get("longName", info.get("shortName", name_fallback)) if info else name_fallback,
             "sector": info.get("sector", "N/A") if info else "N/A",
@@ -526,6 +549,8 @@ def get_stock_info(ticker):
         logger.warning("get_stock_info(%s) failed: %s", ticker, e)
         st.error(f"Could not fetch data for {ticker}: {e}")
         return None
+
+
 def _parse_date(d):
     """Parse RSS date tuple to ISO date string."""
     try:
