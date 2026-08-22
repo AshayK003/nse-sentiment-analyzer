@@ -10,7 +10,7 @@
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-d9232d?style=flat" alt="License"></a>
   <a href="https://github.com/AshayK003/nse-sentiment-analyzer"><img src="https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github&logoColor=white" alt="Stars"></a>
-  <a href="#-testing"><img src="https://img.shields.io/badge/tests-180%20passing-22c55e?style=flat" alt="Tests"></a>
+  <a href="#-testing"><img src="https://img.shields.io/badge/tests-295%20passing-22c55e?style=flat" alt="Tests"></a>
   <a href="#"><img src="https://img.shields.io/badge/security-XSS%20escaped-2ea44f?style=flat" alt="Security"></a>
   <a href="https://nse-sentiment-analyzer.streamlit.app"><img src="https://img.shields.io/badge/UI-Dark%20Theme-13151a?style=flat&logo=css3&logoColor=white" alt="Theme"></a>
   <a href=".streamlit/config.toml"><img src="https://img.shields.io/badge/cache%20limit-500-7c3aed?style=flat" alt="Cache"></a>
@@ -225,11 +225,13 @@ The app works without it — this data appears as an informational section when 
 ```
 nse-sentiment-analyzer/
 ├── app.py                  # Streamlit entry point, UI state machine
+├── portfolio_ui.py         # Portfolio, track record, FII/DII UI cards
 ├── data_fetcher.py         # yfinance, RSS (feedparser), DuckDuckGo search
 ├── sentiment.py            # VADER + financial lexicon, FinBERT, source weights
 ├── event_classifier.py     # 19 event types with signed sentiment bias
 ├── aggregate_sentiment.py  # SmartScore 0–100 (EWMA, breadth, volume, events)
 ├── cascade.py              # Cascade/ripple tracking — commodity → ticker effects
+├── adaptive_sentiment.py   # TF-IDF cluster learner — learns from price reactions
 ├── indicators.py           # RSI(14), SMA crossover, MACD
 ├── intraday.py             # VWAP, pivot levels, India VIX
 ├── market_data.py          # FII/DII flow, Market Mood Index (MMI)
@@ -249,6 +251,9 @@ nse-sentiment-analyzer/
 │   ├── source_accuracy.json # Bayesian posteriors per source
 │   └── sentiment_history.csv # Daily SmartScore time series
 ├── .price_cache/           # L2 disk cache for price history (gitignored)
+├── data/
+│   ├── tickers.json        # NSE ticker universe (316 entries)
+│   └── aliases.json        # Company name aliases (466 entries)
 └── tests/
     ├── conftest.py         # Fixtures: tmp data dir, mock stock data
     ├── test_analyze_ticker.py    # Full pipeline end-to-end
@@ -267,7 +272,7 @@ nse-sentiment-analyzer/
     └── test_history_export.py     # CSV export
 ```
 
-**10 source modules**, **14 test files**, **180 tests**.
+**11 source modules**, **20 test files**, **295 tests**.
 
 ---
 
@@ -299,7 +304,7 @@ nse-sentiment-analyzer/
 ## Testing
 
 ```bash
-# Full suite (180 tests, mocked APIs, no network)
+# Full suite (295 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # With coverage

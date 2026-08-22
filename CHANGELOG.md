@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.13.0] — 2026-08-22
+
+### Added
+- **Ticker data externalized** (#11) — `NSE_TICKERS` (316 entries) moved to `data/tickers.json`, `ALIASES` (466) to `data/aliases.json`. Adding a ticker no longer requires code changes; loading falls back to an empty universe if files are missing.
+- **Type hints on all public functions** (#10) — 138 parameter/return annotations across 13 modules (57 public functions), enabling static type checking and IDE introspection.
+- **Pre-commit hooks** (#16) — ruff lint + format, trailing-whitespace, end-of-file, JSON/YAML validation. Install: `pip install pre-commit && pre-commit install`.
+- **Coverage reporting** (#13) — pytest-cov added; coverage config in `pyproject.toml` with per-module reporting (`--cov`).
+
+### Changed
+- **`get_stock_info()` decomposed** (#7) — split into `_fetch_info_with_retry`, `_fetch_history_with_retry`, `_retry_sparse_info`, `_build_price_fields`. Each phase independently testable; behavior identical.
+- **Bottom cards extracted to `portfolio_ui.py`** (#8) — 315-line portfolio/track-record/FII-DII/sentiment-history renderer moved out of `app.py`.
+- **Dashboard assembled from composable cards** (#6) — `render_dashboard()` now calls `_card_price`, `_card_sentiment`, `_card_news`, `_card_technicals`, `_card_chart`. Byte-identical output.
+- **Silent exception handlers now log** (#9) — every bare `except Exception: pass/continue` site logs via `logger.debug/warning` with context; malformed-timestamp skips narrowed to `except (ValueError, TypeError)`.
+
+### Tests
+- **295 passed, 0 failed** — 34 new tests:
+  - `test_nf_unit.py` — 14 tests for the NaN-safe float extractor `_nf()` (#20)
+  - `test_regression.py` — sentinels for 3 previously-fixed bugs: NaN price propagation (v2.6.0 ETF crash), VADER lexicon overwrite, pivot render crash (#27)
+  - `test_integration_pipeline.py` — news retrieval → sentiment → weighted-signal chain with interface-contract checks (#26)
+- Coverage measured at **69.0%** (data_fetcher 57.4%, indicators 89.0%, market_data 85.0%).
+- Fixed `datetime.fromisoformat` misuse on ms timestamps in `test_adaptive_backtest.py`.
+
+### Verified
+- Black-box signal validation: 6 known-sentiment headlines scored correctly through the full VADER+lexicon chain; bullish/bearish signal separation confirmed (±0.600 blended).
+- Visual render check: dashboard HTML for a sample ticker verified in headless browser — all cards render, no `nan`/`None` leakage, dark theme intact.
+
+---
+
 ## [2.12.1] — 2026-07-27
 
 ### Fixed

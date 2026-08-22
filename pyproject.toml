@@ -1,6 +1,6 @@
 [project]
 name = "nse-sentiment-analyzer"
-version = "2.9.0"
+version = "2.13.0"
 description = "Multi-source NSE stock sentiment analysis with SmartScore and technical indicators"
 requires-python = ">=3.10"
 
