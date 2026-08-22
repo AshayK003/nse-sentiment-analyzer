@@ -399,6 +399,130 @@ def _build_chart_script(ohlcv_json, nonce):
 </script>"""
 
 
+def _card_price(company_name, ticker, proximity_class, proximity_msg, circuit_html, price, change_val, change_pct, vwap_html, day_range, vol_spike_html, volume, vol_quality_html, pe_str, stats_rows):
+    """Render the price card card as an HTML string."""
+    return f"""<!-- ═══ PRICE CARD ═══ -->
+    <div class="card">
+        <div class="card-title">{_ICON["trending_up"]} Live Price</div>
+        <div class="company-header">
+            <div>
+                <div class="company-name">{h(company_name)}</div>
+                <div class="company-ticker">{h(ticker)} · NSE</div>
+                {f'<span class="prox-badge {proximity_class}">{h(proximity_msg)}</span>' if proximity_msg else ''}
+                {circuit_html}
+            </div>
+        </div>
+        <div class="price-grid">
+            <div class="price-cell">
+                <div class="label">{h(ticker[:6])}</div>
+                <div class="value price-main">{fmt_price(price)}</div>
+                <div class="delta {'up' if _is_valid_num(change_val) and change_val >= 0 else 'down' if _is_valid_num(change_val) else 'neutral'}" style="margin-bottom:0.15rem">{fmt_delta(change_val) if _is_valid_num(change_val) else "N/A"} ({fmt_delta(change_pct) if _is_valid_num(change_pct) else "N/A"}%)</div>
+                {vwap_html}
+            </div>
+            <div class="price-cell">
+                <div class="label">Day Range</div>
+                <div class="value" style="font-size:0.9rem">{day_range}</div>
+            </div>
+            <div class="price-cell">
+                <div class="label">Volume{vol_spike_html}</div>
+                <div class="value" style="font-size:1rem">{volume}</div>
+                {vol_quality_html}
+            </div>
+            <div class="price-cell">
+                <div class="label">P/E Ratio</div>
+                <div class="value" style="font-size:1rem">{pe_str}</div>
+            </div>
+        </div>
+        <div style="margin-top:0.75rem;border-top:1px solid #2a2e3a;padding-top:0.75rem">
+            {stats_rows}
+        </div>
+    </div>"""
+
+
+def _card_sentiment(news_items, source_breakdown, primary_emoji_svg, primary_signal, sent_class, rec_icon, rec_text, rec_detail, confidence_pct, ss_html, pos_pct, neu_pct, neg_pct, badge_section, source_health, session_badge):
+    """Render the sentiment card card as an HTML string."""
+    return f"""<!-- ═══ SENTIMENT CARD ═══ -->
+    <div class="card">
+        <div class="card-title">{_ICON["newspaper"]} News Sentiment Analysis</div>
+        <div class="sentiment-row">
+            <div>
+                <div class="sentiment-hero {sent_class}">{primary_emoji_svg} {primary_signal}</div>
+                <div class="sentiment-caption">Based on {len(news_items)} articles \u00b7 Weighted across {len(source_breakdown)} sources</div>
+                <div class="rec-callout {sent_class}">{rec_icon} {rec_text} &middot; {rec_detail}</div>
+            </div>
+            <div class="confidence-box">
+                <div class="confidence-num {sent_class}">{confidence_pct:.0f}%</div>
+                <div class="confidence-label">Weighted Confidence</div>
+            </div>
+        </div>
+        {ss_html}
+        <div class="dist-inline">
+            <div class="dist-bar">
+                <div class="pos" style="width:{pos_pct:.1f}%"></div>
+                <div class="neu" style="width:{neu_pct:.1f}%"></div>
+                <div class="neg" style="width:{neg_pct:.1f}%"></div>
+            </div>
+            <div class="dist-labels">
+                <span class="pos">{_ICON["dot_green"]} Positive: {pos_pct:.0f}%</span>
+                <span class="neu">{_ICON["dot_grey"]} Neutral: {neu_pct:.0f}%</span>
+                <span class="neg">{_ICON["dot_red"]} Negative: {neg_pct:.0f}%</span>
+            </div>
+        </div>
+        {badge_section}
+        {source_health}
+        {session_badge}
+    </div>"""
+
+
+def _card_news(news_items, news_html):
+    """Render the news headlines card as an HTML string."""
+    return f"""<!-- ═══ NEWS HEADLINES ═══ -->
+    <div class="card">
+        <div class="card-title">{_ICON["file_text"]} Recent News ({len(news_items)} articles)</div>
+        {news_html if news_html else '<div class="ss-comp-label" style="padding:0.75rem 0;color:#8891a0">No articles found for this ticker</div>'}
+    </div>"""
+
+
+def _card_technicals(ti_section, ti_rows, cross_50_html, cross_200_html, pivot_data, cascade_effects):
+    """Render the technical indicators card as an HTML string."""
+    return f"""<!-- ═══ TECHNICAL INDICATORS ═══ -->
+    <div class="card">
+        <div class="card-title">{_ICON["signal"]} Technical Indicators</div>
+        {ti_section}
+        {ti_rows}
+        <div style="margin-top:0.5rem">{cross_50_html}{cross_200_html}</div>
+        {_render_pivot_html(pivot_data)}
+    </div>
+
+{_render_cascade_html(cascade_effects)}"""
+
+
+def _card_chart(acc_html, cal_html, fii_html, _chart_script, auto_height_script):
+    """Render the price chart card as an HTML string."""
+    return f"""<!-- ═══ PRICE CHART ═══ -->
+    <div class="card">
+        <div class="card-title">{_ICON["bar_chart"]} Price Chart (2Y)</div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.72rem;color:#8891a0">
+            <span><span style="display:inline-block;width:12px;height:2px;background:rgba(96,165,250,0.6);vertical-align:middle;margin-right:3px"></span>SMA 50</span>
+            <span><span style="display:inline-block;width:12px;height:2px;background:rgba(251,191,36,0.5);vertical-align:middle;margin-right:3px;border-top:1px dashed rgba(251,191,36,0.5)"></span>SMA 200</span>
+            <span><span style="display:inline-block;width:12px;height:2px;background:rgba(168,85,247,0.4);vertical-align:middle;margin-right:3px;border-top:1px dashed rgba(168,85,247,0.4)"></span>Bollinger (20,2)</span>
+        </div>
+        <div id="tvchart" class="chart-container"></div>
+    </div>
+
+{acc_html}
+
+{cal_html}
+
+{fii_html}
+
+</div>
+{_chart_script}
+{auto_height_script}
+</body>
+</html>"""
+
+
 def render_dashboard(result, ticker, company_name, technical_indicators=None,
                      track_record=None, fii_dii_data=None, ohlcv_json=None):
     """Return a complete premium HTML dashboard as a string."""
@@ -806,91 +930,13 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 <div class="dashboard" role="region" aria-label="NSE Stock Analysis Dashboard for {h(ticker)}">
     <h1 class="sr-only">NSE Stock Analysis Dashboard for {h(ticker)}</h1>
 
-    <!-- ═══ PRICE CARD ═══ -->
-    <div class="card">
-        <div class="card-title">{_ICON["trending_up"]} Live Price</div>
-        <div class="company-header">
-            <div>
-                <div class="company-name">{h(company_name)}</div>
-                <div class="company-ticker">{h(ticker)} · NSE</div>
-                {f'<span class="prox-badge {proximity_class}">{h(proximity_msg)}</span>' if proximity_msg else ''}
-                {circuit_html}
-            </div>
-        </div>
-        <div class="price-grid">
-            <div class="price-cell">
-                <div class="label">{h(ticker[:6])}</div>
-                <div class="value price-main">{fmt_price(price)}</div>
-                <div class="delta {'up' if _is_valid_num(change_val) and change_val >= 0 else 'down' if _is_valid_num(change_val) else 'neutral'}" style="margin-bottom:0.15rem">{fmt_delta(change_val) if _is_valid_num(change_val) else "N/A"} ({fmt_delta(change_pct) if _is_valid_num(change_pct) else "N/A"}%)</div>
-                {vwap_html}
-            </div>
-            <div class="price-cell">
-                <div class="label">Day Range</div>
-                <div class="value" style="font-size:0.9rem">{day_range}</div>
-            </div>
-            <div class="price-cell">
-                <div class="label">Volume{vol_spike_html}</div>
-                <div class="value" style="font-size:1rem">{volume}</div>
-                {vol_quality_html}
-            </div>
-            <div class="price-cell">
-                <div class="label">P/E Ratio</div>
-                <div class="value" style="font-size:1rem">{pe_str}</div>
-            </div>
-        </div>
-        <div style="margin-top:0.75rem;border-top:1px solid #2a2e3a;padding-top:0.75rem">
-            {stats_rows}
-        </div>
-    </div>
+    {_card_price(company_name, ticker, proximity_class, proximity_msg, circuit_html, price, change_val, change_pct, vwap_html, day_range, vol_spike_html, volume, vol_quality_html, pe_str, stats_rows)}
 
-    <!-- ═══ SENTIMENT CARD ═══ -->
-    <div class="card">
-        <div class="card-title">{_ICON["newspaper"]} News Sentiment Analysis</div>
-        <div class="sentiment-row">
-            <div>
-                <div class="sentiment-hero {sent_class}">{primary_emoji_svg} {primary_signal}</div>
-                <div class="sentiment-caption">Based on {len(news_items)} articles \u00b7 Weighted across {len(source_breakdown)} sources</div>
-                <div class="rec-callout {sent_class}">{rec_icon} {rec_text} &middot; {rec_detail}</div>
-            </div>
-            <div class="confidence-box">
-                <div class="confidence-num {sent_class}">{confidence_pct:.0f}%</div>
-                <div class="confidence-label">Weighted Confidence</div>
-            </div>
-        </div>
-        {ss_html}
-        <div class="dist-inline">
-            <div class="dist-bar">
-                <div class="pos" style="width:{pos_pct:.1f}%"></div>
-                <div class="neu" style="width:{neu_pct:.1f}%"></div>
-                <div class="neg" style="width:{neg_pct:.1f}%"></div>
-            </div>
-            <div class="dist-labels">
-                <span class="pos">{_ICON["dot_green"]} Positive: {pos_pct:.0f}%</span>
-                <span class="neu">{_ICON["dot_grey"]} Neutral: {neu_pct:.0f}%</span>
-                <span class="neg">{_ICON["dot_red"]} Negative: {neg_pct:.0f}%</span>
-            </div>
-        </div>
-        {badge_section}
-        {source_health}
-        {session_badge}
-    </div>
+    {_card_sentiment(news_items, source_breakdown, primary_emoji_svg, primary_signal, sent_class, rec_icon, rec_text, rec_detail, confidence_pct, ss_html, pos_pct, neu_pct, neg_pct, badge_section, source_health, session_badge)}
 
-    <!-- ═══ NEWS HEADLINES ═══ -->
-    <div class="card">
-        <div class="card-title">{_ICON["file_text"]} Recent News ({len(news_items)} articles)</div>
-        {news_html if news_html else '<div class="ss-comp-label" style="padding:0.75rem 0;color:#8891a0">No articles found for this ticker</div>'}
-    </div>
+    {_card_news(news_items, news_html)}
 
-    <!-- ═══ TECHNICAL INDICATORS ═══ -->
-    <div class="card">
-        <div class="card-title">{_ICON["signal"]} Technical Indicators</div>
-        {ti_section}
-        {ti_rows}
-        <div style="margin-top:0.5rem">{cross_50_html}{cross_200_html}</div>
-        {_render_pivot_html(pivot_data)}
-    </div>
-
-{_render_cascade_html(cascade_effects)}
+    {_card_technicals(ti_section, ti_rows, cross_50_html, cross_200_html, pivot_data, cascade_effects)}
 
     <!-- ═══ PRICE CHART ═══ -->
     <div class="card">
@@ -902,7 +948,6 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
         </div>
         <div id="tvchart" class="chart-container"></div>
     </div>
-
 {acc_html}
 
 {cal_html}
@@ -913,4 +958,4 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
 {_chart_script}
 {auto_height_script}
 </body>
-</html>"""
+</html></html>"""
