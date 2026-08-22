@@ -160,7 +160,8 @@ def get_source_weights():
                 for src in acc
             }
         return dict(SOURCE_WEIGHTS_PRIOR)
-    except Exception:
+    except Exception as e:
+        logger.debug("Source weight calibration failed, using prior: %s", e)
         return dict(SOURCE_WEIGHTS_PRIOR)
 
 
@@ -219,7 +220,8 @@ def analyze_headline_finbert(headline, body, pipe):
             "negative": scores.get("negative", 0.0),
             "neutral": scores.get("neutral", 0.0),
         }
-    except Exception:
+    except Exception as e:
+        logger.debug("Headline scoring failed, returning neutral: %s", e)
         return {"compound": 0.0}
 
 

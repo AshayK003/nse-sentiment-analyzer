@@ -579,8 +579,8 @@ def render_dashboard(result, ticker, company_name, technical_indicators=None,
     <div class="cal-section">{" ".join(rows)}</div>
     <div class="cal-footnote">Per-source Beta(a,b) posterior from user votes. 95% CI shown.</div>
 </div>"""
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Source calibration render skipped: %s", e)
 
     # FII/DII institutional flow
     fii_html = ""

@@ -654,9 +654,8 @@ def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_
         if isinstance(bar_ts, str):
             try:
                 bar_ts = datetime.fromisoformat(bar_ts).timestamp() * 1000
-            except Exception:
-                continue
-        if bar_ts <= headline_ts:
+            except (ValueError, TypeError):
+                continue  # malformed timestamp: skip bar
             price_at_headline = bar["close"]
         else:
             break
@@ -672,9 +671,8 @@ def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_
         if isinstance(bar_ts, str):
             try:
                 bar_ts = datetime.fromisoformat(bar_ts).timestamp() * 1000
-            except Exception:
-                continue
-        if bar_ts >= target_ts_1h:
+            except (ValueError, TypeError):
+                continue  # malformed timestamp: skip bar
             move_1h = ((bar["close"] - price_at_headline) / price_at_headline) * 100
             break
 
@@ -686,9 +684,8 @@ def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_
         if isinstance(bar_ts, str):
             try:
                 bar_ts = datetime.fromisoformat(bar_ts).timestamp() * 1000
-            except Exception:
-                continue
-        if bar_ts >= target_ts_4h:
+            except (ValueError, TypeError):
+                continue  # malformed timestamp: skip bar
             move_4h = ((bar["close"] - price_at_headline) / price_at_headline) * 100
             break
 

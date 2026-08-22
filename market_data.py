@@ -74,7 +74,8 @@ def get_market_pulse():
         import yfinance as yf
         t = yf.Ticker("^NSEI")
         data = t.history(period="5d")
-    except Exception:
+    except Exception as e:
+        logger.warning("Nifty fetch failed: %s", e)
         return {
             "nifty_price": None, "nifty_change_pct": None,
         }
@@ -168,7 +169,8 @@ def _calc_fii_score():
         # Buying at 2x avg → ~90, neutral → 50, selling at 2x avg → ~10
         deviation = today_fii / avg_abs
         return _clamp(round(50 + deviation * 20), 0, 100)
-    except Exception:
+    except Exception as e:
+        logger.debug("FII/DII sentiment index fallback to neutral: %s", e)
         return 50
 
 
@@ -193,7 +195,8 @@ def _fetch_ticker(t, period="1mo"):
     import yfinance as yf
     try:
         return yf.Ticker(t).history(period=period)
-    except Exception:
+    except Exception as e:
+        logger.debug("History fetch for sector ETF failed: %s", e)
         return None
 
 
@@ -230,9 +233,11 @@ def get_mmi():
                 t = fut_map[fut]
                 try:
                     hist_data[t] = fut.result()
-                except Exception:
+                except Exception as e:
+                    logger.debug("Sector history fetch failed for %s: %s", t, e)
                     hist_data[t] = None
-    except Exception:
+    except Exception as e:
+        logger.warning("Sector breadth computation failed: %s", e)
         return result_base
 
     # Compute components

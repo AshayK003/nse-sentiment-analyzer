@@ -40,7 +40,8 @@ def get_technical_indicators(ticker, hist=None):
                         hist = stock.history(period="2y")
                         if hist is not None and not hist.empty:
                             break
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("Indicator history retry %s failed: %s", attempt, e)
                         time.sleep(2 ** attempt + 1)
                         continue
                 if hist is not None and not hist.empty:
@@ -143,5 +144,6 @@ def get_technical_indicators(ticker, hist=None):
             "avg_volume_50": avg_vol_50,
             "adx": adx,
         }
-    except Exception:
+    except Exception as e:
+        logger.debug("Technical indicator computation failed: %s", e)
         return None

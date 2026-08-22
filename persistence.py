@@ -296,8 +296,8 @@ def load_source_accuracy():
             data = _load_json(ACCURACY_FILE, None)
             if data:
                 return data
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Persistence read failed: %s", e)
         return {
             src: {"alpha": w * 10 + 1, "beta": (1 - w) * 10 + 1}
             for src, w in SOURCE_WEIGHTS_PRIOR.items()

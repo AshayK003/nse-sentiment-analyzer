@@ -253,7 +253,8 @@ def _probe_ticker_direct(query):
             name = info.get("shortName") or info.get("longName") or ""
             if name and name != "N/A" and len(info) > 5:
                 return candidate, name
-        except Exception:
+        except Exception as e:
+            logger.debug("_probe_ticker_direct candidate failed: %s", e)
             continue
     return None, None
 # In-memory 1y price history cache, populated by get_stock_info,
@@ -281,8 +282,8 @@ def _evict_hist_cache():
                 try:
                     if (now - os.path.getmtime(filepath)) > _CACHE_TTL_DAYS * 86400:
                         os.remove(filepath)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Cache eviction failed: %s", e)  # non-fatal: stale file stays
 
 def get_cached_history(ticker):
     """Return 1y price history for a ticker, from memory cache, disk cache, or yfinance.
@@ -329,7 +330,8 @@ def get_cached_history(ticker):
                 if needs_evict:
                     _evict_hist_cache()
                 return hist
-        except Exception:
+        except Exception as e:
+            logger.debug("History fetch attempt failed: %s", e)
             continue
     return None
 def _strip_html(text):
@@ -415,7 +417,8 @@ def get_stock_info(ticker):
                     if raw is not None and not raw.empty:
                         hist = raw
                         break
-                except Exception:
+                except Exception as e:
+                    logger.debug("History retry %s failed: %s", attempt, e)
                     continue  # retry with backoff
             if hist is not None:
                 break  # found valid history
@@ -430,7 +433,8 @@ def get_stock_info(ticker):
                         info = raw
                         name_fallback = info.get("longName", info.get("shortName", ticker))
                         break
-                except Exception:
+                except Exception as e:
+                    logger.debug("Info retry failed: %s", e)
                     continue
         # ── Phase 2c: targeted sector/industry fetch ──
         #    yfinance .info is flaky for Indian stocks — sometimes returns
@@ -453,7 +457,8 @@ def get_stock_info(ticker):
                             _ind = raw.get("industry")
                         if _sec and _sec != "N/A" and _ind and _ind != "N/A":
                             break
-                except Exception:
+                except Exception as e:
+                    logger.debug("Sector/industry fetch failed: %s", e)
                     continue
             # Patch into info dict (create one if it was None)
             if info is None:
@@ -525,7 +530,8 @@ def _parse_date(d):
     """Parse RSS date tuple to ISO date string."""
     try:
         return datetime(*d[:6]).isoformat()[:10]
-    except Exception:
+    except Exception as e:
+        logger.debug("_parse_date failed: %s", e)
         return ""
 def _relevant(ticker, company_name, title, body):
     """Check if a headline is relevant to the given ticker/company.
@@ -620,8 +626,8 @@ def _parse_rss_feed(source_name, url, ticker, company_name):
                 all_items.append(item)
                 if _relevant(ticker, company_name, title, body):
                     relevant.append(item)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("RSS relevance filtering failed: %s", e)  # fall through with unfiltered
     return relevant, all_items, label
 def _ddgs_search(ticker, company_name, seen_urls, all_results, source_stats, max_results):
     """Search DuckDuckGo as fallback when RSS returns little."""
@@ -629,7 +635,8 @@ def _ddgs_search(ticker, company_name, seen_urls, all_results, source_stats, max
         for query in [f"{ticker} NSE", f"{company_name} stock"]:
             try:
                 results = list(ddgs.news(query, max_results=3, timelimit="w"))
-            except Exception:
+            except Exception as e:
+                logger.debug("DuckDuckGo search failed: %s", e)
                 results = []
             if not results:
                 try:
@@ -764,7 +771,8 @@ def _ddgs_commodity_search(all_items, seen_urls):
                 break
             try:
                 results = list(ddgs.news(query, max_results=3, timelimit="w"))
-            except Exception:
+            except Exception as e:
+                logger.debug("DuckDuckGo search failed: %s", e)
                 results = []
             if not results:
                 try:
@@ -813,8 +821,8 @@ def fetch_market_headlines():
     if len(all_items) < 3 and time.time() >= _DDGS_RATE_LIMITED_UNTIL:
         try:
             _ddgs_commodity_search(all_items, seen_urls)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Commodity news search failed: %s", e)
     all_items.sort(key=lambda x: x["date"], reverse=True)
     cache_set("market_headlines", all_items, ttl=300)
     return all_items
