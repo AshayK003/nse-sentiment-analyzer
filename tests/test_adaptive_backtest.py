@@ -500,7 +500,7 @@ class TestExtractPriceMoves:
         # Generate simple price series
         self.hist_1h = SyntheticMarketData.generate_intraday_series(hours=100, seed=42)
         self.hist_4h = SyntheticMarketData.generate_intraday_series(hours=100, seed=100)
-        self.headline_time = datetime.fromisoformat(self.hist_1h[50]["time"] / 1000).isoformat()
+        self.headline_time = datetime.fromtimestamp(self.hist_1h[50]["time"] / 1000)
 
     def test_extract_returns_tuple(self):
         move_1h, move_4h = extract_price_moves_for_learning("TEST", self.headline_time, self.hist_1h, self.hist_4h)

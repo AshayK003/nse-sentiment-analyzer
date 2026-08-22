@@ -19,3 +19,7 @@ markers = [
 [tool.coverage.run]
 source = ["sentiment", "indicators", "data_fetcher", "persistence", "render", "market_data"]
 omit = ["tests/*", "app.py"]
+
+[tool.coverage.report]
+show_missing = true
+precision = 1

@@ -7,6 +7,10 @@ duckduckgo_search>=8.0.0
 requests>=2.31.0
 nsepython>=1.0.0
 scikit-learn>=1.3.0
+
+# Dev / testing
+pytest>=7.0
+pytest-cov>=4.1
 # Optional: FinBERT for financial sentiment (USE_FINBERT=true)
 # Uncomment these only if you need FinBERT:
 # pip install torch transformers
