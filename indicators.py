@@ -16,7 +16,7 @@ def _wilders_smooth(series, period=14):
     return series.ewm(alpha=1/period, adjust=False).mean()
 
 
-def detect_volume_spike(current_vol, avg_vol, threshold=2.0):
+def detect_volume_spike(current_vol: float, avg_vol: float, threshold: float=2.0) -> bool:
     """Compare current volume to average. Returns {spike: bool, ratio: float}."""
     ratio = 0.0
     if avg_vol and current_vol and avg_vol > 0 and current_vol > 0:
@@ -24,7 +24,7 @@ def detect_volume_spike(current_vol, avg_vol, threshold=2.0):
     return {"spike": ratio >= threshold, "ratio": round(ratio, 2)}
 
 
-def get_technical_indicators(ticker, hist=None):
+def get_technical_indicators(ticker: str, hist: object | None=None) -> dict | None:
     """Compute RSI, SMA, MACD from 1yr daily data. Accepts pre-fetched hist to avoid duplicate yfinance calls."""
     try:
         # Use supplied hist, or check data_fetcher's in-memory cache, or fetch fresh

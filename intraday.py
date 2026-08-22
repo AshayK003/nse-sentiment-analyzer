@@ -10,7 +10,7 @@ import yfinance as yf
 logger = logging.getLogger(__name__)
 
 
-def compute_vwap(ticker):
+def compute_vwap(ticker: str) -> dict:
     """Compute VWAP + deviation from intraday 5-min data.
 
     Fetches today's 5-min OHLCV via yfinance. Returns current price relative
@@ -61,7 +61,7 @@ def compute_vwap(ticker):
     }
 
 
-def compute_pivot_levels(hist):
+def compute_pivot_levels(hist: object) -> dict:
     """Compute classic pivot points from daily OHLCV history.
 
     Uses the last bar's High, Low, Close to compute:
@@ -96,7 +96,7 @@ def compute_pivot_levels(hist):
     }
 
 
-def get_vix():
+def get_vix() -> dict:
     """Fetch India VIX level and daily change.
 
     Fully wrapped in try/except — yfinance can return unexpected data shapes

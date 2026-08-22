@@ -149,7 +149,7 @@ FINANCIAL_BOOSTERS = {
 # get_source_weights() loads the learned posterior weights at runtime.
 
 
-def get_source_weights():
+def get_source_weights() -> dict:
     """Return learned source weights from Bayesian calibration.
     Falls back to SOURCE_WEIGHTS_PRIOR defaults if calibration file missing or empty."""
     try:
@@ -166,14 +166,14 @@ def get_source_weights():
 
 
 @st.cache_resource
-def get_sia():
+def get_sia() -> SentimentIntensityAnalyzer:
     """Initialize VADER with custom financial lexicon."""
     sia = SentimentIntensityAnalyzer()
     sia.lexicon.update(FINANCIAL_BOOSTERS)
     return sia
 
 
-def analyze_headline_sentiment(headline, body, sia, source=None):
+def analyze_headline_sentiment(headline: str, body: str, sia, source: str | None=None) -> dict:
     """Score a headline using VADER + financial lexicon."""
     text = f"{headline}. {body}" if body else headline
     vader = sia.polarity_scores(text)
@@ -203,7 +203,7 @@ def get_finbert():
         return None
 
 
-def analyze_headline_finbert(headline, body, pipe):
+def analyze_headline_finbert(headline: str, body: str, pipe) -> dict:
     """Score a headline using FinBERT. Returns same shape as
     analyze_headline_sentiment() for drop-in compatibility."""
     if pipe is None:
@@ -225,7 +225,7 @@ def analyze_headline_finbert(headline, body, pipe):
         return {"compound": 0.0}
 
 
-def get_weighted_signal(headline_scores, source_weights=None):
+def get_weighted_signal(headline_scores: list, source_weights: dict | None=None) -> tuple:
     """Compute source-weighted blended signal.
 
     headline_scores: list of {"compound": float, "source": str}

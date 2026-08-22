@@ -18,7 +18,7 @@ def _fii_dii_action(net):
 
 
 @st.cache_data(ttl=3600)
-def get_fii_dii_flow():
+def get_fii_dii_flow() -> dict:
     """Fetch latest FII/DII net flow from NSE India.
 
     Returns a dict:
@@ -58,7 +58,7 @@ def get_fii_dii_flow():
         return None
 
 
-def get_market_pulse():
+def get_market_pulse() -> dict:
     """Fetch Nifty 50 index and return market-level pulse + actionable verdict.
 
     Uses the same yfinance pattern as get_vix() for index tickers.
@@ -200,7 +200,7 @@ def _fetch_ticker(t, period="1mo"):
         return None
 
 
-def get_mmi():
+def get_mmi() -> dict | None:
     """Compute Market Mood Index (MMI) 0-100 from 4 equally-weighted components.
 
     Components:

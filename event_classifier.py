@@ -210,7 +210,7 @@ def _get_compiled():
     return _COMPILED
 
 
-def classify_headline(title, body=""):
+def classify_headline(title: str, body: str="") -> dict:
     """Classify a headline and return (event_type, event_base).
 
     First matching event type wins (EVENT_MAP order defines priority).
@@ -236,7 +236,7 @@ def classify_headline(title, body=""):
     return None, 0.0
 
 
-def adjust_with_event(compound, event_base):
+def adjust_with_event(compound: float, event_base: dict | None) -> float:
     """Blend VADER compound score with event-based sentiment bias.
 
     When VADER is confident (|compound| > 0.3) about financial language,

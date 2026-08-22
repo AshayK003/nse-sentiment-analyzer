@@ -202,7 +202,7 @@ def _get_compiled():
     return _COMPILED_PATTERNS
 
 
-def detect_cascade(news_items, ticker_lookup=None, focus_ticker=None):
+def detect_cascade(news_items: list, ticker_lookup: dict | None=None, focus_ticker: str | None=None) -> list:
     """Scan a list of news items for commodity/macro keywords.
 
     Args:

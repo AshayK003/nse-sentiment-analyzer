@@ -55,7 +55,7 @@ def _save_json(path, data):
 
 # ─── Portfolio ───
 
-def load_portfolio():
+def load_portfolio() -> list:
     portfolios = _load_json(PORTFOLIO_FILE, [])
     # Try session_state as fallback (Streamlit Cloud persistence)
     if st.session_state.get("_portfolio"):
@@ -67,14 +67,14 @@ def load_portfolio():
     return portfolios
 
 
-def save_portfolio(tickers):
+def save_portfolio(tickers: list) -> None:
     _save_json(PORTFOLIO_FILE, tickers)
     st.session_state._portfolio = list(tickers)
 
 
 # ─── Entry Prices ───
 
-def load_entry_prices():
+def load_entry_prices() -> dict:
     """Return {ticker: {"price": float, "qty": int}} dict. Empty dict if none saved.
     Auto-migrates old flat format {ticker: price} to new nested format.
     """
@@ -88,14 +88,14 @@ def load_entry_prices():
     return prices
 
 
-def save_entry_price(ticker, price, qty=1):
+def save_entry_price(ticker: str, price: float, qty: float=1) -> None:
     """Save or update entry price and quantity for a ticker."""
     prices = load_entry_prices()
     prices[ticker.upper()] = {"price": float(price), "qty": int(qty)}
     _save_json(ENTRY_PRICES_FILE, prices)
 
 
-def get_entry_info(entry):
+def get_entry_info(entry: dict) -> dict:
     """Extract (price, qty) from an entry_prices value (handles old + new format)."""
     if isinstance(entry, dict):
         return float(entry.get("price", 0)), int(entry.get("qty", 1))
@@ -104,7 +104,7 @@ def get_entry_info(entry):
     return 0, 1
 
 
-def calc_portfolio_pnl(entry_price, current_price, qty=1):
+def calc_portfolio_pnl(entry_price: float, current_price: float, qty: float=1) -> dict:
     """Calculate P&L from entry price, current price, and quantity.
     Returns {pnl_abs: float, pnl_pct: float}.
     """
@@ -117,17 +117,17 @@ def calc_portfolio_pnl(entry_price, current_price, qty=1):
 
 # ─── Track Record ───
 
-def load_track_record():
+def load_track_record() -> list:
     return _load_json(TRACK_FILE, [])
 
 
-def save_track_record(records):
+def save_track_record(records: list) -> None:
     _save_json(TRACK_FILE, records)
 
 
 # ─── Cache ───
 
-def load_cache():
+def load_cache() -> dict:
     """Return cache dict, lazy-loading from file and detecting external changes via mtime."""
     cache_mtime = st.session_state.get("_cache_mtime", -1)
     try:
@@ -141,7 +141,7 @@ def load_cache():
     return st.session_state._cache_data
 
 
-def save_cache(cache):
+def save_cache(cache: dict) -> None:
     """Write cache to disk + sync in-memory copy.
     Prunes oldest entries if cache exceeds MAX_CACHE_ENTRIES."""
     # Prune: keep only the newest N entries by cached_at timestamp
@@ -157,7 +157,7 @@ def save_cache(cache):
     _save_json(CACHE_FILE, cache)
 
 
-def cache_get(key):
+def cache_get(key: str) -> object | None:
     cache = load_cache()
     entry = cache.get(key)
     if entry:
@@ -171,7 +171,7 @@ def cache_get(key):
     return None
 
 
-def cache_set(key, data, ttl=None):
+def cache_set(key: str, data: object, ttl: int | None=None) -> None:
     cache = load_cache()
     entry = {"data": data, "cached_at": datetime.now().isoformat()}
     if ttl is not None:
@@ -189,7 +189,7 @@ HISTORY_FIELDS = [
 ]
 
 
-def load_sentiment_history(ticker, days=10):
+def load_sentiment_history(ticker: str, days: int=10) -> list:
     """Load last N days of aggregated sentiment history for a ticker.
 
     Returns list of dicts sorted by date ascending (oldest first).
@@ -210,7 +210,7 @@ def load_sentiment_history(ticker, days=10):
         return records[-days:]
 
 
-def save_sentiment_history(ticker, row_data):
+def save_sentiment_history(ticker: str, row_data: dict) -> None:
     """Append or update today's aggregated sentiment history entry for a ticker.
 
     row_data: dict with keys matching HISTORY_FIELDS (excluding date/ticker).
@@ -251,7 +251,7 @@ def save_sentiment_history(ticker, row_data):
             pass  # Read-only filesystem
 
 
-def history_to_csv(ticker, records):
+def history_to_csv(ticker: str, records: list) -> str | None:
     """Convert sentiment history records to CSV string, filtered by ticker.
 
     Returns a CSV string with header row. If records is empty, returns
@@ -286,7 +286,7 @@ SOURCE_WEIGHTS_PRIOR = {
 ACCURACY_FILE = DATA_DIR / "source_accuracy.json"
 
 
-def load_source_accuracy():
+def load_source_accuracy() -> dict:
     """Return {source: {"alpha": float, "beta": float}}.
     Starts with an informative Beta(weight*10+1, (1-weight)*10+1) prior
     centered on the hand-tuned default weights.
@@ -304,11 +304,11 @@ def load_source_accuracy():
         }
 
 
-def save_source_accuracy(data):
+def save_source_accuracy(data: dict) -> None:
     _save_json(ACCURACY_FILE, data)
 
 
-def update_source_accuracy(source, was_correct):
+def update_source_accuracy(source: str, was_correct: bool) -> None:
     """Increment alpha (correct) or beta (wrong) for a source.
     Called after each user vote. Creates entry with prior if new source.
     Thread-safe via _history_lock.
@@ -327,12 +327,12 @@ def update_source_accuracy(source, was_correct):
 
 # ─── FII/DII Daily History ───
 
-def load_fiidii_history():
+def load_fiidii_history() -> list:
     """Return list of {date, fii_net, dii_net} dicts, sorted by date ascending."""
     return _load_json(FIIDII_HISTORY_FILE, [])
 
 
-def save_fiidii_snapshot(fii_data):
+def save_fiidii_snapshot(fii_data: dict) -> None:
     """Append today's FII/DII data if not already recorded for this date.
     Thread-safe via _fiidii_lock.
     """

@@ -249,7 +249,7 @@ def _check_rate_limit():
     return True
 
 
-def analyze_ticker(ticker, company_name, quick=False):
+def analyze_ticker(ticker: str, company_name: str, quick: bool=False) -> dict | None:
     """Run full analysis pipeline for a ticker. Returns dict or None.
     
     When quick=True (briefing mode), skips expensive news search and sentiment

@@ -57,7 +57,7 @@ _DASHBOARD_CSS = (Path(__file__).parent / "static" / "dashboard.css").read_text(
 _sparkline_counter = itertools.count()
 
 
-def get_signal_icon(emoji):
+def get_signal_icon(emoji: str) -> str:
     """Return the 16x16 Lucide SVG icon for a signal emoji string.
     
     Used by app.py for Streamlit-native rendering (outside the iframe).
@@ -70,7 +70,7 @@ def get_signal_icon(emoji):
     }.get(emoji, _ICON["neutral"])
 
 
-def h(s):
+def h(s: object) -> str:
     """Escape a string for safe HTML output (content or attribute)."""
     if s is None:
         return ""
@@ -110,13 +110,13 @@ def _session_quality_badge():
     return ""
 
 
-def fmt_price(val):
+def fmt_price(val: object) -> str:
     if _is_valid_num(val):
         return f"\u20b9{val:,.2f}"
     return "N/A"
 
 
-def fmt_vol(val):
+def fmt_vol(val: object) -> str:
     if _is_valid_num(val):
         if val >= 1e7:
             return f"{val/1e7:.1f}Cr"
@@ -126,14 +126,14 @@ def fmt_vol(val):
     return "N/A"
 
 
-def fmt_delta(val):
+def fmt_delta(val: object) -> str:
     if _is_valid_num(val):
         sign = "+" if val >= 0 else ""
         return f"{sign}{val:.2f}"
     return "N/A"
 
 
-def fmt_large(val):
+def fmt_large(val: object) -> str:
     if _is_valid_num(val):
         if val >= 1e7:
             return f"\u20b9{val/1e7:.1f}Cr"
@@ -143,7 +143,7 @@ def fmt_large(val):
     return "N/A"
 
 
-def fmt_de(de_val, sector=None):
+def fmt_de(de_val: object, sector: str=None) -> str:
     """Format Debt-to-Equity ratio with risk badge.
 
     Banks/Financial services naturally have high D/E (customer deposits
@@ -171,7 +171,7 @@ def fmt_de(de_val, sector=None):
     return f'{de_val:.2f} {badge}'
 
 
-def get_sentiment_svg(compound):
+def get_sentiment_svg(compound: float) -> str:
     if compound >= 0.3:
         return _ICON["bullish"]
     if compound <= -0.3:
@@ -179,7 +179,7 @@ def get_sentiment_svg(compound):
     return _ICON["neutral"]
 
 
-def render_sparkline(values, width=160, height=32, color="#22b573"):
+def render_sparkline(values: list, width: int=160, height: int=32, color: str="#22b573") -> str:
     """Render an inline SVG sparkline from a list of 0-100 values.
 
     Shows a flat line for 1 value. Returns empty string if None or empty list.
@@ -523,8 +523,8 @@ def _card_chart(acc_html, cal_html, fii_html, _chart_script, auto_height_script)
 </html>"""
 
 
-def render_dashboard(result, ticker, company_name, technical_indicators=None,
-                     track_record=None, fii_dii_data=None, ohlcv_json=None):
+def render_dashboard(result: dict, ticker: str, company_name: str, technical_indicators: dict | None=None,
+                     track_record: list | None=None, fii_dii_data: dict | None=None, ohlcv_json: str | None=None) -> str:
     """Return a complete premium HTML dashboard as a string."""
     stock = result["stock_data"]
     news_items = result["news_items"]

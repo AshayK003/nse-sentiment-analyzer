@@ -25,7 +25,7 @@ from render import _is_valid_num
 from market_data import get_fii_dii_flow
 
 
-def render_bottom_cards(portfolio, final_ticker, entry_prices):
+def render_bottom_cards(portfolio: list, final_ticker: str, entry_prices: dict) -> None:
     """Render the bottom Portfolio + Track Record cards section.
 
     Uses Streamlit native containers with glassmorphism styling for a

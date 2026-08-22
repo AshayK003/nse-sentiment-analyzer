@@ -87,7 +87,7 @@ for _ak, _at in ALIASES.items():
     _alias_upper = _ak.strip().upper()
     if _alias_upper not in _ALIAS_LOOKUP:
         _ALIAS_LOOKUP[_alias_upper] = _at
-def resolve_ticker(raw_input):
+def resolve_ticker(raw_input: str) -> tuple[str | None, str | None]:
     """Resolve user input to a valid NSE ticker symbol.
     Handles tickers, company names, aliases, and partial matches.
     Returns (ticker, company_name) or (None, None) if unresolved.
@@ -285,7 +285,7 @@ def _evict_hist_cache():
                 except Exception as e:
                     logger.debug("Cache eviction failed: %s", e)  # non-fatal: stale file stays
 
-def get_cached_history(ticker):
+def get_cached_history(ticker: str) -> object | None:
     """Return 1y price history for a ticker, from memory cache, disk cache, or yfinance.
     Populated by get_stock_info() to share the yfinance 1y OHLCV fetch.
     """
@@ -476,7 +476,7 @@ def _build_price_fields(hist, info):
     return None
 
 
-def get_stock_info(ticker):
+def get_stock_info(ticker: str) -> dict | None:
     """Fetch stock data from yfinance with retry and backoff.
     Two-phase approach:
       1. info (metadata: name, sector, PE, 52w) — best-effort, not blocking.
@@ -683,7 +683,7 @@ def _ddgs_search(ticker, company_name, seen_urls, all_results, source_stats, max
             time.sleep(0.3)
             if len(all_results) >= max_results:
                 break
-def search_news(ticker, company_name, max_results=10):
+def search_news(ticker: str, company_name: str, max_results: int=10) -> tuple:
     """Fetch news from RSS feeds (primary), fallback to DuckDuckGo.
 
     Returns (articles, cascade_pool, source_health):
@@ -818,7 +818,7 @@ def _ddgs_commodity_search(all_items, seen_urls):
             time.sleep(0.3)
 
 
-def fetch_market_headlines():
+def fetch_market_headlines() -> list:
     """Fetch broad market + commodity headlines for cascade detection.
 
     Fetches both INDIA_RSS_FEEDS and COMMODITY_RSS_FEEDS without ticker filtering.

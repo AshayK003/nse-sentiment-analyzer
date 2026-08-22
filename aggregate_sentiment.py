@@ -72,7 +72,7 @@ def _map_minus1_1_to_0_1(val):
 # ─── Main computation ───
 
 
-def compute_smartscore(headline_scores, event_adjusted_scores, history=None):
+def compute_smartscore(headline_scores: list, event_adjusted_scores: list | None, history: list | None=None) -> dict:
     """Compute the SmartScore (0–100) using four normalized sentiment components.
 
 SmartScore combines multiple signals into a single metric that summarizes

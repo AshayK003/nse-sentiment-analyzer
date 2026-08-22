@@ -161,7 +161,7 @@ class AdaptiveClusterLearner:
             from sklearn.feature_extraction.text import TfidfVectorizer
             import re
         
-            def custom_tokenizer(text):
+            def custom_tokenizer(text: str) -> list:
                 """Custom tokenizer optimized for Indian financial news."""
                 text = text.lower()
                 # Tokenize: words + financial symbols
@@ -592,7 +592,7 @@ def get_dissemination_clusterer() -> DisseminationClusterer:
 
 
 # ─── Public API ───
-def learn_from_price_reaction(headline: str, price_move_1h: float, price_move_4h: float):
+def learn_from_price_reaction(headline: str, price_move_1h: float, price_move_4h: float) -> bool:
     """Feed a headline + observed price moves into the adaptive learner."""
     get_adaptive_learner().update(headline, price_move_1h, price_move_4h)
 
@@ -631,7 +631,7 @@ def get_dissemination_clusters(articles: list[dict]) -> list[dict]:
     return get_dissemination_clusterer().cluster_articles(articles)
 
 
-def calibrate_adaptive_learner(recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float]):
+def calibrate_adaptive_learner(recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float]) -> dict | None:
     """Trigger calibration of adaptive learner weights."""
     get_adaptive_learner().calibrate(recent_headlines, recent_moves_1h, recent_moves_4h, force=True)
 
