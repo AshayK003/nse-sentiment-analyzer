@@ -25,6 +25,8 @@ env/
 
 # Data (runtime caches; data/tickers.json and data/aliases.json are tracked)
 data/*.cache*
+data/adaptive_clusters.json
+data/cache.json
 .price_cache/
 
 # Env
