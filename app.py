@@ -8,13 +8,13 @@ __version__ = "2.10.0"
 
 import json
 import logging
-import streamlit as st
 import os
 import re
 import time
-import pandas as pd
-import yfinance as yf
 from datetime import datetime
+
+import streamlit as st
+import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +28,10 @@ def _ohlcv_to_json(hist):
         ts = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx)[:10]
         o = float(row.get("Open", 0) or 0)
         h = float(row.get("High", 0) or 0)
-        l = float(row.get("Low", 0) or 0)
+        low = float(row.get("Low", 0) or 0)
         c = float(row.get("Close", 0) or 0)
         v = int(row.get("Volume", 0) or 0)
-        records.append({"time": ts, "open": o, "high": h, "low": l, "close": c, "volume": v})
+        records.append({"time": ts, "open": o, "high": h, "low": low, "close": c, "volume": v})
     return json.dumps(records)
 
 
@@ -43,21 +43,37 @@ CONTACT = {
     "chai_url": "https://chai4.me/ashaykushwaha003",
 }
 
-from data_fetcher import (
-    NSE_TICKERS, get_stock_info, search_news, get_cached_history,
-    resolve_ticker, fetch_market_headlines,
-)
-from sentiment import get_sia, analyze_headline_sentiment, get_weighted_signal
-from event_classifier import classify_headline, adjust_with_event
-from cascade import detect_cascade
-from indicators import get_technical_indicators
-from persistence import load_portfolio, save_portfolio, load_track_record, save_track_record, load_sentiment_history, save_sentiment_history, history_to_csv, update_source_accuracy, load_entry_prices, save_entry_price, get_entry_info, calc_portfolio_pnl, load_fiidii_history, save_fiidii_snapshot, ENTRY_PRICES_FILE
-from render import render_dashboard, _is_valid_num
-from portfolio_ui import render_bottom_cards
-from market_data import get_fii_dii_flow, get_market_pulse, get_mmi
 from aggregate_sentiment import compute_smartscore
-from intraday import compute_vwap, compute_pivot_levels, get_vix
-
+from cascade import detect_cascade
+from data_fetcher import (
+    NSE_TICKERS,
+    fetch_market_headlines,
+    get_cached_history,
+    get_stock_info,
+    resolve_ticker,
+    search_news,
+)
+from event_classifier import adjust_with_event, classify_headline
+from indicators import get_technical_indicators
+from intraday import compute_pivot_levels, compute_vwap, get_vix
+from market_data import get_fii_dii_flow, get_market_pulse, get_mmi
+from persistence import (
+    ENTRY_PRICES_FILE,
+    calc_portfolio_pnl,
+    get_entry_info,
+    load_entry_prices,
+    load_portfolio,
+    load_sentiment_history,
+    load_track_record,
+    save_fiidii_snapshot,
+    save_portfolio,
+    save_sentiment_history,
+    save_track_record,
+    update_source_accuracy,
+)
+from portfolio_ui import render_bottom_cards
+from render import _is_valid_num, render_dashboard
+from sentiment import analyze_headline_sentiment, get_sia, get_weighted_signal
 
 # ─── Page config ───
 st.set_page_config(
@@ -308,7 +324,7 @@ def analyze_ticker(ticker: str, company_name: str, quick: bool=False) -> dict | 
     use_finbert = os.environ.get("USE_FINBERT", "").strip().lower() in ("1", "true", "yes")
     pipe_finbert = None
     if use_finbert:
-        from sentiment import get_finbert, analyze_headline_finbert
+        from sentiment import analyze_headline_finbert, get_finbert
         pipe_finbert = get_finbert()
 
     sia = None if use_finbert else get_sia()
@@ -458,7 +474,7 @@ def _render_portfolio_list(portfolio, entry_prices, key_prefix="side"):
         if _is_valid_num(cp):
             display_parts.append(f'<span style="font-size:0.85rem;">\u20b9{cp:,.2f}</span>')
         elif sd_cache is not None:
-            display_parts.append(f'<span style="font-size:0.85rem;color:#6b7280;">Price N/A</span>')
+            display_parts.append('<span style="font-size:0.85rem;color:#6b7280;">Price N/A</span>')
         if ep_qty > 0:
             display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">\u00d7{ep_qty}</span>')
         if ep_price and _is_valid_num(cp):
@@ -472,7 +488,7 @@ def _render_portfolio_list(portfolio, entry_prices, key_prefix="side"):
         elif ep_price:
             display_parts.append(f'<span style="font-size:0.75rem;color:#6b7280;">ATP \u20b9{ep_price:,.0f}</span>')
         elif cp:
-            display_parts.append(f'<span style="font-size:0.7rem;color:#6b7280;">No ATP set</span>')
+            display_parts.append('<span style="font-size:0.7rem;color:#6b7280;">No ATP set</span>')
         c1.markdown(
             '<div style="line-height:1.5;">' + '<br>'.join(display_parts) + '</div>',
             unsafe_allow_html=True,
@@ -545,7 +561,7 @@ with st.sidebar:
 # ─── Main UI ───
 
 # ─── Premium header ───
-st.markdown(f"""
+st.markdown("""
 <div style="display:flex;align-items:center;justify-content:space-between;
     padding:0.5rem 0 1.5rem 0;border-bottom:1px solid #1e2028;margin-bottom:1.5rem;">
     <div style="display:flex;align-items:center;gap:0.75rem;">
@@ -976,7 +992,7 @@ if final_ticker and final_ticker != "":
 
 else:
     # ─── Empty state: guided launchpad ───
-    st.markdown(f"""
+    st.markdown("""
     <div style="text-align:center;padding:3rem 1rem 1rem">
         <div style="font-size:1.5rem;font-weight:700;color:#f0f2f5;margin-bottom:0.5rem">
             Enter a ticker to begin

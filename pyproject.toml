@@ -1,8 +1,19 @@
 [project]
 name = "nse-sentiment-analyzer"
-version = "2.13.0"
+version = "2.14.0"
 description = "Multi-source NSE stock sentiment analysis with SmartScore and technical indicators"
 requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.50.0",
+    "yfinance>=0.2.0,<0.3.0",
+    "pandas>=1.5.0",
+    "vaderSentiment>=3.3.2",
+    "feedparser>=6.0.0",
+    "duckduckgo-search>=8.0.0",
+    "requests>=2.31.0",
+    "nsepython>=1.0.0",
+    "scikit-learn>=1.3.0",
+]
 
 [build-system]
 requires = ["setuptools>=64"]
@@ -23,3 +34,23 @@ omit = ["tests/*", "app.py"]
 [tool.coverage.report]
 show_missing = true
 precision = 1
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# Core correctness + import hygiene. Opinionated style rules (BLE001 blind
+# except in fetch fallbacks, DTZ naive datetimes for IST handling, RUF/SIM
+# micro-styling) are intentionally not enabled.
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Streamlit entry points import project modules after page config / UI setup
+"app.py" = ["E402"]
+"render.py" = ["E402"]
+"tests/*" = ["E402"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = false

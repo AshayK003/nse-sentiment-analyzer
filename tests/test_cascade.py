@@ -1,7 +1,9 @@
 """
 Tests for cascade/ripple tracking — commodity keyword detection.
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from cascade import detect_cascade

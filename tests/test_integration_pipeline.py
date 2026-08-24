@@ -11,7 +11,6 @@ from unittest.mock import patch
 from data_fetcher import search_news
 from sentiment import analyze_headline_sentiment, get_sia, get_weighted_signal
 
-
 FAKE_RSS_ITEMS = [
     {"title": "TCS reports strong growth in quarterly profit", "source": "reuters", "link": "http://x/1"},
     {"title": "Infosys faces sell-off as investors exit IT stocks", "source": "bloomberg", "link": "http://x/2"},

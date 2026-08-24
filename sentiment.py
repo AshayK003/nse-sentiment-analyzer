@@ -4,9 +4,11 @@ VADER + custom financial lexicon tuned for Indian markets.
 """
 
 import logging
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
 import streamlit as st
-from persistence import load_source_accuracy, SOURCE_WEIGHTS_PRIOR
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+from persistence import SOURCE_WEIGHTS_PRIOR, load_source_accuracy
 
 logger = logging.getLogger(__name__)
 

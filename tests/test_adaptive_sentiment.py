@@ -7,24 +7,19 @@ using mocked/synthetic data - no large downloads required.
 AEOS Module 14 TDD pattern: tests first, then implementation.
 """
 
-import pytest
-import numpy as np
-from datetime import datetime, timedelta
-from collections import defaultdict
-import sys
 import os
+import sys
+from datetime import datetime
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from adaptive_sentiment import (
+    MAX_CLUSTERS,
     AdaptiveClusterLearner,
     DisseminationClusterer,
-    learn_from_price_reaction,
-    predict_price_reaction,
-    compute_dissemination_score,
-    get_dissemination_clusters,
-    CLUSTER_EPS,
-    MAX_CLUSTERS,
 )
 
 
@@ -327,8 +322,8 @@ class TestAdaptiveLearnerEdgeCases:
         """Calibration with <3 samples does nothing."""
         def test_persistence_roundtrip(self):
                 """Save and load preserves clusters."""
-                import tempfile
                 import json
+                import tempfile
                 from pathlib import Path
 
                 # Clear cache before starting

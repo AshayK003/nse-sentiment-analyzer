@@ -5,6 +5,7 @@ Streamlit dependencies. Designed to be testable with mocked yfinance calls.
 """
 
 import logging
+
 import yfinance as yf
 
 logger = logging.getLogger(__name__)

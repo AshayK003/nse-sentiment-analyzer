@@ -4,21 +4,20 @@ Replaces Streamlit display widgets with a custom premium template
 rendered via st.components.v1.html().
 """
 
-from pathlib import Path
-
 import html
+import itertools
 import logging
 import math
 import secrets
-import itertools
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 # ─── Bayesian source calibration ───
 # Shows per-source Beta distributions from user voting data.
 # Loaded once per dashboard render — no DB impact per ticker.
-from persistence import load_source_accuracy
 from indicators import detect_volume_spike
+from persistence import load_source_accuracy
 
 # ─── Inline SVG icons (Lucide, MIT-licensed, stroke-based) ───
 # Inline SVGs avoid a 100KB+ icon library for ~15 icons
@@ -94,7 +93,7 @@ def _session_quality_badge():
     
     Returns empty string during optimal trading windows.
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     h, m = ist.hour, ist.minute
     mins_since_open = (h - 9) * 60 + (m - 15)  # market opens 9:15 IST
@@ -689,11 +688,12 @@ def render_dashboard(result: dict, ticker: str, company_name: str, technical_ind
                     ci_lo = max(0, (pct / 100 - 1.96 * sd) * 100)
                     ci_hi = min(100, (pct / 100 + 1.96 * sd) * 100)
                     acc_class = "good" if pct >= 65 else "ok" if pct >= 50 else "poor"
+                    ci_txt = f" (95% CI {ci_lo:.0f}-{ci_hi:.0f}%)" if (a + b) > 1 else ""
                     rows.append(f"""
             <div class="cal-row">
                 <div class="cal-src">{src}</div>
                 <div class="cal-track"><div class="cal-fill {acc_class}" style="width:{pct:.0f}%"></div></div>
-                <div class="cal-pct">{pct:.0f}%</div>
+                <div class="cal-pct">{pct:.0f}%{ci_txt}</div>
                 <div class="cal-votes">{total_votes:.0f} vote{"s" if total_votes != 1 else ""}</div>
                 <div class="cal-beta">a={a:.0f} b={b:.0f}</div>
             </div>""")

@@ -10,7 +10,9 @@ tickers are attached, and the Bullish/Bearish semantics are correct end to end.
 No mocking is required: detect_cascade() is a pure transformation over the
 news list plus the static CASCADE_MAP, so realistic-shaped dicts are enough.
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from cascade import detect_cascade

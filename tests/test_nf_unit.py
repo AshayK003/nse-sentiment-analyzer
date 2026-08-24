@@ -4,7 +4,6 @@ _nf() is used across the rendering pipeline to convert yfinance values
 to floats while safely handling None and NaN. Regression 1 of the v2.6.0
 ETF crash (₹nan display) traced back to NaN slipping through this path.
 """
-import math
 
 import pytest
 

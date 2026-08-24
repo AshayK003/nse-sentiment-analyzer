@@ -40,3 +40,8 @@ Thumbs.db
 
 landing.html
 
+# Test & runtime artifacts
+.coverage
+data/portfolio.json
+data/sentiment_history.csv
+data/track_record.json

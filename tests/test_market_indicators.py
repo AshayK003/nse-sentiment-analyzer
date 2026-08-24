@@ -63,8 +63,8 @@ class TestMMI:
 
     def _make_sector_df(self, closes):
         """Helper: build a 10-row DataFrame with given last-2 Close values."""
-        import pandas as pd
         import numpy as np
+        import pandas as pd
         cols = {"Close": list(np.linspace(100, closes[0], 10)[:-2]) + list(closes)}
         return pd.DataFrame(cols)
 
@@ -111,7 +111,7 @@ class TestMMI:
         mocker.patch("market_data.get_fii_dii_flow", return_value=None)
         mocker.patch("persistence.load_fiidii_history", return_value=[])
 
-        from market_data import get_mmi, _calc_trend_score
+        from market_data import _calc_trend_score
         score = _calc_trend_score(nifty_df)
         assert score >= 50  # Above SMA → bullish
 
@@ -218,7 +218,6 @@ class TestMMI:
 
     def test_mmi_zone_extreme_fear(self, mocker):
         """Score < 25 → Extreme Fear."""
-        from market_data import get_mmi
         # Directly test zone logic
         _mmi = 20
         assert "Extreme Fear" in (

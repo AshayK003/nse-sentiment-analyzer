@@ -1,10 +1,12 @@
 """
 Tests for SmartScore aggregation — EWMA, breadth, volume, composite.
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from aggregate_sentiment import compute_smartscore, _ewma_weight
+from aggregate_sentiment import _ewma_weight, compute_smartscore
 
 
 class TestEWMAWeights:

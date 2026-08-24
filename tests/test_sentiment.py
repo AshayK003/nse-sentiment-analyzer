@@ -2,19 +2,18 @@
 Tests for NSE Sentiment Analyzer.
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sentiment import (
-    get_sia,
-    analyze_headline_sentiment,
-    FINANCIAL_BOOSTERS,
-)
 from data_fetcher import (
     NSE_TICKERS,
 )
-
+from sentiment import (
+    FINANCIAL_BOOSTERS,
+    get_sia,
+)
 
 # ─── Sentiment Tests ───
 

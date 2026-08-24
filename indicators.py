@@ -4,9 +4,10 @@ RSI(14), SMA 50/200, MACD(12,26,9) from 1yr daily data.
 """
 
 import logging
-import yfinance as yf
-import pandas as pd
 import time
+
+import pandas as pd
+import yfinance as yf
 
 logger = logging.getLogger(__name__)
 

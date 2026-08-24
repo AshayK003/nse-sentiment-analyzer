@@ -1,10 +1,12 @@
 """
 Tests for event classifier — pattern matching and VADER adjustment.
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from event_classifier import classify_headline, adjust_with_event
+from event_classifier import adjust_with_event, classify_headline
 
 
 class TestClassifyHeadline:

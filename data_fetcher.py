@@ -2,25 +2,31 @@
 Data fetching for NSE Sentiment Analyzer.
 Stock data via yfinance + news via RSS + DuckDuckGo fallback.
 """
-import yfinance as yf
-import requests
-import feedparser
 import html
 import json
-import os
-import pandas as pd
-import time
 import logging
-import streamlit as st
-import re
-import random
 import math
+import os
+import random
+import re
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+
+import feedparser
+import pandas as pd
+import requests
+import streamlit as st
+import yfinance as yf
 from duckduckgo_search import DDGS
+
+from adaptive_sentiment import (
+    compute_dissemination_score,
+    get_dissemination_clusters,
+)
 from persistence import cache_get, cache_set
-from adaptive_sentiment import get_dissemination_clusterer, compute_dissemination_score, get_dissemination_clusters
+
 logger = logging.getLogger(__name__)
 # ─── Global rate-limit cooldown ───
 # When yfinance returns 429, all yfinance calls skip for this duration

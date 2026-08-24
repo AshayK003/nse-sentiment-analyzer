@@ -8,7 +8,6 @@ Bug history:
   2. Duplicate VADER lexicon keys ("growth", "sell") — v2.5.0
   3. Missing _render_pivot_html NameError crash — v2.5.0
 """
-import math
 
 from render import _is_valid_num, _render_pivot_html
 from sentiment import get_sia

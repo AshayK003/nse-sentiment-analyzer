@@ -148,8 +148,8 @@ def tmp_data_dir(tmp_path, monkeypatch):
 @pytest.fixture
 def pandas_hist():
     """Create a realistic 1yr OHLCV DataFrame for testing indicators."""
-    import pandas as pd
     import numpy as np
+    import pandas as pd
     dates = pd.date_range(end="2026-06-18", periods=252, freq="B")
     np.random.seed(42)
     base = 100.0
@@ -167,7 +167,6 @@ def pandas_hist():
 def short_hist():
     """Only 30 rows — insufficient for SMA 50/200."""
     import pandas as pd
-    import numpy as np
     dates = pd.date_range(end="2026-06-18", periods=30, freq="B")
     return pd.DataFrame({
         "Open": 100.0, "High": 101.0, "Low": 99.0,

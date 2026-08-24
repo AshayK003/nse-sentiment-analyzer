@@ -22,14 +22,10 @@ import logging
 import threading
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any
+from datetime import datetime
 
 import numpy as np
-from sklearn.feature_extraction.text import HashingVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import DBSCAN
+from sklearn.feature_extraction.text import HashingVectorizer, TfidfVectorizer
 
 from persistence import DATA_DIR
 
@@ -57,12 +53,11 @@ MARKET_HOLIDAYS_2024 = [
 
 # Indian market specific financial vocabulary
 INDIAN_FINANCIAL_ENTITIES = {
-    "indices": ["nifty", "nifty50", "banknifty", "banknifty", "niftybank", "sensex", "niftyit", "niftyauto", "niftypharma", "niftyfmcg", "niftybank", "niftymetal", "niftypsubank", "niftyprivatebank", "niftyrealty", "niftyenergy", "niftymedia", "niftycommodities", "niftyconsumption", "niftypse", "niftyinfra", "niftyserv"],
     "sectors": ["banking", "bankingsector", "it", "informationtechnology", "pharma", "pharmaceuticals", "auto", "automobile", "fmcg", "consumergoods", "metals", "metal", "cement", "cementsector", "power", "energy", "realty", "realestate", "telecom", "telecommunications", "media", "entertainment", "capitalgoods", "construction", "infrastructure", "oil", "gas", "oilgas", "chemicals", "chemical", "textiles", "textile", "paper", "sugar", "fertilizers", "fertiliser", "pesticides", "agrochemicals", "specialtychemicals", "specialitychemicals"],
     "commodities": ["crude", "crudeoil", "brent", "wti", "gold", "silver", "copper", "aluminum", "aluminium", "zinc", "lead", "nickel", "naturalgas", "lng", "cng", "coal", "thermalcoal", "sugar", "cotton", "wheat", "rice", "soybean", "soy", "palmoil", "crudepalm", "rubber", "jute"],
-    "currencies": ["rupee", "inr", "usd", "dollar", "usdinr", "eurinr", "gbpinr", "jpyinr", "rupeeweakens", "rupeestrengthens", "rupeeweakens", "rupeestrengthens"],
-    "indices": ["nifty", "nifty50", "banknifty", "banknifty", "sensex", "bse", "nse", "niftyit", "niftyauto", "niftypharma", "niftyfmcg", "niftybank", "niftymetal", "niftypsubank", "niftyprivatebank", "niftyrealty", "niftyenergy", "niftymedia", "niftycommodities", "niftyconsumption", "niftypse", "niftyinfra", "niftyserv"],
-    "corporate_actions": ["dividend", "bonus", "split", "buyback", "buybackoffer", "rightsissue", "rights", "ipo", "fpo", "qip", "preferentialallotment", "esop", "stocksplit", "stocksplit", "facevaluesplit", "demerger", "merger", "acquisition", "acquisition", "takeover", "openoffer", "delisting"],
+    "currencies": ["rupee", "inr", "usd", "dollar", "usdinr", "eurinr", "gbpinr", "jpyinr", "rupeeweakens", "rupeestrengthens"],
+    "indices": ["nifty", "nifty50", "banknifty", "sensex", "bse", "nse", "niftyit", "niftyauto", "niftypharma", "niftyfmcg", "niftybank", "niftymetal", "niftypsubank", "niftyprivatebank", "niftyrealty", "niftyenergy", "niftymedia", "niftycommodities", "niftyconsumption", "niftypse", "niftyinfra", "niftyserv"],
+    "corporate_actions": ["dividend", "bonus", "split", "buyback", "buybackoffer", "rightsissue", "rights", "ipo", "fpo", "qip", "preferentialallotment", "esop", "stocksplit", "facevaluesplit", "demerger", "merger", "acquisition", "takeover", "openoffer", "delisting"],
     "regulatory": ["sebi", "rbi", "irdai", "pfda", "fda", "usfda", "dcgi", "cdsco", "sebiorder", "sebicircular", "rbicircular", "rbidirection", "rbiorder", "irdaiorder", "irdaicircular"],
     "regulators": ["sebi", "rbi", "irdai", "pfda", "fda", "usfda", "dcgi", "cdsco", "cbia", "nclt", "nclat", "sat", "satorder"],
     "ratings": ["upgrade", "downgrade", "upgrade", "downgrade", "outlook", "positive", "negative", "stable", "creditrating", "ratingupgrade", "ratingdowngrade", "outlookpositive", "outlooknegative", "outlookstable"],
@@ -158,7 +153,6 @@ class AdaptiveClusterLearner:
     def __init__(self):
             self.clusters: dict[int, dict] = {}  # cluster_id -> {centroid, headlines, reactions, weight}
             # Use TfidfVectorizer with custom tokenization for Indian financial text
-            from sklearn.feature_extraction.text import TfidfVectorizer
             import re
         
             def custom_tokenizer(text: str) -> list:
@@ -180,7 +174,6 @@ class AdaptiveClusterLearner:
                 all_grams = unigrams + bigrams + trigrams
             
                 # Add special financial phrase markers
-                text_lower = ' '.join(tokens)
                 financial_markers = []
                 for phrase in INDIAN_FINANCIAL_PHRASES:
                     if phrase in ' '.join(tokens):
@@ -482,10 +475,6 @@ class DisseminationClusterer:
                 "banking": ["bank", "rbi", "rate", "interest", "lending", "deposit", "npa", "provisioning", "netinterestmargin", "nim", "casa", "casa ratio"],
                 "it": ["it ", "software", "technology", "tech ", "services", "digital", "cloud", "saas", "erp", "consulting", "outsourcing", "bpo", "kpo", "ites"],
                 "pharma": ["pharma", "drug", "medicine", "clinical", "fda", "usfda", "dcgi", "cdsco", "and", "anda", "bioequivalence", "generics", "api", "formulations", "cmo", "cdo", "r&d", "pipeline", "approval", "launch", "patent", "exclusivity"],
-                "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle", "twowheeler", "threewheeler", "fourwheeler", "commercial vehicle", "passenger vehicle", "tractor", "cv", "pv", "ev", "hybrid", "ice", "bs6", "bsvi", "fame", "fameii", "plis", "plischeme", "subsidy", "charging", "infrastructure", "battery", "range", "rangeanxiety"],
-                "energy": ["power", "energy", "renewable", "solar", "wind", "hydro", "thermal", "nuclear", "greenenergy", "cleanenergy", "greenhydrogen", "hydrogen", "batterystorage", "pumpedstorage", "transmission", "distribution", "grid", "smartgrid", "microgrid", "rooftop", "utilityscale", "rooftopsolar", "groundmount", "floating", "canal", "canaltop", "hybrid", "roundtheclock", "rtc", "firm", "intermittent", "variable", "capacityutilisation", "plantloadfactor", "plf", "capacityaddition", "capacityaddition", "commissioning", "synchronisation", "financialclosure", "ppa", "powerpurchaseagreement", "tariff", "bid", "auction", "reverseauction", "discom", "discoms", "stateutility", "stateutilities", "centralutility", "centralutilities", "generator", "generators", "generatingcompany", "generatingcompanies", "ipp", "ipps", "captive", "merchant", "exchange", "exchange", "powerxchange", "pxt", "hindustantimes", "iex", "pxil", "term", "shortterm", "mediumterm", "longterm", "dayahead", "realtime", "rtm", "dam", "gdam", "rtm", "gtam", "greenterm", "green", "renewableenergycertificates", "rec", "recs", "energycertificates", "energycertificate"],
-                "auto": ["auto", "car", "vehicle", "ev ", "electric vehicle"],
-                "energy": ["power", "energy", "renewable", "solar", "wind"],
                 "cement": ["cement", "construction", "infrastructure"],
                 "metals": ["metal", "steel", "aluminum", "copper", "zinc"],
             }
@@ -646,7 +635,6 @@ def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_
         return 0.0, 0.0
 
     # Find price at headline time (approximate - use nearest)
-    headline_ts = headline_time.timestamp() * 1000  # ms
 
     price_at_headline = None
     for bar in hist_1h:
@@ -665,7 +653,6 @@ def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_
 
     # 1h forward: find bar ~1h after
     move_1h = 0.0
-    target_ts_1h = headline_ts + 3600 * 1000
     for bar in hist_1h:
         bar_ts = bar.get("time", 0)
         if isinstance(bar_ts, str):
@@ -678,7 +665,6 @@ def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_
 
     # 4h forward
     move_4h = 0.0
-    target_ts_4h = headline_ts + 4 * 3600 * 1000
     for bar in hist_4h:
         bar_ts = bar.get("time", 0)
         if isinstance(bar_ts, str):

@@ -7,8 +7,8 @@ class TestEntryPrices:
     """Tests for save_entry_price() and load_entry_prices()."""
 
     def test_save_and_load_roundtrip(self, tmp_path, monkeypatch):
-        from persistence import save_entry_price, load_entry_prices
-        from pathlib import Path
+
+        from persistence import load_entry_prices, save_entry_price
 
         # Redirect data dir to tmp_path
         monkeypatch.setattr("persistence.DATA_DIR", tmp_path)
@@ -21,8 +21,8 @@ class TestEntryPrices:
         assert prices["RELIANCE"]["qty"] == 10
 
     def test_load_empty_returns_empty_dict(self, tmp_path, monkeypatch):
+
         from persistence import load_entry_prices
-        from pathlib import Path
 
         monkeypatch.setattr("persistence.DATA_DIR", tmp_path)
         monkeypatch.setattr("persistence.ENTRY_PRICES_FILE", tmp_path / "entry_prices.json")
@@ -32,8 +32,8 @@ class TestEntryPrices:
         assert prices == {}
 
     def test_update_existing_entry(self, tmp_path, monkeypatch):
-        from persistence import save_entry_price, load_entry_prices
-        from pathlib import Path
+
+        from persistence import load_entry_prices, save_entry_price
 
         monkeypatch.setattr("persistence.DATA_DIR", tmp_path)
         monkeypatch.setattr("persistence.ENTRY_PRICES_FILE", tmp_path / "entry_prices.json")
@@ -46,8 +46,8 @@ class TestEntryPrices:
         assert prices["RELIANCE"]["qty"] == 15
 
     def test_migrates_old_flat_format(self, tmp_path, monkeypatch):
+
         from persistence import load_entry_prices
-        from pathlib import Path
 
         monkeypatch.setattr("persistence.ENTRY_PRICES_FILE", tmp_path / "entry_prices.json")
         # Write old flat format

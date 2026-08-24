@@ -7,28 +7,24 @@ using synthetic and mocked data - no large downloads required.
 AEOS Module 14 TDD pattern: tests first, then implementation.
 """
 
-import pytest
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
+from typing import Any
+
+import numpy as np
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from adaptive_sentiment import (
-    AdaptiveClusterLearner,
-    DisseminationClusterer,
+    MIN_CLUSTER_SIZE_FOR_CALIBRATION,
+    calibrate_adaptive_learner,
+    compute_dissemination_score,
+    extract_price_moves_for_learning,
+    get_dissemination_clusters,
     learn_from_price_reaction,
     predict_price_reaction,
-    compute_dissemination_score,
-    get_dissemination_clusters,
-    calibrate_adaptive_learner,
-    extract_price_moves_for_learning,
-    CLUSTER_EPS,
-    MAX_CLUSTERS,
-    MIN_CLUSTER_SIZE_FOR_CALIBRATION,
-    DISSEMINATION_MIN_CLUSTER_SIZE,
 )
 
 
@@ -42,7 +38,7 @@ class SyntheticMarketData:
         volatility: float = 0.02,
         trend: float = 0.0,
         seed: int = 42,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generate synthetic OHLCV data."""
         np.random.seed(seed)
         prices = []
@@ -76,7 +72,7 @@ class SyntheticMarketData:
         hours: int = 50,
         volatility: float = 0.005,
         seed: int = 42,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generate synthetic intraday 1h bars."""
         np.random.seed(seed)
         prices = []
@@ -172,7 +168,7 @@ class MockNewsGenerator:
         cls,
         count: int = 50,
         seed: int = 42,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generate synthetic news articles with known categories."""
         np.random.seed(seed)
         articles = []
@@ -280,7 +276,7 @@ class BacktestResult:
             tik["correct"] += 1
         tik["mae"] = (tik["mae"] * (tik["total"] - 1) + abs(actual - predicted)) / tik["total"]
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "total_predictions": self.total_predictions,
             "direction_accuracy": round(self.direction_accuracy, 4),
@@ -292,8 +288,8 @@ class BacktestResult:
 
 
 def run_adaptive_backtest(
-    articles: List[Dict[str, Any]],
-    price_series: Dict[str, List[Dict]],
+    articles: list[dict[str, Any]],
+    price_series: dict[str, list[dict]],
     use_calibration: bool = True,
 ) -> BacktestResult:
     """
@@ -306,7 +302,6 @@ def run_adaptive_backtest(
     4. Compare prediction vs actual
     """
     # Reset learner
-    from adaptive_sentiment import _adaptive_learner, _dissemination_clusterer
     import adaptive_sentiment
     adaptive_sentiment._adaptive_learner = None
     adaptive_sentiment._dissemination_clusterer = None
@@ -350,7 +345,6 @@ def run_adaptive_backtest(
         if len(seen_headlines) >= 3:
             # Predict for current article using learner state BEFORE learning from it
             pred_1h = predict_price_reaction(article["title"], "1h")
-            pred_4h = predict_price_reaction(article["title"], "4h")
 
             # Compare with actual
             result.add_prediction(move_1h, pred_1h, category, ticker)
@@ -365,9 +359,8 @@ def run_adaptive_backtest(
     return result
 
 
-def run_dissemination_backtest(articles: List[Dict]) -> Dict[str, Any]:
+def run_dissemination_backtest(articles: list[dict]) -> dict[str, Any]:
     """Test dissemination clustering accuracy."""
-    from adaptive_sentiment import compute_dissemination_score, get_dissemination_clusters
 
     # Reset clusterer
     import adaptive_sentiment
@@ -528,7 +521,11 @@ class TestAdaptiveLearnerIntegration:
 
     def test_learn_then_predict_cycle(self):
         """Basic learn -> predict cycle works."""
-        from adaptive_sentiment import get_adaptive_learner, learn_from_price_reaction, predict_price_reaction
+        from adaptive_sentiment import (
+            get_adaptive_learner,
+            learn_from_price_reaction,
+            predict_price_reaction,
+        )
 
         learner = get_adaptive_learner()
         learner.clusters = {}
@@ -544,7 +541,11 @@ class TestAdaptiveLearnerIntegration:
 
     def test_calibration_updates_weights(self):
         """Calibration should update cluster weights."""
-        from adaptive_sentiment import get_adaptive_learner, learn_from_price_reaction, calibrate_adaptive_learner
+        from adaptive_sentiment import (
+            calibrate_adaptive_learner,
+            get_adaptive_learner,
+            learn_from_price_reaction,
+        )
 
         learner = get_adaptive_learner()
         learner.clusters = {}
@@ -595,7 +596,6 @@ class TestDisseminationClustererIntegration:
 
     def test_dissemination_score_computed(self):
         """Dissemination score should be computed."""
-        from adaptive_sentiment import compute_dissemination_score, get_dissemination_clusters
 
         articles = [
             {"title": "Crude oil surges", "body": "Oil rises", "source": "ET", "ticker": "ONGC"},

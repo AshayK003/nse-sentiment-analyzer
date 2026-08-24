@@ -6,9 +6,8 @@ All external APIs (yfinance, feedparser, DuckDuckGo, requests) are mocked.
 
 def _mock_yfinance_ticker(mocker, info=None, hist_df=None):
     """Build a fake yfinance Ticker with controllable info/history."""
+
     import pandas as pd
-    import numpy as np
-    from unittest.mock import PropertyMock
 
     if info is None:
         info = {
@@ -88,9 +87,9 @@ class TestStockInfo:
 
     def test_stock_info_info_fallback(self, mocker):
         """When hist is empty, should fall back to info.get() for price."""
-        from data_fetcher import get_stock_info
-
         import pandas as pd
+
+        from data_fetcher import get_stock_info
         info = {
             "longName": "Test Ltd",
             "shortName": "TEST",
@@ -118,9 +117,9 @@ class TestStockInfo:
 
     def test_stock_info_none_on_total_failure(self, mocker):
         """When both info AND history fail, should return None."""
-        from data_fetcher import get_stock_info
-
         import pandas as pd
+
+        from data_fetcher import get_stock_info
         tiny_info = {"longName": "Bogus"}
         # Empty history + tiny info = complete failure
         _mock_yfinance_ticker(mocker, info=tiny_info, hist_df=pd.DataFrame())
@@ -158,8 +157,10 @@ class TestStockInfo:
     def test_stock_info_nan_prices_from_etf(self, mocker):
         """ETFs with NaN price fields should return None for prices, not NaN."""
         import math
-        from data_fetcher import get_stock_info
+
         import pandas as pd
+
+        from data_fetcher import get_stock_info
 
         # ETF scenario: info has NaN prices, history is empty
         nan_info = {
@@ -218,8 +219,8 @@ class TestStockInfo:
 
     def test_debt_to_equity_nan(self, mocker):
         """NaN debtToEquity should be converted to None."""
+
         from data_fetcher import get_stock_info
-        import math
 
         info = {
             "longName": "NaN Debt Ltd", "shortName": "NANDEBT",
@@ -324,8 +325,8 @@ class TestNewsCaching:
 
     def test_ddgs_timeout_wrapper_prevents_hang(self):
         """ThreadPoolExecutor timeout wrapper completes within budget, not hanging."""
-        import time
         import threading
+        import time
         from concurrent.futures import ThreadPoolExecutor
 
         hang_event = threading.Event()
@@ -469,6 +470,7 @@ class TestHistoryCache:
         """Helper to clear both L1 (in-memory) and L2 (disk) caches."""
         import os
         import shutil
+
         import data_fetcher
         
         with data_fetcher._hist_cache_lock:
@@ -500,9 +502,9 @@ class TestHistoryCache:
         }, index=dates)
 
     def test_l1_first_call_fetches_from_network(self, mocker):
-        from data_fetcher import get_cached_history, _PRICE_CACHE_DIR
-        import data_fetcher
         import os
+
+        from data_fetcher import _PRICE_CACHE_DIR, get_cached_history
 
         df = self._make_dummy_df()
         mock_ticker = mocker.MagicMock()
@@ -519,7 +521,6 @@ class TestHistoryCache:
 
     def test_l1_second_call_returns_cached(self, mocker):
         from data_fetcher import get_cached_history
-        import data_fetcher
 
         df = self._make_dummy_df()
         mock_ticker = mocker.MagicMock()
@@ -533,8 +534,8 @@ class TestHistoryCache:
         assert mock_yf.call_count == 1  # yfinance called only once
 
     def test_l1_different_tickers(self, mocker):
-        from data_fetcher import get_cached_history
         import data_fetcher
+        from data_fetcher import get_cached_history
 
         df1 = self._make_dummy_df()
         df2 = self._make_dummy_df()
@@ -559,8 +560,8 @@ class TestHistoryCache:
         assert "TEST2" in data_fetcher._hist_cache
 
     def test_l1_lru_eviction(self, mocker):
-        from data_fetcher import get_cached_history
         import data_fetcher
+        from data_fetcher import get_cached_history
 
         # Mock cache size to 2
         mocker.patch.object(data_fetcher, "_MAX_CACHED_TICKERS", 2)
@@ -584,6 +585,7 @@ class TestHistoryCache:
     def test_l2_eviction_via_mtime(self, mocker):
         import os
         import time
+
         import data_fetcher
         from data_fetcher import _evict_hist_cache
 
@@ -614,8 +616,9 @@ class TestHistoryCache:
 
     def test_l2_hit_l1_miss(self, mocker):
         import os
-        from data_fetcher import get_cached_history
+
         import data_fetcher
+        from data_fetcher import get_cached_history
 
         df = self._make_dummy_df()
         os.makedirs(data_fetcher._PRICE_CACHE_DIR, exist_ok=True)
@@ -638,8 +641,9 @@ class TestHistoryCache:
 
     def test_l2_corrupted_state_graceful_fallback(self, mocker):
         import os
-        from data_fetcher import get_cached_history
+
         import data_fetcher
+        from data_fetcher import get_cached_history
 
         os.makedirs(data_fetcher._PRICE_CACHE_DIR, exist_ok=True)
         cache_path = os.path.join(data_fetcher._PRICE_CACHE_DIR, "CORRUPT.json")
@@ -659,8 +663,9 @@ class TestHistoryCache:
         assert mock_yf.call_count > 0
 
     def test_nonexistent_ticker(self, mocker):
-        from data_fetcher import get_cached_history
         import pandas as pd
+
+        from data_fetcher import get_cached_history
 
         # yfinance returns empty DataFrame
         mock_ticker = mocker.MagicMock()

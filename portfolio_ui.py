@@ -9,6 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from data_fetcher import resolve_ticker
+from market_data import get_fii_dii_flow
 from persistence import (
     ENTRY_PRICES_FILE,
     calc_portfolio_pnl,
@@ -22,7 +23,6 @@ from persistence import (
     save_portfolio,
 )
 from render import _is_valid_num
-from market_data import get_fii_dii_flow
 
 
 def render_bottom_cards(portfolio: list, final_ticker: str, entry_prices: dict) -> None:

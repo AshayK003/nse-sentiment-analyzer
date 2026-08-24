@@ -1,8 +1,7 @@
 """Tests for intraday tools — VWAP, pivot levels, India VIX."""
 
-import pytest
 import pandas as pd
-import numpy as np
+import pytest
 
 
 class TestVWAP:
@@ -22,6 +21,8 @@ class TestVWAP:
         mock_dl = mocker.patch("yfinance.download", return_value=data)
 
         result = compute_vwap("RELIANCE")
+
+        mock_dl.assert_called_once()
 
         # VWAP = Σ((H+L+C)/3 * V) / Σ(V)
         # Bar1: (101+99+100)/3 * 1000 = 100 * 1000 = 100000
@@ -45,9 +46,11 @@ class TestVWAP:
             "Close":[104.0, 102.0, 98.0],
             "Volume":[1000,  2000,  3000],
         })
-        mocker.patch("yfinance.download", return_value=data)
+        mock_dl = mocker.patch("yfinance.download", return_value=data)
 
         result = compute_vwap("RELIANCE")
+
+        mock_dl.assert_called_once()
 
         assert result["vwap"] > result["price"]
         assert result["deviation_pct"] < 0
@@ -57,9 +60,11 @@ class TestVWAP:
         from intraday import compute_vwap
 
         empty = pd.DataFrame()
-        mocker.patch("yfinance.download", return_value=empty)
+        mock_dl = mocker.patch("yfinance.download", return_value=empty)
 
         result = compute_vwap("RELIANCE")
+
+        mock_dl.assert_called_once()
 
         assert result["vwap"] is None
         assert result["deviation_pct"] is None

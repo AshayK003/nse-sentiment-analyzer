@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.14.0] — 2026-08-24
+
+### Added
+- **CI pipeline (GitHub Actions):** three jobs on every push/PR — ruff lint,
+  pytest matrix on Python 3.11/3.12, and mypy --strict typecheck. The repo's
+  pre-commit hooks are now backed by a remote gate.
+- **Ruff configuration** in `pyproject.toml` (line length 120; correctness +
+  import-hygiene rules; documented per-file allowances for Streamlit entry
+  modules and sys.path-bootstrapping tests).
+
+### Fixed
+- **Packaging:** runtime dependencies were declared only in requirements.txt;
+  they now live in `[project.dependencies]`, so `pip install nse-sentiment-analyzer`
+  works from metadata alone.
+- **Dead code:** removed 78 unused imports and 11 unused variables/duplicate
+  dict keys across the codebase. Duplicate `"auto"`/`"energy"`/`"indices"`
+  keyword-list entries kept their effective (last-declared) values.
+- **Accuracy CI display:** the source-calibration card now shows the 95%
+  Wilson-style confidence interval it was already computing but discarding.
+
+### Changed
+- Ruff issue count: 293 → 0. All 295 tests pass; mypy --strict clean.
+
 ## [2.13.0] — 2026-08-22
 
 ### Added

@@ -8,9 +8,10 @@ import io
 import json
 import logging
 import threading
-import streamlit as st
 from datetime import datetime
 from pathlib import Path
+
+import streamlit as st
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ def load_sentiment_history(ticker: str, days: int=10) -> list:
                 for row in reader:
                     if row.get("ticker") == ticker:
                         records.append(row)
-        except (FileNotFoundError, IOError):
+        except (OSError, FileNotFoundError):
             return []
 
         records.sort(key=lambda r: r.get("date", ""))
@@ -226,7 +227,7 @@ def save_sentiment_history(ticker: str, row_data: dict) -> None:
             with open(HISTORY_FILE, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 existing = list(reader)
-        except (FileNotFoundError, IOError):
+        except (OSError, FileNotFoundError):
             pass
 
         # Remove any existing entry for this ticker today
@@ -247,7 +248,7 @@ def save_sentiment_history(ticker: str, row_data: dict) -> None:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(existing)
-        except (IOError, OSError):
+        except OSError:
             pass  # Read-only filesystem
 
 

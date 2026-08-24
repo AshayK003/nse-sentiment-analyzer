@@ -11,18 +11,18 @@ class TestPersistenceIO:
 
     def test_load_json_missing_file(self, tmp_data_dir):
         """Missing file returns default []."""
-        from persistence import _load_json, PORTFOLIO_FILE
+        from persistence import PORTFOLIO_FILE, _load_json
         assert _load_json(PORTFOLIO_FILE, []) == []
 
     def test_load_json_corrupted(self, tmp_data_dir):
         """Corrupted JSON returns default."""
-        from persistence import _load_json, PORTFOLIO_FILE
+        from persistence import PORTFOLIO_FILE, _load_json
         PORTFOLIO_FILE.write_text("{{{garbage}}}")
         assert _load_json(PORTFOLIO_FILE, []) == []
 
     def test_save_and_load_roundtrip(self, tmp_data_dir):
         """Saving and loading returns the same data."""
-        from persistence import _save_json, _load_json, PORTFOLIO_FILE
+        from persistence import PORTFOLIO_FILE, _load_json, _save_json
         data = [{"ticker": "SBIN", "added": "2026-06-01"}]
         _save_json(PORTFOLIO_FILE, data)
         loaded = _load_json(PORTFOLIO_FILE, [])
@@ -42,7 +42,7 @@ class TestCache:
 
     def test_cache_set_and_get(self, tmp_data_dir):
         """Cache set then get returns the same value."""
-        from persistence import cache_set, cache_get
+        from persistence import cache_get, cache_set
         key = "stock_RELIANCE"
         data = {"price": 2500.0, "change": 25.0}
         cache_set(key, data)
@@ -56,7 +56,7 @@ class TestCache:
 
     def test_cache_expiry(self, tmp_data_dir):
         """Cache entry older than TTL returns None."""
-        from persistence import cache_set, cache_get
+        from persistence import cache_get, cache_set
         key = "stock_HDFCBANK"
         cache_set(key, 100)
         # Write an expired timestamp manually
@@ -71,8 +71,7 @@ class TestCache:
 
     def test_cache_fresh_edge(self, tmp_data_dir):
         """Cache entry at exactly TTL-1s should still be fresh."""
-        from persistence import cache_set, cache_get
-        from persistence import CACHE_FILE, _load_json, _save_json
+        from persistence import CACHE_FILE, _load_json, _save_json, cache_get, cache_set
 
         key = "fresh_key"
         cache_set(key, "fresh_data")
@@ -104,7 +103,7 @@ class TestPortfolio:
         mock_ss._portfolio = []
         mocker.patch("streamlit.session_state", mock_ss)
 
-        from persistence import save_portfolio, load_portfolio
+        from persistence import load_portfolio, save_portfolio
 
         save_portfolio(["SBIN", "RELIANCE", "TCS"])
         loaded = load_portfolio()
@@ -143,7 +142,7 @@ class TestTrackRecord:
 
     def test_track_record_append(self, tmp_data_dir):
         """Saving multiple records and loading returns them all."""
-        from persistence import save_track_record, load_track_record
+        from persistence import load_track_record, save_track_record
 
         records = [
             {"ticker": "SBIN", "signal": "BULLISH", "vote": True},

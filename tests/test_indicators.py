@@ -3,12 +3,12 @@ Tests for technical indicators computation.
 Mocks yfinance to return controlled OHLCV data.
 """
 
-import pandas as pd
-import numpy as np
-
 # Patch st.cache_data before importing indicators so the
 # decorator is a no-op in test context
 from unittest.mock import MagicMock
+
+import numpy as np
+import pandas as pd
 
 
 def _make_ticker_mock(hist_df):
@@ -24,6 +24,7 @@ class TestTechnicalIndicators:
     def setup_method(self):
         """Clear L1 in-memory and L2 disk history cache between tests to avoid cross-test contamination."""
         import os
+
         import data_fetcher
         from data_fetcher import _hist_cache, _hist_cache_lock
         with _hist_cache_lock:

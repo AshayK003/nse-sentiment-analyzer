@@ -3,7 +3,9 @@ Integration test for analyze_ticker() — verifies the orchestration pipeline
 connects modules correctly. Mocks at module boundaries (data_fetcher, sentiment,
 event_classifier, indicators, market_data, persistence).
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
@@ -36,8 +38,6 @@ def mock_deps(mocker):
 
     # ── Sentiment (VADER returns deterministic scores for known phrases) ──
     # Patch analyze_headline_sentiment to return scores based on keywords
-    from sentiment import get_sia
-    sia = get_sia()
 
     def mock_sentiment(title, body, sia_obj, source=None):
         text = f"{title}. {body}" if body else title
