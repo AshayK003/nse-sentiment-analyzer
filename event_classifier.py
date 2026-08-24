@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # base_sentiment ∈ [-1, 1] — what VADER *should* give for this event type
 # Used to correct VADER when it's uncertain about financial language.
 # ORDER MATTERS: first match wins when multiple patterns fire.
-EVENT_MAP = [
+EVENT_MAP: list[tuple[str, float, list[str]]] = [
     # ── Positive events (most specific first) ──────────────
 
     ("BUYBACK_DIVIDEND", 0.30, [
@@ -196,10 +196,11 @@ EVENT_MAP = [
 ]
 
 # Cache compiled patterns for performance
-_COMPILED = None
+_CompiledEntry = tuple[str, float, list[re.Pattern[str]]]
+_COMPILED: list[_CompiledEntry] | None = None
 
 
-def _get_compiled():
+def _get_compiled() -> list[_CompiledEntry]:
     """Lazy-load compiled patterns."""
     global _COMPILED
     if _COMPILED is None:
@@ -210,7 +211,7 @@ def _get_compiled():
     return _COMPILED
 
 
-def classify_headline(title: str, body: str="") -> dict:
+def classify_headline(title: str, body: str = "") -> tuple[str | None, float]:
     """Classify a headline and return (event_type, event_base).
 
     First matching event type wins (EVENT_MAP order defines priority).
@@ -236,7 +237,7 @@ def classify_headline(title: str, body: str="") -> dict:
     return None, 0.0
 
 
-def adjust_with_event(compound: float, event_base: dict | None) -> float:
+def adjust_with_event(compound: float, event_base: float | None) -> float:
     """Blend VADER compound score with event-based sentiment bias.
 
     When VADER is confident (|compound| > 0.3) about financial language,
@@ -251,7 +252,7 @@ def adjust_with_event(compound: float, event_base: dict | None) -> float:
     Returns:
         float — blended compound score [-1, 1]
     """
-    if event_base == 0.0:
+    if event_base is None or event_base == 0.0:
         return compound
 
     confidence = abs(compound)

@@ -23,6 +23,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import datetime
+from typing import Any, cast
 
 import numpy as np
 from sklearn.feature_extraction.text import HashingVectorizer, TfidfVectorizer
@@ -112,9 +113,9 @@ _dissemination_lock = threading.RLock()
 
 
 # ─── Helper: JSON-safe serialization ───
-def _serialize_cluster(cluster: dict) -> dict:
+def _serialize_cluster(cluster: dict[str, Any]) -> dict[str, Any]:
     """Convert numpy types to JSON-serializable."""
-    out = {}
+    out: dict[str, Any] = {}
     for k, v in cluster.items():
         if isinstance(v, (np.integer, np.floating)):
             out[k] = float(v)
@@ -127,9 +128,9 @@ def _serialize_cluster(cluster: dict) -> dict:
     return out
 
 
-def _deserialize_cluster(data: dict) -> dict:
+def _deserialize_cluster(data: dict[str, Any]) -> dict[str, Any]:
     """Convert JSON back to working cluster dict."""
-    out = {}
+    out: dict[str, Any] = {}
     for k, v in data.items():
         if k == "centroid" and isinstance(v, list):
             out[k] = np.array(v)
@@ -150,12 +151,12 @@ class AdaptiveClusterLearner:
     - Calibrates ensemble weights against ground-truth price moves
     """
 
-    def __init__(self):
-            self.clusters: dict[int, dict] = {}  # cluster_id -> {centroid, headlines, reactions, weight}
+    def __init__(self) -> None:
+            self.clusters: dict[int, dict[str, Any]] = {}  # cluster_id -> {centroid, headlines, reactions, weight}
             # Use TfidfVectorizer with custom tokenization for Indian financial text
             import re
         
-            def custom_tokenizer(text: str) -> list:
+            def custom_tokenizer(text: str) -> list[str]:
                 """Custom tokenizer optimized for Indian financial news."""
                 text = text.lower()
                 # Tokenize: words + financial symbols
@@ -195,7 +196,7 @@ class AdaptiveClusterLearner:
             self._load()
             # Pre-fit on financial corpus to handle cold start
             self._prefit_vectorizer()
-    def _load(self):
+    def _load(self) -> None:
         """Load clusters from disk."""
         try:
             if ADAPTIVE_CACHE_FILE.exists():
@@ -215,7 +216,7 @@ class AdaptiveClusterLearner:
             logger.warning(f"Failed to load adaptive clusters: {e}")
             self.clusters = {}
 
-    def _prefit_vectorizer(self):
+    def _prefit_vectorizer(self) -> None:
         """Pre-fit vectorizer on financial corpus to handle cold start."""
         financial_corpus = [
             "Reliance beats quarterly estimates profit growth",
@@ -253,7 +254,7 @@ class AdaptiveClusterLearner:
         self.vectorizer.fit(financial_corpus)
         self._fitted = True
 
-    def _save(self):
+    def _save(self) -> None:
         """Persist clusters to disk."""
         try:
             with _adaptive_lock:
@@ -272,7 +273,7 @@ class AdaptiveClusterLearner:
 
     def _vectorize(self, text: str) -> np.ndarray:
         """Vectorize a single headline using HashingVectorizer (no fitting needed)."""
-        return self.vectorizer.transform([text]).toarray()[0]
+        return cast(np.ndarray, self.vectorizer.transform([text]).toarray()[0])
 
     def _cosine_sim(self, a: np.ndarray, b: np.ndarray) -> float:
         """Cosine similarity between two vectors."""
@@ -326,7 +327,7 @@ class AdaptiveClusterLearner:
             }
             return cid
 
-    def update(self, headline: str, price_move_1h: float = 0.0, price_move_4h: float = 0.0):
+    def update(self, headline: str, price_move_1h: float = 0.0, price_move_4h: float = 0.0) -> None:
         """Feed a headline + observed price reaction into the learner."""
         with _adaptive_lock:
             self._find_or_create_cluster(headline, price_move_1h, price_move_4h)
@@ -374,7 +375,7 @@ class AdaptiveClusterLearner:
 
             return best_reaction
 
-    def calibrate(self, recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float], force: bool = False):
+    def calibrate(self, recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float], force: bool = False) -> None:
         """
         Recalibrate cluster weights based on prediction accuracy.
         Called periodically (every 72h) with recent ground-truth data.
@@ -452,7 +453,7 @@ class DisseminationClusterer:
     - Large multi-source clusters = high-impact events
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
             # Financial entity keywords for grouping
             self.commodity_keywords = {
                 "crude": ["crude", "brent", "wti", "oil", "petroleum", "crudeoil"],
@@ -488,7 +489,7 @@ class DisseminationClusterer:
             )
             self._fitted = True
 
-    def _extract_entities(self, text: str) -> set:
+    def _extract_entities(self, text: str) -> set[str]:
         """Extract financial entities (commodities, sectors) from text."""
         text_lower = text.lower()
         entities = set()
@@ -500,13 +501,13 @@ class DisseminationClusterer:
                 entities.add(f"sector:{entity}")
         return entities
 
-    def _get_article_signature(self, article: dict) -> frozenset:
+    def _get_article_signature(self, article: dict[str, Any]) -> frozenset[str]:
         """Create a signature for grouping: entities only (tickers kept separate)."""
         text = f"{article.get('title', '')}. {article.get('body', '')}"
         entities = self._extract_entities(text)
         return frozenset(entities)
 
-    def cluster_articles(self, articles: list[dict]) -> list[dict]:
+    def cluster_articles(self, articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Cluster articles by shared financial entities.
 
@@ -581,7 +582,7 @@ def get_dissemination_clusterer() -> DisseminationClusterer:
 
 
 # ─── Public API ───
-def learn_from_price_reaction(headline: str, price_move_1h: float, price_move_4h: float) -> bool:
+def learn_from_price_reaction(headline: str, price_move_1h: float, price_move_4h: float) -> None:
     """Feed a headline + observed price moves into the adaptive learner."""
     get_adaptive_learner().update(headline, price_move_1h, price_move_4h)
 
@@ -594,7 +595,7 @@ def predict_price_reaction(headline: str, horizon: str = "1h") -> float:
     return learner.predict(headline)
 
 
-def compute_dissemination_score(articles: list[dict]) -> float:
+def compute_dissemination_score(articles: list[dict[str, Any]]) -> float:
     """
     Compute overall dissemination breadth score for a set of articles.
 
@@ -615,18 +616,18 @@ def compute_dissemination_score(articles: list[dict]) -> float:
     return min(total_score / len(clusters), 1.0)
 
 
-def get_dissemination_clusters(articles: list[dict]) -> list[dict]:
+def get_dissemination_clusters(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Get detailed dissemination clusters for dashboard display."""
     return get_dissemination_clusterer().cluster_articles(articles)
 
 
-def calibrate_adaptive_learner(recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float]) -> dict | None:
+def calibrate_adaptive_learner(recent_headlines: list[str], recent_moves_1h: list[float], recent_moves_4h: list[float]) -> None:
     """Trigger calibration of adaptive learner weights."""
     get_adaptive_learner().calibrate(recent_headlines, recent_moves_1h, recent_moves_4h, force=True)
 
 
 # ─── Integration helpers for data_fetcher.py ───
-def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_1h: list, hist_4h: list) -> tuple[float, float]:
+def extract_price_moves_for_learning(ticker: str, headline_time: datetime, hist_1h: list[dict[str, Any]], hist_4h: list[dict[str, Any]]) -> tuple[float, float]:
     """
     Given a headline timestamp and recent price history, compute the 1h and 4h
     forward returns for learning. Returns (move_1h, move_4h) as percentages.

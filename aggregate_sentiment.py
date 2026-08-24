@@ -16,6 +16,7 @@ Interpretation:
 import logging
 import math
 from datetime import datetime
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ BEARISH_THRESHOLD = 40
 # ─── EWMA helpers ───
 
 
-def _ewma_weight(days_ago):
+def _ewma_weight(days_ago: float) -> float:
     """Compute EWMA decay weight for a score N days ago.
 
     Half-life ≈ 36h means a score from 1.5 days ago weighs 50%.
@@ -49,7 +50,7 @@ def _ewma_weight(days_ago):
     return math.exp(-math.log(2) * hours_ago / HALF_LIFE_HOURS)
 
 
-def _compute_ewma(daily_averages):
+def _compute_ewma(daily_averages: list[tuple[int, float]]) -> float:
     """Compute EWMA over a list of (days_ago, score) pairs."""
     if not daily_averages:
         return 0.0
@@ -64,7 +65,7 @@ def _compute_ewma(daily_averages):
     return weighted_sum / total_weight if total_weight > 0 else daily_averages[0][1]
 
 
-def _map_minus1_1_to_0_1(val):
+def _map_minus1_1_to_0_1(val: float) -> float:
     """Map a value in [-1, 1] to [0, 1]."""
     return (val + 1) / 2
 
@@ -72,7 +73,11 @@ def _map_minus1_1_to_0_1(val):
 # ─── Main computation ───
 
 
-def compute_smartscore(headline_scores: list, event_adjusted_scores: list | None, history: list | None=None) -> dict:
+def compute_smartscore(
+    headline_scores: list[dict[str, Any]],
+    event_adjusted_scores: list[float] | None,
+    history: list[dict[str, Any]] | None = None,
+) -> tuple[dict[str, Any], list[float]]:
     """Compute the SmartScore (0–100) using four normalized sentiment components.
 
 SmartScore combines multiple signals into a single metric that summarizes
@@ -132,12 +137,13 @@ Returns:
         return _empty_result([] if history else None)
 
     # ── S_events: today's event-adjusted sentiment ──
-    avg_event_adj = sum(event_adjusted_scores) / n
+    scores = cast("list[float]", event_adjusted_scores)
+    avg_event_adj = sum(scores) / n
     s_events = _map_minus1_1_to_0_1(avg_event_adj)
 
     # ── S_breadth: ratio of positive vs negative headlines (event-adjusted) ──
-    pos = sum(1 for adj in event_adjusted_scores if adj >= 0.3)
-    neg = sum(1 for adj in event_adjusted_scores if adj <= -0.3)
+    pos = len([adj for adj in scores if adj >= 0.3])
+    neg = len([adj for adj in scores if adj <= -0.3])
     raw_breadth = (pos - neg) / n  # [-1, 1]
     s_breadth = _map_minus1_1_to_0_1(raw_breadth)
 
@@ -145,7 +151,7 @@ Returns:
     s_volume = min(math.log1p(n) / math.log1p(MAX_HEADLINES), 1.0)
 
     # ── S_recency: EWMA over event-adjusted daily averages ──
-    daily_averages = []
+    daily_averages: list[tuple[int, float]] = []
     today_raw = avg_event_adj
     daily_averages.append((0, today_raw))
 
@@ -186,7 +192,7 @@ Returns:
         signal_emoji = "⚪"
 
     # ── History scores for sparkline ──
-    history_scores = []
+    history_scores: list[float] = []
     if history:
         history_scores = [
             float(h["smartscore"])
@@ -209,7 +215,7 @@ Returns:
     }, history_scores
 
 
-def _empty_result(history_scores):
+def _empty_result(history_scores: list[float] | None) -> tuple[dict[str, Any], list[float]]:
     """Return neutral result when no headlines available."""
     hs = list(history_scores) if history_scores else []
     hs.append(50.0)

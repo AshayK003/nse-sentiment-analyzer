@@ -10,6 +10,7 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 import streamlit as st
 
@@ -36,7 +37,7 @@ _fiidii_lock = threading.RLock()
 
 # ─── Helpers ───
 
-def _load_json(path, default=None):
+def _load_json(path: str | Path, default: Any = None) -> Any:
     """Try loading from file; return default on any failure."""
     try:
         with open(path, encoding="utf-8") as f:
@@ -45,7 +46,7 @@ def _load_json(path, default=None):
         return default if default is not None else []
 
 
-def _save_json(path, data):
+def _save_json(path: str | Path, data: Any) -> None:
     """Save to file; silently ignore if filesystem is read-only (Streamlit Cloud)."""
     try:
         with open(path, "w", encoding="utf-8") as f:
@@ -56,31 +57,31 @@ def _save_json(path, data):
 
 # ─── Portfolio ───
 
-def load_portfolio() -> list:
-    portfolios = _load_json(PORTFOLIO_FILE, [])
+def load_portfolio() -> list[Any]:
+    portfolios = cast("list[Any]", _load_json(PORTFOLIO_FILE, []))
     # Try session_state as fallback (Streamlit Cloud persistence)
     if st.session_state.get("_portfolio"):
         # Merge: file is primary, session supplements
-        sp = st.session_state._portfolio
+        sp = cast("list[Any]", st.session_state._portfolio)
         for t in sp:
             if t not in portfolios:
                 portfolios.append(t)
     return portfolios
 
 
-def save_portfolio(tickers: list) -> None:
+def save_portfolio(tickers: list[Any]) -> None:
     _save_json(PORTFOLIO_FILE, tickers)
     st.session_state._portfolio = list(tickers)
 
 
 # ─── Entry Prices ───
 
-def load_entry_prices() -> dict:
+def load_entry_prices() -> dict[str, dict[str, float | int]]:
     """Return {ticker: {"price": float, "qty": int}} dict. Empty dict if none saved.
     Auto-migrates old flat format {ticker: price} to new nested format.
     """
-    raw = _load_json(ENTRY_PRICES_FILE, {})
-    prices = {}
+    raw = cast("dict[Any, Any]", _load_json(ENTRY_PRICES_FILE, {}))
+    prices: dict[str, dict[str, float | int]] = {}
     for ticker, val in raw.items():
         if isinstance(val, (int, float)):
             prices[ticker] = {"price": float(val), "qty": 1}
@@ -96,7 +97,7 @@ def save_entry_price(ticker: str, price: float, qty: float=1) -> None:
     _save_json(ENTRY_PRICES_FILE, prices)
 
 
-def get_entry_info(entry: dict) -> dict:
+def get_entry_info(entry: Any) -> tuple[float, int]:
     """Extract (price, qty) from an entry_prices value (handles old + new format)."""
     if isinstance(entry, dict):
         return float(entry.get("price", 0)), int(entry.get("qty", 1))
@@ -105,7 +106,7 @@ def get_entry_info(entry: dict) -> dict:
     return 0, 1
 
 
-def calc_portfolio_pnl(entry_price: float, current_price: float, qty: float=1) -> dict:
+def calc_portfolio_pnl(entry_price: float, current_price: float, qty: float=1) -> dict[str, float]:
     """Calculate P&L from entry price, current price, and quantity.
     Returns {pnl_abs: float, pnl_pct: float}.
     """
@@ -118,17 +119,17 @@ def calc_portfolio_pnl(entry_price: float, current_price: float, qty: float=1) -
 
 # ─── Track Record ───
 
-def load_track_record() -> list:
-    return _load_json(TRACK_FILE, [])
+def load_track_record() -> list[Any]:
+    return cast("list[Any]", _load_json(TRACK_FILE, []))
 
 
-def save_track_record(records: list) -> None:
+def save_track_record(records: list[Any]) -> None:
     _save_json(TRACK_FILE, records)
 
 
 # ─── Cache ───
 
-def load_cache() -> dict:
+def load_cache() -> dict[str, Any]:
     """Return cache dict, lazy-loading from file and detecting external changes via mtime."""
     cache_mtime = st.session_state.get("_cache_mtime", -1)
     try:
@@ -137,12 +138,12 @@ def load_cache() -> dict:
         current_mtime = -1
 
     if current_mtime > cache_mtime or "_cache_data" not in st.session_state:
-        st.session_state._cache_data = _load_json(CACHE_FILE, {})
+        st.session_state._cache_data = cast("dict[str, Any]", _load_json(CACHE_FILE, {}))
         st.session_state._cache_mtime = current_mtime
-    return st.session_state._cache_data
+    return cast("dict[str, Any]", st.session_state._cache_data)
 
 
-def save_cache(cache: dict) -> None:
+def save_cache(cache: dict[str, Any]) -> None:
     """Write cache to disk + sync in-memory copy.
     Prunes oldest entries if cache exceeds MAX_CACHE_ENTRIES."""
     # Prune: keep only the newest N entries by cached_at timestamp
@@ -168,7 +169,7 @@ def cache_get(key: str) -> object | None:
             return None
         ttl = entry.get("ttl", CACHE_TTL)
         if age < ttl:
-            return entry["data"]
+            return cast("object", entry["data"])
     return None
 
 
@@ -190,14 +191,14 @@ HISTORY_FIELDS = [
 ]
 
 
-def load_sentiment_history(ticker: str, days: int=10) -> list:
+def load_sentiment_history(ticker: str, days: int=10) -> list[dict[str, str]]:
     """Load last N days of aggregated sentiment history for a ticker.
 
     Returns list of dicts sorted by date ascending (oldest first).
     Returns [] if file missing or ticker not found.
     """
     with _history_lock:
-        records = []
+        records: list[dict[str, str]] = []
         try:
             with open(HISTORY_FILE, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
@@ -211,7 +212,7 @@ def load_sentiment_history(ticker: str, days: int=10) -> list:
         return records[-days:]
 
 
-def save_sentiment_history(ticker: str, row_data: dict) -> None:
+def save_sentiment_history(ticker: str, row_data: dict[str, Any]) -> None:
     """Append or update today's aggregated sentiment history entry for a ticker.
 
     row_data: dict with keys matching HISTORY_FIELDS (excluding date/ticker).
@@ -222,7 +223,7 @@ def save_sentiment_history(ticker: str, row_data: dict) -> None:
     today = datetime.now().strftime("%Y-%m-%d")
 
     with _history_lock:
-        existing = []
+        existing: list[dict[str, str]] = []
         try:
             with open(HISTORY_FILE, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
@@ -252,7 +253,7 @@ def save_sentiment_history(ticker: str, row_data: dict) -> None:
             pass  # Read-only filesystem
 
 
-def history_to_csv(ticker: str, records: list) -> str | None:
+def history_to_csv(ticker: str, records: list[dict[str, Any]]) -> str | None:
     """Convert sentiment history records to CSV string, filtered by ticker.
 
     Returns a CSV string with header row. If records is empty, returns
@@ -287,14 +288,16 @@ SOURCE_WEIGHTS_PRIOR = {
 ACCURACY_FILE = DATA_DIR / "source_accuracy.json"
 
 
-def load_source_accuracy() -> dict:
+def load_source_accuracy() -> dict[str, dict[str, float]]:
     """Return {source: {"alpha": float, "beta": float}}.
     Starts with an informative Beta(weight*10+1, (1-weight)*10+1) prior
     centered on the hand-tuned default weights.
     """
     with _accuracy_lock:
         try:
-            data = _load_json(ACCURACY_FILE, None)
+            data = cast(
+                "dict[str, dict[str, float]] | None", _load_json(ACCURACY_FILE, None)
+            )
             if data:
                 return data
         except Exception as e:
@@ -305,7 +308,7 @@ def load_source_accuracy() -> dict:
         }
 
 
-def save_source_accuracy(data: dict) -> None:
+def save_source_accuracy(data: dict[str, dict[str, float]]) -> None:
     _save_json(ACCURACY_FILE, data)
 
 
@@ -316,24 +319,28 @@ def update_source_accuracy(source: str, was_correct: bool) -> None:
     """
     with _accuracy_lock:
         acc = load_source_accuracy()
+        alpha_beta: dict[str, float]
         if source not in acc:
             prior_w = SOURCE_WEIGHTS_PRIOR.get(source, 0.5)
-            acc[source] = {"alpha": prior_w * 10 + 1, "beta": (1 - prior_w) * 10 + 1}
-        if was_correct:
-            acc[source]["alpha"] += 1
+            alpha_beta = {"alpha": prior_w * 10 + 1, "beta": (1 - prior_w) * 10 + 1}
+            acc[source] = alpha_beta
         else:
-            acc[source]["beta"] += 1
+            alpha_beta = acc[source]
+        if was_correct:
+            alpha_beta["alpha"] += 1
+        else:
+            alpha_beta["beta"] += 1
         save_source_accuracy(acc)
 
 
 # ─── FII/DII Daily History ───
 
-def load_fiidii_history() -> list:
+def load_fiidii_history() -> list[dict[str, Any]]:
     """Return list of {date, fii_net, dii_net} dicts, sorted by date ascending."""
-    return _load_json(FIIDII_HISTORY_FILE, [])
+    return cast("list[dict[str, Any]]", _load_json(FIIDII_HISTORY_FILE, []))
 
 
-def save_fiidii_snapshot(fii_data: dict) -> None:
+def save_fiidii_snapshot(fii_data: dict[str, Any]) -> None:
     """Append today's FII/DII data if not already recorded for this date.
     Thread-safe via _fiidii_lock.
     """

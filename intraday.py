@@ -5,13 +5,15 @@ Streamlit dependencies. Designed to be testable with mocked yfinance calls.
 """
 
 import logging
+from typing import Any
 
+import pandas as pd
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
 
-def compute_vwap(ticker: str) -> dict:
+def compute_vwap(ticker: str) -> dict[str, Any]:
     """Compute VWAP + deviation from intraday 5-min data.
 
     Fetches today's 5-min OHLCV via yfinance. Returns current price relative
@@ -62,7 +64,7 @@ def compute_vwap(ticker: str) -> dict:
     }
 
 
-def compute_pivot_levels(hist: object) -> dict:
+def compute_pivot_levels(hist: pd.DataFrame | None) -> dict[str, Any]:
     """Compute classic pivot points from daily OHLCV history.
 
     Uses the last bar's High, Low, Close to compute:
@@ -97,7 +99,7 @@ def compute_pivot_levels(hist: object) -> dict:
     }
 
 
-def get_vix() -> dict:
+def get_vix() -> dict[str, Any]:
     """Fetch India VIX level and daily change.
 
     Fully wrapped in try/except — yfinance can return unexpected data shapes

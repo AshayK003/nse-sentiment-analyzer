@@ -43,17 +43,10 @@ jobs:
 
   typecheck:
     runs-on: ubuntu-latest
-    # Non-blocking: mypy results are version-sensitive across environments
-    # (79 errors on CI's current libs, clean locally). Graduates to a hard
-    # gate together with the annotation pass tracked in internals/AUDIT_REPORT.md.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt mypy types-requests
-      # Default mypy (not --strict): the Streamlit UI shell carries ~350
-      # missing-annotation errors (see internals/AUDIT_REPORT.md finding #1).
-      # Strict mode returns once those are annotated.
-      - run: mypy *.py --ignore-missing-imports
+      - run: mypy --strict *.py --ignore-missing-imports

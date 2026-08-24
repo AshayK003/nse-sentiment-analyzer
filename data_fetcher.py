@@ -11,8 +11,10 @@ import random
 import re
 import threading
 import time
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from typing import Any, cast
 
 import feedparser
 import pandas as pd
@@ -39,18 +41,18 @@ _rate_limit_lock = threading.Lock()
 _DDGS_RATE_LIMITED_UNTIL = 0.0
 _DDGS_COOLDOWN = 60  # seconds
 _ddgs_rate_limit_lock = threading.Lock()
-def _check_rate_limited():
+def _check_rate_limited() -> bool:
     """Return True if we're in a global rate-limit cooldown.
     Resets automatically after COOLDOWN seconds. Thread-safe."""
     with _rate_limit_lock:
         return time.time() < _RATE_LIMITED_UNTIL
-def _mark_rate_limited():
+def _mark_rate_limited() -> None:
     """Set global cooldown. All yfinance calls skip for COOLDOWN seconds.
     Thread-safe — overlapping calls just extend the window slightly."""
     global _RATE_LIMITED_UNTIL
     with _rate_limit_lock:
         _RATE_LIMITED_UNTIL = time.time() + _RATE_LIMIT_COOLDOWN
-def _mark_ddgs_rate_limited():
+def _mark_ddgs_rate_limited() -> None:
     """Set DDGS cooldown. Skips DuckDuckGo fallback for _DDGS_COOLDOWN seconds.
     Thread-safe — uses its own lock, separate from yfinance rate limiter."""
     global _DDGS_RATE_LIMITED_UNTIL
@@ -74,7 +76,7 @@ yf.utils._session = _session
 _TICKER_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "tickers.json")
 try:
     with open(_TICKER_DATA_PATH, encoding="utf-8") as _tf:
-        NSE_TICKERS = json.load(_tf)
+        NSE_TICKERS: dict[str, str] = json.load(_tf)
 except (OSError, json.JSONDecodeError):  # missing/corrupt file: keep app alive with empty universe
     NSE_TICKERS = {}
 # ─── Company name aliases for RSS headline matching ───
@@ -84,11 +86,11 @@ except (OSError, json.JSONDecodeError):  # missing/corrupt file: keep app alive 
 _ALIAS_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "aliases.json")
 try:
     with open(_ALIAS_DATA_PATH, encoding="utf-8") as _af:
-        ALIASES = json.load(_af)
+        ALIASES: dict[str, str] = json.load(_af)
 except (OSError, json.JSONDecodeError):
     ALIASES = {}
 # Precompute reverse ALIASES (lowercased name → ticker) for fast input resolution
-_ALIAS_LOOKUP = {}
+_ALIAS_LOOKUP: dict[str, str] = {}
 for _ak, _at in ALIASES.items():
     _alias_upper = _ak.strip().upper()
     if _alias_upper not in _ALIAS_LOOKUP:
@@ -131,17 +133,18 @@ def resolve_ticker(raw_input: str) -> tuple[str | None, str | None]:
         online_result = _search_ticker_online(raw_input.strip())
         if online_result and online_result[0]:
             # Validate the found ticker exists in our system
-            ticker, name = online_result
-            if ticker in NSE_TICKERS:
-                return ticker, NSE_TICKERS[ticker]
+            found_ticker, online_name = online_result
+            assert found_ticker is not None
+            if found_ticker in NSE_TICKERS:
+                return found_ticker, NSE_TICKERS[found_ticker]
             # New ticker not in NSE_TICKERS — still valid, use it
-            return ticker, name
+            return found_ticker, online_name
     return None, None
 # Cache for online ticker lookups (avoids repeated API calls)
-_online_ticker_cache = {}
+_online_ticker_cache: dict[str, tuple[str | None, str | None]] = {}
 _online_cache_lock = threading.Lock()
 _MAX_ONLINE_CACHE = 500
-def _search_yahoo_finance(query):
+def _search_yahoo_finance(query: str) -> tuple[str | None, str | None]:
     """Search Yahoo Finance REST API for NSE ticker. Fast (~200ms).
     Returns (ticker, name) or (None, None).
     """
@@ -165,7 +168,7 @@ def _search_yahoo_finance(query):
     except Exception as e:
         logger.debug("_search_yahoo_finance(%s) failed: %s", query, e)
     return None, None
-def _search_yfinance_sdk(query):
+def _search_yfinance_sdk(query: str) -> tuple[str | None, str | None]:
     """Search yfinance SDK for NSE ticker. Slower (~1-2s) but more comprehensive.
     Returns (ticker, name) or (None, None).
     """
@@ -185,7 +188,7 @@ def _search_yfinance_sdk(query):
     except Exception as e:
         logger.debug("_search_yfinance_sdk(%s) failed: %s", query, e)
     return None, None
-def _search_ticker_online(query):
+def _search_ticker_online(query: str) -> tuple[str | None, str | None]:
     """Search for NSE ticker by company name using chained APIs.
     Resolution order:
       1. In-memory cache (instant)
@@ -230,7 +233,7 @@ def _search_ticker_online(query):
         if len(_online_ticker_cache) < _MAX_ONLINE_CACHE:
             _online_ticker_cache[q_upper] = (None, None)
     return None, None
-def _probe_ticker_direct(query):
+def _probe_ticker_direct(query: str) -> tuple[str | None, str | None]:
     """Try the query (and common variations) as direct .NS ticker.
     When search APIs fail (rebranded stocks, delisted names, missing index
     entries), this probes yfinance directly. Handles:
@@ -269,10 +272,10 @@ _PRICE_CACHE_DIR = ".price_cache"
 _CACHE_TTL_DAYS = 7
 os.makedirs(_PRICE_CACHE_DIR, exist_ok=True)
 
-_hist_cache = {}
+_hist_cache: dict[str, pd.DataFrame] = {}
 _hist_cache_lock = threading.RLock()
 _MAX_CACHED_TICKERS = 50
-def _evict_hist_cache():
+def _evict_hist_cache() -> None:
     """Evict oldest entries when cache exceeds _MAX_CACHED_TICKERS and clear stale L2 disk cache."""
     with _hist_cache_lock:
         while len(_hist_cache) > _MAX_CACHED_TICKERS:
@@ -291,7 +294,7 @@ def _evict_hist_cache():
                 except Exception as e:
                     logger.debug("Cache eviction failed: %s", e)  # non-fatal: stale file stays
 
-def get_cached_history(ticker: str) -> object | None:
+def get_cached_history(ticker: str) -> pd.DataFrame | None:
     """Return 1y price history for a ticker, from memory cache, disk cache, or yfinance.
     Populated by get_stock_info() to share the yfinance 1y OHLCV fetch.
     """
@@ -340,14 +343,14 @@ def get_cached_history(ticker: str) -> object | None:
             logger.debug("History fetch attempt failed: %s", e)
             continue
     return None
-def _strip_html(text):
+def _strip_html(text: str) -> str:
     """Strip HTML tags + unescape entities for clean text analysis & display."""
     if not text:
         return ""
     text = re.sub(r"<[^>]+>", " ", text)
     text = html.unescape(text)
     return " ".join(text.split())
-def _retry_fetch(max_attempts=3, base_wait=1, backoff=2):
+def _retry_fetch(max_attempts: int = 3, base_wait: float = 1.0, backoff: int = 2) -> Iterator[float]:
     """Generator that yields attempt numbers for retry loops.
     Uses exponential backoff with full jitter (AWS retry style).
     If _check_rate_limited() is True, skips sleep and yields immediately.
@@ -360,13 +363,13 @@ def _retry_fetch(max_attempts=3, base_wait=1, backoff=2):
             sleep = base_wait * (backoff ** attempt)
             jitter = sleep * 0.5 * random.random()
             time.sleep(sleep + jitter)
-def _nf(v):
+def _nf(v: Any) -> float | None:
     """NaN-safe float extractor — returns None for NaN/None."""
     if v is None:
         return None
     f = float(v)
     return None if math.isnan(f) else f
-def _fetch_info_with_retry(ticker, suffixes):
+def _fetch_info_with_retry(ticker: str, suffixes: list[str]) -> tuple[dict[str, Any] | None, str]:
     """Phase 1: best-effort metadata fetch with retry and suffix fallback.
     Returns (info_dict_or_None, name_fallback)."""
     info = None
@@ -378,7 +381,7 @@ def _fetch_info_with_retry(ticker, suffixes):
                 raw = stock.info
                 if raw and isinstance(raw, dict) and len(raw) > 10:
                     info = raw
-                    name_fallback = info.get("longName", info.get("shortName", ticker))
+                    name_fallback = cast(str, info.get("longName", info.get("shortName", ticker)))
                     break
             except Exception as e:
                 # Any yfinance error could be rate-limiting
@@ -390,7 +393,7 @@ def _fetch_info_with_retry(ticker, suffixes):
     return info, name_fallback
 
 
-def _fetch_history_with_retry(ticker, suffixes):
+def _fetch_history_with_retry(ticker: str, suffixes: list[str]) -> pd.DataFrame | None:
     """Phase 2: required price-history fetch with retry and suffix fallback."""
     for suffix in suffixes:
         stock = yf.Ticker(f"{ticker}{suffix}")
@@ -405,7 +408,9 @@ def _fetch_history_with_retry(ticker, suffixes):
     return None
 
 
-def _retry_sparse_info(info, hist, ticker, suffixes):
+def _retry_sparse_info(
+    info: dict[str, Any] | None, hist: pd.DataFrame | None, ticker: str, suffixes: list[str]
+) -> dict[str, Any] | None:
     """Phases 2b/2c: after history (which took ~3-6s), retry metadata if it
     failed or was sparse — yfinance .info is flaky for Indian stocks and the
     rate-limit may have cleared. Patches sector/industry into info.
@@ -451,7 +456,12 @@ def _retry_sparse_info(info, hist, ticker, suffixes):
     return info
 
 
-def _build_price_fields(hist, info):
+_PriceTuple = tuple[float | None, float | None, float | None, float | None, float | None, int]
+
+
+def _build_price_fields(
+    hist: pd.DataFrame | None, info: dict[str, Any] | None
+) -> _PriceTuple | None:
     """Extract price/volume fields from history (preferred) or info fallback.
     Returns (current_price, change, change_pct, day_high, day_low, volume)
     or None if no usable data source."""
@@ -482,7 +492,7 @@ def _build_price_fields(hist, info):
     return None
 
 
-def get_stock_info(ticker: str) -> dict | None:
+def get_stock_info(ticker: str) -> dict[str, Any] | None:
     """Fetch stock data from yfinance with retry and backoff.
     Two-phase approach:
       1. info (metadata: name, sector, PE, 52w) — best-effort, not blocking.
@@ -496,7 +506,7 @@ def get_stock_info(ticker: str) -> dict | None:
         # get_technical_indicators) don't re-fetch from yfinance.
         if ticker not in _hist_cache:
             get_cached_history(ticker)
-        return cached
+        return cast("dict[str, Any]", cached)
     # Global rate-limit cooldown — if yfinance recently 429'd us, wait and retry
     if _check_rate_limited():
         import time as _time
@@ -557,14 +567,14 @@ def get_stock_info(ticker: str) -> dict | None:
         return None
 
 
-def _parse_date(d):
+def _parse_date(d: Any) -> str:
     """Parse RSS date tuple to ISO date string."""
     try:
         return datetime(*d[:6]).isoformat()[:10]
     except Exception as e:
         logger.debug("_parse_date failed: %s", e)
         return ""
-def _relevant(ticker, company_name, title, body):
+def _relevant(ticker: str, company_name: str, title: str, body: str | None) -> bool:
     """Check if a headline is relevant to the given ticker/company.
     Uses phrase-level matching to avoid false positives:
     1. Ticker symbol (e.g. 'RELIANCE', 'HDFCBANK') — most reliable
@@ -590,7 +600,7 @@ def _relevant(ticker, company_name, title, body):
 # ─── RSS Feeds ───
 # Yahoo Finance RSS removed (returns 429 / rate-limited on cloud IPs)
 # LiveMint and Business Standard tested; BS returns 403
-TICKER_RSS_FEEDS = [
+TICKER_RSS_FEEDS: list[Callable[[str, str], str | None]] = [
     # Google News RSS for ticker-specific results
     lambda t, c: f"https://news.google.com/rss/search?q={t}+NSE+stock&hl=en-IN&gl=IN&ceid=IN:en",
     lambda t, c: f"https://news.google.com/rss/search?q={c}+NSE&hl=en-IN&gl=IN&ceid=IN:en" if c != t else None,
@@ -627,7 +637,9 @@ SOURCE_LABELS = {
     "google news commodities": "Google News",
     "duckduckgo": "DuckDuckGo",
 }
-def _parse_rss_feed(source_name, url, ticker, company_name):
+def _parse_rss_feed(
+    source_name: str, url: str, ticker: str, company_name: str
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
     """Parse one RSS feed in a worker thread — no shared state mutation.
 
     Returns (relevant_items, all_items, label):
@@ -660,7 +672,14 @@ def _parse_rss_feed(source_name, url, ticker, company_name):
     except Exception as e:
         logger.debug("RSS relevance filtering failed: %s", e)  # fall through with unfiltered
     return relevant, all_items, label
-def _ddgs_search(ticker, company_name, seen_urls, all_results, source_stats, max_results):
+def _ddgs_search(
+    ticker: str,
+    company_name: str,
+    seen_urls: set[str],
+    all_results: list[dict[str, Any]],
+    source_stats: dict[str, int],
+    max_results: int,
+) -> None:
     """Search DuckDuckGo as fallback when RSS returns little."""
     with DDGS() as ddgs:
         for query in [f"{ticker} NSE", f"{company_name} stock"]:
@@ -689,7 +708,9 @@ def _ddgs_search(ticker, company_name, seen_urls, all_results, source_stats, max
             time.sleep(0.3)
             if len(all_results) >= max_results:
                 break
-def search_news(ticker: str, company_name: str, max_results: int=10) -> tuple:
+def search_news(
+    ticker: str, company_name: str, max_results: int = 10
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int], Any, Any]:
     """Fetch news from RSS feeds (primary), fallback to DuckDuckGo.
 
     Returns (articles, cascade_pool, source_health):
@@ -699,7 +720,7 @@ def search_news(ticker: str, company_name: str, max_results: int=10) -> tuple:
     """
     cached = cache_get(f"news_{ticker}")
     if cached:
-        news, health = cached
+        news, health = cast("tuple[list[dict[str, Any]], dict[str, int]]", cached)
         # Return full cached list for cascade_pool so commodity detection
         # has more articles to scan, even on cache hit.
         dissemination_clusters = get_dissemination_clusters(news)
@@ -709,7 +730,7 @@ def search_news(ticker: str, company_name: str, max_results: int=10) -> tuple:
     all_results = []
     cascade_pool = []
     cascade_urls = set()
-    source_stats = {}  # source_name -> hit_count
+    source_stats: dict[str, int] = {}  # source_name -> hit_count
     # Ticker-specific RSS feeds
     for rss_fn in TICKER_RSS_FEEDS:
         url = rss_fn(ticker, company_name)
@@ -787,7 +808,7 @@ def search_news(ticker: str, company_name: str, max_results: int=10) -> tuple:
     return all_results[:max_results], cascade_pool, source_stats, dissemination_clusters, dissemination_score
 
 
-def _ddgs_commodity_search(all_items, seen_urls):
+def _ddgs_commodity_search(all_items: list[dict[str, Any]], seen_urls: set[str]) -> None:
     """DuckDuckGo fallback for commodity news when RSS returns little."""
     _COMMODITY_QUERIES = [
         "crude oil price India today",
@@ -824,7 +845,7 @@ def _ddgs_commodity_search(all_items, seen_urls):
             time.sleep(0.3)
 
 
-def fetch_market_headlines() -> list:
+def fetch_market_headlines() -> list[dict[str, Any]]:
     """Fetch broad market + commodity headlines for cascade detection.
 
     Fetches both INDIA_RSS_FEEDS and COMMODITY_RSS_FEEDS without ticker filtering.
@@ -835,7 +856,7 @@ def fetch_market_headlines() -> list:
     """
     cached = cache_get("market_headlines")
     if cached:
-        return cached
+        return cast("list[dict[str, Any]]", cached)
     all_items = []
     seen_urls = set()
     all_feeds = list(INDIA_RSS_FEEDS) + list(COMMODITY_RSS_FEEDS)

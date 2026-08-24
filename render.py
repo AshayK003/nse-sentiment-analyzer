@@ -10,6 +10,7 @@ import logging
 import math
 import secrets
 from pathlib import Path
+from typing import Any, TypeGuard, cast
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +22,9 @@ from persistence import load_source_accuracy
 
 # ─── Inline SVG icons (Lucide, MIT-licensed, stroke-based) ───
 # Inline SVGs avoid a 100KB+ icon library for ~15 icons
-_ICON = {}
+_ICON: dict[str, str] = {}
 
-def _svg(path, view_box="0 0 24 24"):
+def _svg(path: str, view_box: str = "0 0 24 24") -> str:
     """Build a 16x16 inline SVG icon with currentColor stroke."""
     return f'<svg class="icon" width="16" height="16" viewBox="{view_box}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{path}</svg>'
 
@@ -76,19 +77,19 @@ def h(s: object) -> str:
     return html.escape(str(s), quote=True).replace("'", "&#39;")
 
 
-def _is_valid_num(val):
+def _is_valid_num(val: object) -> TypeGuard[float]:
     """Return True if val is a finite number (not NaN, not None)."""
     if isinstance(val, (int, float)):
         return not math.isnan(val) and math.isfinite(val)
     return False
 
 
-def _pct(v):
+def _pct(v: float) -> float:
     """Map a 0-1 ratio to a 0-100 percentage, clamped."""
     return max(0, min(100, v * 100))
 
 
-def _session_quality_badge():
+def _session_quality_badge() -> str:
     """Return a session quality warning badge based on current IST.
     
     Returns empty string during optimal trading windows.
@@ -142,7 +143,7 @@ def fmt_large(val: object) -> str:
     return "N/A"
 
 
-def fmt_de(de_val: object, sector: str=None) -> str:
+def fmt_de(de_val: object, sector: str | None = None) -> str:
     """Format Debt-to-Equity ratio with risk badge.
 
     Banks/Financial services naturally have high D/E (customer deposits
@@ -178,7 +179,7 @@ def get_sentiment_svg(compound: float) -> str:
     return _ICON["neutral"]
 
 
-def render_sparkline(values: list, width: int=160, height: int=32, color: str="#22b573") -> str:
+def render_sparkline(values: list[float], width: int = 160, height: int = 32, color: str = "#22b573") -> str:
     """Render an inline SVG sparkline from a list of 0-100 values.
 
     Shows a flat line for 1 value. Returns empty string if None or empty list.
@@ -221,7 +222,7 @@ def render_sparkline(values: list, width: int=160, height: int=32, color: str="#
 </svg>"""
 
 
-def _render_cascade_html(cascade_effects):
+def _render_cascade_html(cascade_effects: list[dict[str, Any]] | None) -> str:
     """Build the cascade/ripple effects HTML section.
 
     Shows commodity drivers detected in news and the tickers they affect.
@@ -266,7 +267,7 @@ def _render_cascade_html(cascade_effects):
 </div>"""
 
 
-def _render_pivot_html(pivot_data):
+def _render_pivot_html(pivot_data: dict[str, Any] | None) -> str:
     """Render classic pivot points as an HTML string."""
     if not pivot_data or not any(pivot_data.get(k) for k in ("pivot", "resistance", "support")):
         return ""
@@ -289,7 +290,7 @@ def _render_pivot_html(pivot_data):
     )
 
 
-def _build_chart_script(ohlcv_json, nonce):
+def _build_chart_script(ohlcv_json: str | None, nonce: str) -> str:
     """Build TradingView Lightweight Charts script with Bollinger + SMA overlays.
     Returns empty string if no data.
     """
@@ -398,7 +399,9 @@ def _build_chart_script(ohlcv_json, nonce):
 </script>"""
 
 
-def _card_price(company_name, ticker, proximity_class, proximity_msg, circuit_html, price, change_val, change_pct, vwap_html, day_range, vol_spike_html, volume, vol_quality_html, pe_str, stats_rows):
+def _card_price(company_name: str, ticker: str, proximity_class: str, proximity_msg: str, circuit_html: str,
+                price: Any, change_val: Any, change_pct: Any, vwap_html: str, day_range: str,
+                vol_spike_html: str, volume: str, vol_quality_html: str, pe_str: str, stats_rows: str) -> str:
     """Render the price card card as an HTML string."""
     return f"""<!-- ═══ PRICE CARD ═══ -->
     <div class="card">
@@ -438,7 +441,11 @@ def _card_price(company_name, ticker, proximity_class, proximity_msg, circuit_ht
     </div>"""
 
 
-def _card_sentiment(news_items, source_breakdown, primary_emoji_svg, primary_signal, sent_class, rec_icon, rec_text, rec_detail, confidence_pct, ss_html, pos_pct, neu_pct, neg_pct, badge_section, source_health, session_badge):
+def _card_sentiment(news_items: list[dict[str, Any]], source_breakdown: list[dict[str, Any]],
+                    primary_emoji_svg: str, primary_signal: str, sent_class: str, rec_icon: str,
+                    rec_text: str, rec_detail: str, confidence_pct: float, ss_html: str,
+                    pos_pct: float, neu_pct: float, neg_pct: float, badge_section: str,
+                    source_health: str, session_badge: str) -> str:
     """Render the sentiment card card as an HTML string."""
     return f"""<!-- ═══ SENTIMENT CARD ═══ -->
     <div class="card">
@@ -473,7 +480,7 @@ def _card_sentiment(news_items, source_breakdown, primary_emoji_svg, primary_sig
     </div>"""
 
 
-def _card_news(news_items, news_html):
+def _card_news(news_items: list[dict[str, Any]], news_html: str) -> str:
     """Render the news headlines card as an HTML string."""
     return f"""<!-- ═══ NEWS HEADLINES ═══ -->
     <div class="card">
@@ -482,7 +489,14 @@ def _card_news(news_items, news_html):
     </div>"""
 
 
-def _card_technicals(ti_section, ti_rows, cross_50_html, cross_200_html, pivot_data, cascade_effects):
+def _card_technicals(
+    ti_section: str,
+    ti_rows: str,
+    cross_50_html: str,
+    cross_200_html: str,
+    pivot_data: dict[str, Any] | None,
+    cascade_effects: list[dict[str, Any]] | None,
+) -> str:
     """Render the technical indicators card as an HTML string."""
     return f"""<!-- ═══ TECHNICAL INDICATORS ═══ -->
     <div class="card">
@@ -496,7 +510,7 @@ def _card_technicals(ti_section, ti_rows, cross_50_html, cross_200_html, pivot_d
 {_render_cascade_html(cascade_effects)}"""
 
 
-def _card_chart(acc_html, cal_html, fii_html, _chart_script, auto_height_script):
+def _card_chart(acc_html: str, cal_html: str, fii_html: str, _chart_script: str, auto_height_script: str) -> str:
     """Render the price chart card as an HTML string."""
     return f"""<!-- ═══ PRICE CHART ═══ -->
     <div class="card">
@@ -522,8 +536,15 @@ def _card_chart(acc_html, cal_html, fii_html, _chart_script, auto_height_script)
 </html>"""
 
 
-def render_dashboard(result: dict, ticker: str, company_name: str, technical_indicators: dict | None=None,
-                     track_record: list | None=None, fii_dii_data: dict | None=None, ohlcv_json: str | None=None) -> str:
+def render_dashboard(
+    result: dict[str, Any],
+    ticker: str,
+    company_name: str,
+    technical_indicators: dict[str, Any] | None = None,
+    track_record: list[dict[str, Any]] | None = None,
+    fii_dii_data: dict[str, Any] | None = None,
+    ohlcv_json: str | None = None,
+) -> str:
     """Return a complete premium HTML dashboard as a string."""
     stock = result["stock_data"]
     news_items = result["news_items"]
@@ -625,7 +646,7 @@ def render_dashboard(result: dict, ticker: str, company_name: str, technical_ind
             vol_quality_html = '<span class="session-badge warn"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m8 12 4 4 4-4"/></svg> Volume is 0 — check data quality</span>'
         elif avg_vol_50 and avg_vol_50 > 0 and vol_now < avg_vol_50 * 0.1:
             vol_quality_html = '<span class="session-badge info"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m8 12 4 4 4-4"/></svg> Suspiciously low volume</span>'
-        spike_result = detect_volume_spike(vol_now, avg_vol_50, threshold=1.5)
+        spike_result = detect_volume_spike(vol_now, cast(float, avg_vol_50), threshold=1.5)
         if spike_result["spike"]:
             ratio = spike_result["ratio"]
             if ratio >= 3:

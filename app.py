@@ -13,13 +13,14 @@ import re
 import time
 from datetime import datetime
 
+import pandas as pd
 import streamlit as st
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
 
-def _ohlcv_to_json(hist):
+def _ohlcv_to_json(hist: pd.DataFrame | None) -> str:
     """Convert yfinance OHLCV DataFrame to JSON for TradingView Lightweight Charts."""
     if hist is None or hist.empty:
         return "[]"
@@ -42,6 +43,8 @@ CONTACT = {
     "x_handle": "@sentinelcipher",
     "chai_url": "https://chai4.me/ashaykushwaha003",
 }
+
+from typing import Any, cast
 
 from aggregate_sentiment import compute_smartscore
 from cascade import detect_cascade
@@ -238,7 +241,7 @@ _MAX_SEARCHES = 6
 _SEARCH_WINDOW = 60  # seconds
 
 
-def _check_rate_limit():
+def _check_rate_limit() -> bool:
     """Return True if the user may proceed, False if rate-limited.
 
     Maintains a rolling window of search timestamps in session_state.
@@ -265,7 +268,7 @@ def _check_rate_limit():
     return True
 
 
-def analyze_ticker(ticker: str, company_name: str, quick: bool=False) -> dict | None:
+def analyze_ticker(ticker: str, company_name: str, quick: bool = False) -> dict[str, Any] | None:
     """Run full analysis pipeline for a ticker. Returns dict or None.
     
     When quick=True (briefing mode), skips expensive news search and sentiment
@@ -408,7 +411,7 @@ def analyze_ticker(ticker: str, company_name: str, quick: bool=False) -> dict | 
     }
 
 
-def _fetch_portfolio_price(t):
+def _fetch_portfolio_price(t: str) -> tuple[str, dict[str, Any] | None]:
     """Fetch price for one portfolio ticker — runs in worker thread."""
     try:
         tk = yf.Ticker(t + ".NS")
@@ -425,7 +428,7 @@ def _fetch_portfolio_price(t):
     return t, None
 
 
-def _refresh_price_cache(portfolio):
+def _refresh_price_cache(portfolio: list[str]) -> None:
     """Fetch current prices for all portfolio stocks and cache in session state."""
     if not portfolio:
         return
@@ -448,7 +451,9 @@ def _refresh_price_cache(portfolio):
         st.warning(f"Could not refresh price for: {', '.join(_failed)}")
 
 
-def _render_portfolio_list(portfolio, entry_prices, key_prefix="side"):
+def _render_portfolio_list(
+    portfolio: list[str], entry_prices: dict[str, Any], key_prefix: str = "side"
+) -> None:
     """Render portfolio listing with delete buttons for the sidebar.
 
     Compact single-line layout with ticker, price, P&L, and remove button.
@@ -846,7 +851,7 @@ if final_ticker and final_ticker != "":
     _resolved_ticker, _resolved_name = resolve_ticker(final_ticker)
     if _resolved_ticker:
         final_ticker = _resolved_ticker
-        company_name = _resolved_name
+        company_name = cast(str, _resolved_name)
     else:
         company_name = NSE_TICKERS.get(final_ticker, final_ticker)
 

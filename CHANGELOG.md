@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.15.0] - 2026-08-24
+
+### Added
+- **Full mypy --strict coverage.** All 13 source modules are now
+  strict-clean (was: 348 missing-annotation errors, app shell at 0%
+  typed surface). CI typecheck is a hard gate again.
+
+
 ## [2.14.0] — 2026-08-24
 
 ### Added

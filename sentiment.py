@@ -4,6 +4,7 @@ VADER + custom financial lexicon tuned for Indian markets.
 """
 
 import logging
+from typing import Any
 
 import streamlit as st
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -151,7 +152,7 @@ FINANCIAL_BOOSTERS = {
 # get_source_weights() loads the learned posterior weights at runtime.
 
 
-def get_source_weights() -> dict:
+def get_source_weights() -> dict[str, float]:
     """Return learned source weights from Bayesian calibration.
     Falls back to SOURCE_WEIGHTS_PRIOR defaults if calibration file missing or empty."""
     try:
@@ -175,7 +176,9 @@ def get_sia() -> SentimentIntensityAnalyzer:
     return sia
 
 
-def analyze_headline_sentiment(headline: str, body: str, sia, source: str | None=None) -> dict:
+def analyze_headline_sentiment(
+    headline: str, body: str, sia: SentimentIntensityAnalyzer, source: str | None = None
+) -> dict[str, Any]:
     """Score a headline using VADER + financial lexicon."""
     text = f"{headline}. {body}" if body else headline
     vader = sia.polarity_scores(text)
@@ -190,12 +193,12 @@ def analyze_headline_sentiment(headline: str, body: str, sia, source: str | None
 # transformers/torch not installed or model download fails.
 
 @st.cache_resource(show_spinner="Loading FinBERT model...")
-def get_finbert():
+def get_finbert() -> Any:
     """Load FinBERT pipeline for financial sentiment. Cached — 10s first load,
     instant thereafter. Returns None if dependencies unavailable."""
     try:
         from transformers import pipeline
-        return pipeline(
+        return pipeline(  # type: ignore[call-overload]
             "sentiment-analysis",
             model="ProsusAI/finbert",
             top_k=None,
@@ -205,7 +208,7 @@ def get_finbert():
         return None
 
 
-def analyze_headline_finbert(headline: str, body: str, pipe) -> dict:
+def analyze_headline_finbert(headline: str, body: str, pipe: Any) -> dict[str, Any]:
     """Score a headline using FinBERT. Returns same shape as
     analyze_headline_sentiment() for drop-in compatibility."""
     if pipe is None:
@@ -227,7 +230,9 @@ def analyze_headline_finbert(headline: str, body: str, pipe) -> dict:
         return {"compound": 0.0}
 
 
-def get_weighted_signal(headline_scores: list, source_weights: dict | None=None) -> tuple:
+def get_weighted_signal(
+    headline_scores: list[dict[str, Any]], source_weights: dict[str, float] | None = None
+) -> tuple[Any, ...]:
     """Compute source-weighted blended signal.
 
     headline_scores: list of {"compound": float, "source": str}

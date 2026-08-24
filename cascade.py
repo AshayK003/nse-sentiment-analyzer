@@ -14,6 +14,7 @@ Design:
 
 import logging
 import re
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 #   +1 = commodity rise is BAD for this ticker (Bearish on rise)
 #   -1 = commodity rise is GOOD for this ticker (Bullish on rise)
 # 4-tuple: (ticker, direction, bad_reason, good_reason)
-CASCADE_MAP = [
+CASCADE_MAP: list[dict[str, Any]] = [
     {
         "driver": "Crude Oil",
         "direction": +1,  # crude rises → negative for consumers
@@ -192,7 +193,7 @@ _DIR_DOWN = re.compile(
 _COMPILED_PATTERNS = None
 
 
-def _get_compiled():
+def _get_compiled() -> dict[str, list[re.Pattern[str]]]:
     global _COMPILED_PATTERNS
     if _COMPILED_PATTERNS is None:
         _COMPILED_PATTERNS = {
@@ -202,7 +203,11 @@ def _get_compiled():
     return _COMPILED_PATTERNS
 
 
-def detect_cascade(news_items: list, ticker_lookup: dict | None=None, focus_ticker: str | None=None) -> list:
+def detect_cascade(
+    news_items: list[dict[str, Any]],
+    ticker_lookup: dict[str, str] | None = None,
+    focus_ticker: str | None = None,
+) -> list[dict[str, Any]]:
     """Scan a list of news items for commodity/macro keywords.
 
     Args:
@@ -225,19 +230,19 @@ def detect_cascade(news_items: list, ticker_lookup: dict | None=None, focus_tick
 
     patterns = _get_compiled()
     # Build combined text from all news items (deduplicated)
-    texts = []
+    texts: list[str] = []
     for item in news_items:
         text = (item.get("title") or "") + " " + (item.get("body") or "")
         texts.append(text)
 
     focus_ticker = (focus_ticker or "").upper()
-    results = []
+    results: list[dict[str, Any]] = []
 
     for entry in CASCADE_MAP:
         driver = entry["driver"]
         driver_patterns = patterns[driver]
         # Find which articles mention this commodity
-        matching_texts = []
+        matching_texts: list[str] = []
         for text in texts:
             for pat in driver_patterns:
                 if pat.search(text):
@@ -268,7 +273,7 @@ def detect_cascade(news_items: list, ticker_lookup: dict | None=None, focus_tick
         impact = direction * entry["direction"]
 
         # Build per-ticker mention patterns (word-boundary ticker + company name)
-        ticker_pats = {}
+        ticker_pats: dict[str, list[re.Pattern[str]]] = {}
         for ticker, ticker_dir, bad_reason, good_reason in entry["affects"]:
             company = (ticker_lookup or {}).get(ticker, "")
             pats = [re.compile(rf"\b{re.escape(ticker)}\b", re.IGNORECASE)]
@@ -277,7 +282,7 @@ def detect_cascade(news_items: list, ticker_lookup: dict | None=None, focus_tick
             ticker_pats[ticker] = pats
 
         # Check each ticker against all matching articles
-        ticker_mentioned = {}
+        ticker_mentioned: dict[str, bool] = {}
         for ticker in ticker_pats:
             for text in matching_texts:
                 if any(p.search(text) for p in ticker_pats[ticker]):
@@ -286,7 +291,7 @@ def detect_cascade(news_items: list, ticker_lookup: dict | None=None, focus_tick
 
         # Build resolved list — compute per-ticker impact, pick reason, mark searched
         any_mentioned = False
-        resolved = []
+        resolved: list[dict[str, Any]] = []
         for ticker, ticker_dir, bad_reason, good_reason in entry["affects"]:
             company = (ticker_lookup or {}).get(ticker, ticker)
             ticker_impact = direction * ticker_dir

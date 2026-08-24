@@ -4,6 +4,7 @@ Extracted from app.py so the Streamlit orchestration layer stays focused
 on layout and navigation (Issue #8).
 """
 import re
+from typing import Any, cast
 
 import pandas as pd
 import streamlit as st
@@ -25,7 +26,9 @@ from persistence import (
 from render import _is_valid_num
 
 
-def render_bottom_cards(portfolio: list, final_ticker: str, entry_prices: dict) -> None:
+def render_bottom_cards(
+    portfolio: list[str], final_ticker: str, entry_prices: dict[str, dict[str, Any]]
+) -> None:
     """Render the bottom Portfolio + Track Record cards section.
 
     Uses Streamlit native containers with glassmorphism styling for a
@@ -148,8 +151,8 @@ def render_bottom_cards(portfolio: list, final_ticker: str, entry_prices: dict) 
             if total_current:
                 sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">Current <span style="font-weight:600;color:#c0c5ce">\u20b9{total_current:,.0f}</span></span>')
             if total_pnl_pct is not None:
-                pnl_color = "#22c55e" if total_pnl >= 0 else "#ef4444"
-                pnl_sign = "+" if total_pnl >= 0 else ""
+                pnl_color = "#22c55e" if cast(float, total_pnl) >= 0 else "#ef4444"
+                pnl_sign = "+" if cast(float, total_pnl) >= 0 else ""
                 sum_items.append(f'<span style="font-size:0.75rem;color:#8891a0">P&amp;L <span style="font-weight:600;color:{pnl_color}">{pnl_sign}{total_pnl_pct:.1f}%</span></span>')
             if day_avg:
                 day_color = "#22c55e" if day_avg >= 0 else "#ef4444"
@@ -330,7 +333,7 @@ def render_bottom_cards(portfolio: list, final_ticker: str, entry_prices: dict) 
                     if not df.empty:
                         chart_df = df.set_index("date")[["smartscore"]]
                         st.line_chart(chart_df, y="smartscore", use_container_width=True)
-            csv_data = history_to_csv(final_ticker, history)
+            csv_data = cast(str, history_to_csv(final_ticker, history))
             st.download_button(
                 label="Export CSV",
                 data=csv_data,

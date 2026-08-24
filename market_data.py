@@ -3,13 +3,15 @@ FII/DII institutional flow fetched via nsepython.
 """
 
 import logging
+from typing import Any
 
+import pandas as pd
 import streamlit as st
 
 logger = logging.getLogger(__name__)
 
 
-def _fii_dii_action(net):
+def _fii_dii_action(net: float) -> str:
     """Classify FII/DII net flow as Buying/Selling/Flat (threshold ±200 Cr)."""
     if net > 200:
         return "Buying"
@@ -19,7 +21,7 @@ def _fii_dii_action(net):
 
 
 @st.cache_data(ttl=3600)
-def get_fii_dii_flow() -> dict:
+def get_fii_dii_flow() -> dict[str, Any] | None:
     """Fetch latest FII/DII net flow from NSE India.
 
     Returns a dict:
@@ -59,7 +61,7 @@ def get_fii_dii_flow() -> dict:
         return None
 
 
-def get_market_pulse() -> dict:
+def get_market_pulse() -> dict[str, Any]:
     """Fetch Nifty 50 index and return market-level pulse + actionable verdict.
 
     Uses the same yfinance pattern as get_vix() for index tickers.
@@ -114,12 +116,12 @@ NSE_SECTOR_TICKERS = [
 ]
 
 
-def _clamp(value, lo, hi):
+def _clamp(value: float, lo: float, hi: float) -> float:
     """Clamp value to [lo, hi] range."""
     return max(lo, min(hi, value))
 
 
-def _calc_trend_score(nifty_df):
+def _calc_trend_score(nifty_df: pd.DataFrame | None) -> float:
     """Trend Strength: Nifty % distance from 20-day SMA, mapped to 0-100."""
     if nifty_df is None or nifty_df.empty:
         return 50
@@ -133,7 +135,7 @@ def _calc_trend_score(nifty_df):
     return _clamp(round(50 + pct_from_sma * 5), 0, 100)
 
 
-def _calc_vix_score(vix_df):
+def _calc_vix_score(vix_df: pd.DataFrame | None) -> float:
     """VIX Fear Gauge: inverted VIX mapped to 0-100."""
     if vix_df is None or vix_df.empty:
         return 50
@@ -145,7 +147,7 @@ def _calc_vix_score(vix_df):
     return _clamp(round(100 - (vix_value - 10) / 30 * 100), 0, 100)
 
 
-def _calc_fii_score():
+def _calc_fii_score() -> float:
     """FII Money Flow: compare today's FII net to 21-day trailing average.
 
     Uses saved FII history from persistence. Returns 0-100 score.
@@ -175,7 +177,7 @@ def _calc_fii_score():
         return 50
 
 
-def _calc_breadth_score(sector_data):
+def _calc_breadth_score(sector_data: dict[str, pd.DataFrame | None]) -> int:
     """Market Breadth: fraction of sector indices advancing, as 0-100."""
     advancing = 0
     total = 0
@@ -191,7 +193,7 @@ def _calc_breadth_score(sector_data):
     return round(advancing / total * 100)
 
 
-def _fetch_ticker(t, period="1mo"):
+def _fetch_ticker(t: str, period: str = "1mo") -> pd.DataFrame | None:
     """Helper for ThreadPoolExecutor — fetch a single ticker's history."""
     import yfinance as yf
     try:
@@ -201,7 +203,7 @@ def _fetch_ticker(t, period="1mo"):
         return None
 
 
-def get_mmi() -> dict | None:
+def get_mmi() -> dict[str, Any] | None:
     """Compute Market Mood Index (MMI) 0-100 from 4 equally-weighted components.
 
     Components:
@@ -225,7 +227,7 @@ def get_mmi() -> dict | None:
     }
 
     all_tickers = ["^NSEI", "^INDIAVIX"] + NSE_SECTOR_TICKERS
-    hist_data = {}
+    hist_data: dict[str, pd.DataFrame | None] = {}
 
     try:
         with ThreadPoolExecutor(max_workers=13) as ex:
