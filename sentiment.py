@@ -198,11 +198,8 @@ def get_finbert() -> Any:
     instant thereafter. Returns None if dependencies unavailable."""
     try:
         from transformers import pipeline
-        return pipeline(  # type: ignore[call-overload]
-            "sentiment-analysis",
-            model="ProsusAI/finbert",
-            top_k=None,
-        )
+        pipe = pipeline("sentiment-analysis", model="ProsusAI/finbert", top_k=None)  # type: ignore[call-overload,unused-ignore]
+        return pipe
     except (ImportError, OSError) as e:
         st.warning(f"FinBERT unavailable ({e}). Using VADER.")
         return None
