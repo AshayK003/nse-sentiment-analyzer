@@ -11,6 +11,7 @@ import random
 import re
 import threading
 import time
+import urllib.parse
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -149,7 +150,7 @@ def _search_yahoo_finance(query: str) -> tuple[str | None, str | None]:
     Returns (ticker, name) or (None, None).
     """
     try:
-        url = f'https://query2.finance.yahoo.com/v1/finance/search?q={requests.utils.quote(query)}&quotesCount=10&newsCount=0'
+        url = f'https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=10&newsCount=0'
         r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=3)
         if r.status_code != 200:
             return None, None
