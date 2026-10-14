@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.15.1] — 2026-10-14
+
+### Fixed
+- **Dev dependency declared:** `pytest-mock` was used by the test suite
+  (`mocker` fixture) and installed ad-hoc in the CI test job, but was never
+  declared in `requirements.txt`. A fresh clone running
+  `pip install -r requirements.txt && pytest` errored all 78 portfolio and
+  persistence tests at setup with "fixture 'mocker' not found". Now declared
+  as `pytest-mock>=3.12` in the dev dependencies section.
+
+---
+
 ## [2.15.0] - 2026-08-24
 
 ### Added
