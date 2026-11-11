@@ -54,7 +54,13 @@ FINANCIAL_BOOSTERS = {
     "support": 0.3,
     # NOTE: VADER scores single tokens only — bigram keys are documentation.
     # Meaningful decomposed entries below. See sentiment.py SKILL for rationale.
-    "booking": -0.5,       # ← "profit booking" (decomposed)
+    # Indian market context: "profit booking" / "profit taking" / "booked
+    # profits" mean investors selling holdings to realise gains — selling
+    # pressure, a bearish signal — so these decomposed tokens are weighted to
+    # outweigh "profit" (+1.0) and net negative for those phrases.
+    "booking": -1.5,       # ← "profit booking" (decomposed)
+    "taking": -1.5,        # ← "profit taking" (decomposed)
+    "booked": -2.4,        # ← "booked profits" (decomposed; must outweigh VADER's built-in "profits" +1.9 — the +1.0 override above covers only the singular)
     "warning": -1.5,       # ← "profit warning" (decomposed; "profit" already +1.0)
     "covering": 1.0,       # ← "short covering" (decomposed)
     "phase": -0.3,         # ← "bear phase" (decomposed; "bear" not in VADER)
