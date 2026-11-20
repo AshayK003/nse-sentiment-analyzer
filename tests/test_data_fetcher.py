@@ -314,6 +314,10 @@ class TestNewsCaching:
         mock_feed = mocker.MagicMock()
         mock_feed.entries = []
         mocker.patch("feedparser.parse", return_value=mock_feed)
+        # RSS is fetched via requests (timeout support) — keep it hermetic
+        mock_resp = mocker.MagicMock()
+        mock_resp.content = b""
+        mocker.patch("data_fetcher.requests.get", return_value=mock_resp)
         # Mock DDGS to raise
         mocker.patch("data_fetcher.DDGS", side_effect=Exception("No DDGS"))
         mocker.patch("data_fetcher.cache_set")

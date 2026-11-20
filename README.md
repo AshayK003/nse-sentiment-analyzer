@@ -10,7 +10,7 @@
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-d9232d?style=flat" alt="License"></a>
   <a href="https://github.com/AshayK003/nse-sentiment-analyzer"><img src="https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github&logoColor=white" alt="Stars"></a>
-  <a href="#-testing"><img src="https://img.shields.io/badge/tests-295%20passing-22c55e?style=flat" alt="Tests"></a>
+  <a href="#-testing"><img src="https://img.shields.io/badge/tests-326%20passing-22c55e?style=flat" alt="Tests"></a>
   <a href="https://github.com/AshayK003/nse-sentiment-analyzer/actions"><img src="https://img.shields.io/badge/CI-ruff%20%C2%B7%20pytest%20%C2%B7%20mypy--strict-2088FF?style=flat&logo=githubactions&logoColor=white" alt="CI"></a>
   <a href="#"><img src="https://img.shields.io/badge/security-XSS%20escaped-2ea44f?style=flat" alt="Security"></a>
   <a href="https://nse-sentiment-analyzer.streamlit.app"><img src="https://img.shields.io/badge/UI-Dark%20Theme-13151a?style=flat&logo=css3&logoColor=white" alt="Theme"></a>
@@ -194,7 +194,7 @@ Open **http://localhost:8501** in your browser.
 
 ### Optional: Enable FinBERT
 
-FinBERT offers ~15–20% better accuracy on financial text than VADER. Requires ~2GB of additional dependencies.
+FinBERT may provide stronger financial-text scoring than VADER. This project does not claim or prove a 15–20% market-prediction improvement; that figure should not be interpreted as backtest evidence. FinBERT requires ~2GB of additional dependencies.
 
 ```bash
 pip install torch transformers
@@ -273,7 +273,7 @@ nse-sentiment-analyzer/
     └── test_history_export.py     # CSV export
 ```
 
-**11 source modules**, **20 test files**, **295 tests**.
+**13 source modules**, **22 test files**, **326 tests**.
 
 ---
 
@@ -305,7 +305,7 @@ nse-sentiment-analyzer/
 ## Testing
 
 ```bash
-# Full suite (295 tests, mocked APIs, no network)
+# Full suite (326 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # With coverage
@@ -332,6 +332,13 @@ python -m pytest tests/ -m regression
 - **Markers** defined in `pyproject.toml`:
   - `slow` — tests hitting real APIs (opt-in)
   - `regression` — tests for previously-fixed bugs
+
+### Reliability vs. Accuracy
+
+- Passing tests verify implementation behavior, failure handling, and UI orchestration.
+- They do not demonstrate that the SmartScore, signal, or sentiment score predicts future stock returns.
+- Live results depend on delayed or incomplete third-party data and should be treated as informational, not investment advice.
+- Predictive accuracy requires a separately defined, time-based backtest against realized returns with no look-ahead bias.
 
 ---
 

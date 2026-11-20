@@ -41,6 +41,7 @@ _rate_limit_lock = threading.Lock()
 # Separate cooldown for DuckDuckGo (known to return 202/captcha under load)
 _DDGS_RATE_LIMITED_UNTIL = 0.0
 _DDGS_COOLDOWN = 60  # seconds
+_DDGS_TIMEOUT = 3  # seconds - timeout for DDGS fallback (test-overridable)
 _ddgs_rate_limit_lock = threading.Lock()
 def _check_rate_limited() -> bool:
     """Return True if we're in a global rate-limit cooldown.
@@ -129,6 +130,9 @@ def resolve_ticker(raw_input: str) -> tuple[str | None, str | None]:
     for sym, name in NSE_TICKERS.items():
         if sym.startswith(q):
             return sym, name
+    # Reject malformed input before costly online/yfinance probes.
+    if not re.fullmatch(r"[A-Z0-9&]{1,20}", q):
+        return None, None
     # 5. Online fallback — search yfinance for NSE ticker
     if not _check_rate_limited():
         online_result = _search_ticker_online(raw_input.strip())
@@ -651,10 +655,10 @@ def _parse_rss_feed(
     relevant = []
     all_items = []
     try:
-        try:
-            feed = feedparser.parse(url, timeout=10)
-        except TypeError:
-            feed = feedparser.parse(url)
+        import requests
+        resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
         for entry in feed.entries[:7]:
             link = entry.get("link", "")
             title = entry.get("title", "")
@@ -761,7 +765,8 @@ def search_news(
             logger.debug("Ticker RSS feed failed for %s: %s", ticker, e)
             continue
     # Indian market RSS feeds — returns (relevant, all, label)
-    with ThreadPoolExecutor(max_workers=5) as pool:
+    pool = ThreadPoolExecutor(max_workers=5)
+    try:
         futures = {pool.submit(_parse_rss_feed, name, url, ticker, company_name): name for name, url in INDIA_RSS_FEEDS}
         for future in as_completed(futures):
             items, all_items, label = future.result()
@@ -776,18 +781,24 @@ def search_news(
                 if link not in cascade_urls:
                     cascade_urls.add(link)
                     cascade_pool.append(item)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
     # Fallback: DuckDuckGo when RSS returns little — skip if DDGS rate-limited
-    # DDGS has no built-in timeout; wrap in ThreadPoolExecutor to prevent hangs
+    # DDGS has no built-in timeout; explicit executor with non-blocking shutdown
     if len(all_results) < 3 and time.time() >= _DDGS_RATE_LIMITED_UNTIL:
+        ddgs_pool = ThreadPoolExecutor(max_workers=1)
         try:
-            with ThreadPoolExecutor(max_workers=1) as ddgs_pool:
-                ddgs_pool.submit(
-                    _ddgs_search, ticker, company_name,
-                    seen_urls, all_results, source_stats, max_results,
-                ).result(timeout=15)
+            fut = ddgs_pool.submit(
+                _ddgs_search, ticker, company_name,
+                seen_urls, all_results, source_stats, max_results,
+            )
+            # Short timeout for DDGS fallback - abandon quickly if hung
+            fut.result(timeout=_DDGS_TIMEOUT)
         except Exception as e:
             logger.debug("DuckDuckGo fallback failed for %s: %s", ticker, e)
             _mark_ddgs_rate_limited()
+        finally:
+            ddgs_pool.shutdown(wait=False, cancel_futures=True)
     # Reconcile DuckDuckGo additions into cascade_pool
     for item in all_results:
         if item["url"] not in cascade_urls:
@@ -861,7 +872,8 @@ def fetch_market_headlines() -> list[dict[str, Any]]:
     all_items = []
     seen_urls = set()
     all_feeds = list(INDIA_RSS_FEEDS) + list(COMMODITY_RSS_FEEDS)
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    pool = ThreadPoolExecutor(max_workers=8)
+    try:
         futures = {pool.submit(_parse_rss_feed, name, url, "", ""): name for name, url in all_feeds}
         for future in as_completed(futures):
             _, items, _ = future.result()
@@ -870,12 +882,18 @@ def fetch_market_headlines() -> list[dict[str, Any]]:
                 if link not in seen_urls:
                     seen_urls.add(link)
                     all_items.append(item)
-    # DDG fallback when RSS returns little
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    # DDG fallback when RSS returns little - with timeout to prevent hangs
     if len(all_items) < 3 and time.time() >= _DDGS_RATE_LIMITED_UNTIL:
+        ddgs_pool = ThreadPoolExecutor(max_workers=1)
         try:
-            _ddgs_commodity_search(all_items, seen_urls)
+            fut = ddgs_pool.submit(_ddgs_commodity_search, all_items, seen_urls)
+            fut.result(timeout=_DDGS_TIMEOUT)
         except Exception as e:
             logger.debug("Commodity news search failed: %s", e)
+        finally:
+            ddgs_pool.shutdown(wait=False, cancel_futures=True)
     all_items.sort(key=lambda x: x["date"], reverse=True)
     cache_set("market_headlines", all_items, ttl=300)
     return all_items

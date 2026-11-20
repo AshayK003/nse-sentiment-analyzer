@@ -205,7 +205,7 @@ streamlit run app.py
 ## Testing
 
 ```bash
-# Full suite (180 tests, mocked APIs)
+# Full suite (326 tests, mocked APIs)
 python -m pytest tests/ -q
 
 # With coverage

@@ -181,3 +181,57 @@ class TestAnalyzeTicker:
         assert result is not None
         assert result["stock_data"]["current_price"] == 100.0
         assert result["smartscore"] > 0
+
+
+class TestEarlyReturn:
+    """An invalid ticker must return immediately — not wait out the news
+    and FII workers (the old with-block shutdown waited for hung futures,
+    and future.cancel() is a no-op once a worker is running)."""
+
+    def test_invalid_ticker_full_mode_returns_fast(self, mock_deps):
+        import time
+
+        mock_deps.patch("app.get_stock_info", return_value=None)
+
+        def slow_news(*a, **k):
+            time.sleep(4)
+            return ([], [], {}, [], 0.0)
+
+        def slow_fii(*a, **k):
+            time.sleep(4)
+            return {}
+
+        mock_deps.patch("app.search_news", side_effect=slow_news)
+        mock_deps.patch("app.get_fii_dii_flow", side_effect=slow_fii)
+
+        from app import analyze_ticker
+        t0 = time.time()
+        result = analyze_ticker("BAD", "Bad Co")
+        elapsed = time.time() - t0
+        assert result is None
+        assert elapsed < 2.0, f"early return waited {elapsed:.1f}s for slow workers"
+
+    def test_invalid_ticker_quick_mode_returns_fast(self, mock_deps):
+        import time
+
+        mock_deps.patch("app.get_stock_info", return_value=None)
+
+        def slow_fii(*a, **k):
+            time.sleep(4)
+            return {}
+
+        mock_deps.patch("app.get_fii_dii_flow", side_effect=slow_fii)
+
+        from app import analyze_ticker
+        t0 = time.time()
+        result = analyze_ticker("BAD", "Bad Co", quick=True)
+        elapsed = time.time() - t0
+        assert result is None
+        assert elapsed < 2.0, f"quick-mode early return waited {elapsed:.1f}s"
+
+    def test_valid_ticker_still_returns_full_result(self, mock_deps):
+        from app import analyze_ticker
+        result = analyze_ticker("TEST", "Test Company Ltd")
+        assert result is not None
+        assert result["fii_data"]["fii_net"] == 500.0
+        assert len(result["news_items"]) == 3

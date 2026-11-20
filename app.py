@@ -278,13 +278,16 @@ def analyze_ticker(ticker: str, company_name: str, quick: bool = False) -> dict[
 
     if quick:
         # Briefing mode: only fetch stock info + FII/DII, skip expensive news
-        with ThreadPoolExecutor(max_workers=2) as pool:
+        # Explicit executor with non-blocking shutdown — avoids waiting on hung workers
+        pool = ThreadPoolExecutor(max_workers=2)
+        try:
             stock_future = pool.submit(get_stock_info, ticker)
             fii_future = pool.submit(get_fii_dii_flow)
             stock_data = stock_future.result()
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
 
         if not stock_data:
-            fii_future.cancel()
             return None
 
         return {
@@ -313,15 +316,17 @@ def analyze_ticker(ticker: str, company_name: str, quick: bool = False) -> dict[
         }
 
     # Full mode: parallel stock info + news + FII/DII
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    # Explicit executor with non-blocking shutdown — avoids waiting on hung workers
+    pool = ThreadPoolExecutor(max_workers=3)
+    try:
         stock_future = pool.submit(get_stock_info, ticker)
         news_future = pool.submit(search_news, ticker, company_name)
         fii_future = pool.submit(get_fii_dii_flow)
         stock_data = stock_future.result()
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
     if not stock_data:
-        news_future.cancel()
-        fii_future.cancel()
         return None
 
     use_finbert = os.environ.get("USE_FINBERT", "").strip().lower() in ("1", "true", "yes")
@@ -853,7 +858,8 @@ if final_ticker and final_ticker != "":
         final_ticker = _resolved_ticker
         company_name = cast(str, _resolved_name)
     else:
-        company_name = NSE_TICKERS.get(final_ticker, final_ticker)
+        st.error(f"Ticker or company '{final_ticker}' was not found. Check the symbol and try again.")
+        st.stop()
 
     # Rate limiter: block if too many searches recently
     # Skip when _skip_reanalysis is set — no API call will be made (cache hit)

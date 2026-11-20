@@ -19,12 +19,3 @@ gatherUsageStats = false
 # One-time cache invalidation per session — avoids unbounded memory growth
 # when many tickers are scanned in a single session
 magicEnabled = false
-
-[global]
-# Limit the number of sessions cached in memory
-# Prevents RAM exhaustion under multi-user load
-maxCacheSize = 250
-
-# Raise DataFrame serialization limit to handle sparkline history data
-# without crashing on large histories
-dataFrameSerializationWarningLimit = 200

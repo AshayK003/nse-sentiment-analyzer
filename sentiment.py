@@ -182,7 +182,16 @@ def analyze_headline_sentiment(
     """Score a headline using VADER + financial lexicon."""
     text = f"{headline}. {body}" if body else headline
     vader = sia.polarity_scores(text)
-    result = {"compound": vader["compound"], "vader": vader}
+    compound = vader["compound"]
+
+    text_lower = text.lower()
+    if ("profit booking" in text_lower or "profit-booking" in text_lower) and not (
+        "no profit booking" in text_lower or "no profit-booking" in text_lower
+    ):
+        if compound > -0.3:
+            compound = -0.45
+
+    result = {"compound": compound, "vader": vader}
     if source:
         result["source"] = source
     return result

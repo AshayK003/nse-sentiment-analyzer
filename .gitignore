@@ -45,3 +45,5 @@ landing.html
 data/portfolio.json
 data/sentiment_history.csv
 data/track_record.json
+data/fiidii_history.json
+data/source_accuracy.json

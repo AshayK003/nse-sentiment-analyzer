@@ -45,7 +45,7 @@ Examples:
 fix: handle NaN in ETF price display
 feat: add Adaptive TF-IDF Cluster Learner
 test: add dissemination clustering tests
-docs: sync README test count to 180
+docs: sync README test count to 326
 ```
 
 ## PR Workflow

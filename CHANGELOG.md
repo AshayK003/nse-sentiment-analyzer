@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.15.2] — 2026-11-20
+
+### Reliability
+- **Audit remediation:** fixed phrase-level sentiment handling for Indian market terms such as “profit booking,” including uppercase and hyphenated forms.
+- **Atomic persistence:** JSON and CSV writes now use temporary files plus replacement, preserving existing data if a write fails.
+- **Corrupt-data recovery:** invalid JSON cache and persistence files are quarantined with a `.corrupt` suffix instead of repeatedly breaking startup or returning partial state.
+- **Network timeouts:** RSS requests now use bounded HTTP timeouts; DuckDuckGo fallback workers are abandoned instead of blocking executor shutdown.
+- **Invalid ticker handling:** malformed symbols are rejected before network fallback, and unresolved tickers return a clear UI error.
+- **Import and startup hardening:** the dissemination clusterer no longer loads scikit-learn; the adaptive learner loads it only when instantiated. Removed obsolete Streamlit global configuration keys.
+
+### Accuracy note
+- These changes improve failure handling and service reliability; they do not add evidence that the SmartScore or sentiment pipeline predicts market returns accurately.
+- Live-browser and automated tests verify rendering and control behavior, not investment outcomes.
+
+### Tests
+- **326 passed, 0 failed** with mocked external APIs.
+- Audit hardening suite: **28 passed**.
+- Strict mypy: **13 source modules passed**.
+- Ruff lint and diff whitespace checks passed.
+- Live Streamlit health endpoint and root page passed browser-level HTTP checks.
+
 ## [2.15.1] — 2026-10-14
 
 ### Fixed

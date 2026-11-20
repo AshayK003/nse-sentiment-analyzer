@@ -96,6 +96,10 @@ def get_market_pulse() -> dict[str, Any]:
             }
         nifty_price = float(closes.iloc[-1])
         prev_close = float(closes.iloc[-2])
+        if prev_close == 0.0:
+            return {
+                "nifty_price": nifty_price, "nifty_change_pct": None,
+            }
         nifty_change_pct = round((nifty_price - prev_close) / prev_close * 100, 2)
     except (KeyError, IndexError, TypeError, ValueError, AttributeError):
         return {
@@ -130,6 +134,8 @@ def _calc_trend_score(nifty_df: pd.DataFrame | None) -> float:
         return 50
     sma20 = closes.tail(20).mean()
     last_close = closes.iloc[-1]
+    if sma20 == 0.0:
+        return 50
     pct_from_sma = round((last_close / sma20 - 1) * 100, 2)
     # ±10% from SMA maps to 0-100 (50 = at SMA)
     return _clamp(round(50 + pct_from_sma * 5), 0, 100)

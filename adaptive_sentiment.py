@@ -19,14 +19,16 @@ Both run on CPU, zero GPU, sub-second latency. Pure Python + scikit-learn.
 
 import json
 import logging
+import os
+import re
 import threading
 import time
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
-from sklearn.feature_extraction.text import HashingVectorizer, TfidfVectorizer
 
 from persistence import DATA_DIR
 
@@ -153,8 +155,8 @@ class AdaptiveClusterLearner:
 
     def __init__(self) -> None:
             self.clusters: dict[int, dict[str, Any]] = {}  # cluster_id -> {centroid, headlines, reactions, weight}
-            # Use TfidfVectorizer with custom tokenization for Indian financial text
-            import re
+            # Lazy import sklearn only when learner is actually instantiated
+            from sklearn.feature_extraction.text import TfidfVectorizer
         
             def custom_tokenizer(text: str) -> list[str]:
                 """Custom tokenizer optimized for Indian financial news."""
@@ -197,7 +199,7 @@ class AdaptiveClusterLearner:
             # Pre-fit on financial corpus to handle cold start
             self._prefit_vectorizer()
     def _load(self) -> None:
-        """Load clusters from disk."""
+        """Load clusters from disk. Corrupt JSON files are quarantined."""
         try:
             if ADAPTIVE_CACHE_FILE.exists():
                 with open(ADAPTIVE_CACHE_FILE, encoding="utf-8") as f:
@@ -212,6 +214,15 @@ class AdaptiveClusterLearner:
                         self.vectorizer.fit(all_headlines)
                         self._fitted = True
                 logger.info(f"Loaded {len(self.clusters)} adaptive clusters from disk")
+        except json.JSONDecodeError as e:
+            # Quarantine corrupt file
+            try:
+                corrupt_path = Path(str(ADAPTIVE_CACHE_FILE) + ".corrupt")
+                ADAPTIVE_CACHE_FILE.rename(corrupt_path)
+                logger.warning("Quarantined corrupt adaptive cache: %s", e)
+            except OSError:
+                pass
+            self.clusters = {}
         except Exception as e:
             logger.warning(f"Failed to load adaptive clusters: {e}")
             self.clusters = {}
@@ -255,7 +266,8 @@ class AdaptiveClusterLearner:
         self._fitted = True
 
     def _save(self) -> None:
-        """Persist clusters to disk."""
+        """Persist clusters to disk atomically (tmp + replace)."""
+        tmp_path = Path(str(ADAPTIVE_CACHE_FILE) + ".tmp")
         try:
             with _adaptive_lock:
                 data = {
@@ -263,10 +275,25 @@ class AdaptiveClusterLearner:
                     "last_calibration": self._last_calibration,
                     "saved_at": datetime.now().isoformat(),
                 }
-                with open(ADAPTIVE_CACHE_FILE, "w", encoding="utf-8") as f:
+                with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2)
+                os.replace(tmp_path, ADAPTIVE_CACHE_FILE)
+        except (OSError, PermissionError):
+            # Clean up tmp file - original file preserved
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
         except Exception as e:
+            # Clean up tmp file
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
             logger.warning(f"Failed to save adaptive clusters: {e}")
+            raise
 
     def _get_next_cluster_id(self) -> int:
         return max(self.clusters.keys(), default=-1) + 1
@@ -479,14 +506,6 @@ class DisseminationClusterer:
                 "cement": ["cement", "construction", "infrastructure"],
                 "metals": ["metal", "steel", "aluminum", "copper", "zinc"],
             }
-            # Simple TF-IDF for fallback similarity
-            self.vectorizer = HashingVectorizer(
-                n_features=200,
-                ngram_range=(1, 2),
-                stop_words="english",
-                alternate_sign=False,
-                norm="l2",
-            )
             self._fitted = True
 
     def _extract_entities(self, text: str) -> set[str]:

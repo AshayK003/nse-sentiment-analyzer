@@ -7,8 +7,9 @@ import csv
 import io
 import json
 import logging
+import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -38,21 +39,52 @@ _fiidii_lock = threading.RLock()
 # ─── Helpers ───
 
 def _load_json(path: str | Path, default: Any = None) -> Any:
-    """Try loading from file; return default on any failure."""
+    """Try loading from file; return default on any failure.
+    Corrupt JSON files are quarantined (.corrupt suffix) to prevent
+    silent data loss on repeated loads.
+    """
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError:
+        return default if default is not None else []
+    except json.JSONDecodeError as e:
+        # Quarantine corrupt file
+        try:
+            corrupt_path = Path(str(path) + ".corrupt")
+            Path(path).rename(corrupt_path)
+            logger.warning("Quarantined corrupt JSON %s: %s", path, e)
+        except OSError:
+            pass
         return default if default is not None else []
 
 
 def _save_json(path: str | Path, data: Any) -> None:
-    """Save to file; silently ignore if filesystem is read-only (Streamlit Cloud)."""
+    """Save to file atomically (tmp + os.replace); silently ignore if
+    filesystem is read-only (Streamlit Cloud). No partial writes.
+    """
     try:
-        with open(path, "w", encoding="utf-8") as f:
+        tmp_path = Path(str(path) + ".tmp")
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
+        os.replace(tmp_path, path)  # atomic on POSIX, near-atomic on Windows
     except (OSError, PermissionError):
-        pass  # Ephemeral filesystem on Streamlit Cloud
+        # Ephemeral filesystem on Streamlit Cloud, disk full, etc.
+        # Silently ignore - original file preserved
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except OSError:
+            pass
+    except Exception as e:
+        # Non-OSError exceptions: log and re-raise
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except OSError:
+            pass
+        logger.warning("Failed to save JSON: %s", e)
+        raise
 
 
 # ─── Portfolio ───
@@ -214,11 +246,8 @@ def load_sentiment_history(ticker: str, days: int=10) -> list[dict[str, str]]:
 
 def save_sentiment_history(ticker: str, row_data: dict[str, Any]) -> None:
     """Append or update today's aggregated sentiment history entry for a ticker.
-
-    row_data: dict with keys matching HISTORY_FIELDS (excluding date/ticker).
-    If an entry already exists for this ticker today, it's updated in-place.
-    Silently handles read-only filesystem (Streamlit Cloud).
-    Thread-safe via _history_lock.
+    Prunes rows older than 365 days and caps total rows at 5000.
+    Atomic write (tmp + replace). Thread-safe via _history_lock.
     """
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -237,20 +266,46 @@ def save_sentiment_history(ticker: str, row_data: dict[str, Any]) -> None:
             if not (r.get("ticker") == ticker and r.get("date") == today)
         ]
 
+        # Prune old rows (>365 days)
+        cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+        existing = [r for r in existing if r.get("date", "") >= cutoff]
+
         # Build new row
         new_row = {"date": today, "ticker": ticker}
         new_row.update(row_data)
 
         existing.append(new_row)
+
+        # Cap at 5000 rows (keep most recent)
+        if len(existing) > 5000:
+            existing = existing[-5000:]
+
+        # Atomic write
         try:
-            # HISTORY_FIELDS already includes "date" and "ticker"
             fieldnames = HISTORY_FIELDS
-            with open(HISTORY_FILE, "w", newline="", encoding="utf-8") as f:
+            tmp_path = Path(str(HISTORY_FILE) + ".tmp")
+            with open(tmp_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(existing)
-        except OSError:
-            pass  # Read-only filesystem
+            os.replace(tmp_path, HISTORY_FILE)
+        except (OSError, PermissionError):
+            # Ephemeral filesystem on Streamlit Cloud, disk full, etc.
+            # Clean up tmp file - original file preserved
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+        except Exception as e:
+            # Non-OSError exceptions: log and re-raise
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+            logger.warning("Failed to save sentiment history: %s", e)
+            raise
 
 
 def history_to_csv(ticker: str, records: list[dict[str, Any]]) -> str | None:
