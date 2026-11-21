@@ -26,9 +26,10 @@ class TestTechnicalIndicators:
         import os
 
         import data_fetcher
-        from data_fetcher import _hist_cache, _hist_cache_lock
+        from data_fetcher import _hist_cache, _hist_cache_lock, _hist_cache_timestamps
         with _hist_cache_lock:
             _hist_cache.clear()
+            _hist_cache_timestamps.clear()
         # Remove any L2 disk cache entries for the test ticker
         cache_path = os.path.join(data_fetcher._PRICE_CACHE_DIR, "RELIANCE.json")
         if os.path.exists(cache_path):

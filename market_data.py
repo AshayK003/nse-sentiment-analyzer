@@ -8,6 +8,8 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from persistence import MARKET_DATA_CACHE_TTL
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +22,7 @@ def _fii_dii_action(net: float) -> str:
     return "Flat"
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=MARKET_DATA_CACHE_TTL)
 def get_fii_dii_flow() -> dict[str, Any] | None:
     """Fetch latest FII/DII net flow from NSE India.
 
@@ -61,6 +63,7 @@ def get_fii_dii_flow() -> dict[str, Any] | None:
         return None
 
 
+@st.cache_data(ttl=MARKET_DATA_CACHE_TTL)
 def get_market_pulse() -> dict[str, Any]:
     """Fetch Nifty 50 index and return market-level pulse + actionable verdict.
 
@@ -199,6 +202,7 @@ def _calc_breadth_score(sector_data: dict[str, pd.DataFrame | None]) -> int:
     return round(advancing / total * 100)
 
 
+@st.cache_data(ttl=MARKET_DATA_CACHE_TTL)
 def _fetch_ticker(t: str, period: str = "1mo") -> pd.DataFrame | None:
     """Helper for ThreadPoolExecutor — fetch a single ticker's history."""
     import yfinance as yf
@@ -209,6 +213,7 @@ def _fetch_ticker(t: str, period: str = "1mo") -> pd.DataFrame | None:
         return None
 
 
+@st.cache_data(ttl=MARKET_DATA_CACHE_TTL)
 def get_mmi() -> dict[str, Any] | None:
     """Compute Market Mood Index (MMI) 0-100 from 4 equally-weighted components.
 

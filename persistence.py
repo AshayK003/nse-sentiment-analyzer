@@ -28,6 +28,7 @@ ENTRY_PRICES_FILE = DATA_DIR / "entry_prices.json"
 FIIDII_HISTORY_FILE = DATA_DIR / "fiidii_history.json"
 
 CACHE_TTL = 15 * 60  # 15 minutes
+MARKET_DATA_CACHE_TTL = 5 * 60  # live market data refreshes at most every 5 minutes
 MAX_CACHE_ENTRIES = 500  # drop oldest entries when exceeding this (prevents unbounded growth under multi-user load)
 
 # Thread locks — separate for CSV history, source accuracy, and FII/DII (different files)

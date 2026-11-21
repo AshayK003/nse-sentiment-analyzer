@@ -87,6 +87,18 @@ def mock_deps(mocker):
 class TestAnalyzeTicker:
     """End-to-end orchestration tests for the analysis pipeline."""
 
+    def test_finbert_is_not_loaded_by_default(self, mock_deps, mocker, monkeypatch):
+        """Normal user interactions keep the heavyweight model opt-in."""
+        monkeypatch.delenv("USE_FINBERT", raising=False)
+        finbert = mocker.patch("sentiment.get_finbert")
+        mock_deps.patch("app.compute_vwap", return_value=None)
+
+        from app import analyze_ticker
+        result = analyze_ticker("TEST", "Test Company Ltd")
+
+        assert result is not None
+        finbert.assert_not_called()
+
     def test_returns_expected_shape(self, mock_deps):
         """analyze_ticker() returns all expected keys with correct types."""
         from app import analyze_ticker

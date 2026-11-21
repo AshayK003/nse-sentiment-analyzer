@@ -10,7 +10,7 @@
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-d9232d?style=flat" alt="License"></a>
   <a href="https://github.com/AshayK003/nse-sentiment-analyzer"><img src="https://img.shields.io/github/stars/AshayK003/nse-sentiment-analyzer?style=flat&logo=github&logoColor=white" alt="Stars"></a>
-  <a href="#-testing"><img src="https://img.shields.io/badge/tests-326%20passing-22c55e?style=flat" alt="Tests"></a>
+  <a href="#-testing"><img src="https://img.shields.io/badge/tests-338%20passing-22c55e?style=flat" alt="Tests"></a>
   <a href="https://github.com/AshayK003/nse-sentiment-analyzer/actions"><img src="https://img.shields.io/badge/CI-ruff%20%C2%B7%20pytest%20%C2%B7%20mypy--strict-2088FF?style=flat&logo=githubactions&logoColor=white" alt="CI"></a>
   <a href="#"><img src="https://img.shields.io/badge/security-XSS%20escaped-2ea44f?style=flat" alt="Security"></a>
   <a href="https://nse-sentiment-analyzer.streamlit.app"><img src="https://img.shields.io/badge/UI-Dark%20Theme-13151a?style=flat&logo=css3&logoColor=white" alt="Theme"></a>
@@ -55,7 +55,7 @@ Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH
 - **Event-aware scoring** — headlines classified by 19 event types (earnings, order wins, litigation, regulatory approvals, buybacks, etc.) with signed sentiment bias. Correctly scores "SEBI penalty" as negative and "SEBI clears merger" as positive — something VADER alone misses.
 - **SmartScore composite (0–100)** — combines recency-weighted EWMA (36h half-life), event-adjusted sentiment, headline breadth, and news volume into a single calibrated score. See [SmartScore Algorithm](docs/SMARTSCORE.md) for implementation details, formulas, and examples.
 - **Self-calibrating source weights** — each source's confidence weight learns from your 👍/👎 votes via Bayesian Beta-Binomial inference. After ~10–50 votes, weights reflect your actual accuracy experience.
-- **Enhanced VADER + 123-term Indian financial lexicon** — includes Indian banking metrics (NPA, GNPA, NIM, credit growth, slippage, provisioning), profitability shorthand (PAT, EBITDA, ROE, ROCE), IPO/capital market terms (oversubscribed, undersubscribed), fund flow terms (inflow, outflow), Hinglish (tezi, mandi, tej, mand), and general financial context not in vanilla VADER. Optionally swap to FinBERT via `USE_FINBERT=true`.
+- **Enhanced VADER + 123-term Indian financial lexicon** — includes Indian banking metrics (NPA, GNPA, NIM, credit growth, slippage, provisioning), profitability shorthand (PAT, EBITDA, ROE, ROCE), IPO/capital market terms (oversubscribed, undersubscribed), fund flow terms (inflow, outflow), Hinglish (tezi, mandi, tej, mand), and phrase-aware bearish handling for profit-taking terms. Explicit negation keeps the base VADER score. Optionally swap to FinBERT via `USE_FINBERT=true`.
 - **Technical indicators** — RSI(14), SMA crossover (50/200), MACD from 2-year OHLCV history
 - **Portfolio mode** — track holdings with P&L, qty/shares field, auto-fetched LTPs, and one-click clear all
 - **FII/DII institutional flow** — NSE India official FII/FPI and DII data with Net value. Glassmorphism card shows latest day's flow plus a 7-day history table. Auto-saves daily snapshots.
@@ -67,7 +67,7 @@ Enter any NSE ticker **or company name** and get a **BULLISH / NEUTRAL / BEARISH
 - **Resource protections** — per-session rate limiter (6 searches/min), auto-pruning cache (500-entry cap), DDGS fallback cooldown, and thread-safe rate-limit tracking (including DDGS) prevent quota exhaustion and race conditions under multi-user load. Configured in `.streamlit/config.toml`.
 - **XSS-safe rendering** — all user data (ticker names, company names) is HTML-escaped via `html.escape()` with single-quote support. Shareable `?ticker=` URLs are validated before API calls. RSS feed URLs are checked for `http://`/`https://` scheme.
 - **CSP hardened** — Content Security Policy `connect-src` restricted to known API domains (Yahoo Finance, Google News, Moneycontrol, Economic Times, LiveMint, NDTV Profit). No wildcard.
-- **3-tier price history cache** — L1 memory → L2 disk (`.price_cache/` JSON files) → L3 network (yfinance). Disk cache survives Streamlit Cloud restarts with 7-day TTL, so recurring users get instant price loads instead of waiting on yfinance. Auto-evicts stale entries.
+- **Five-minute market-data cache** — stock metadata, price history, FII/DII flow, market pulse, MMI, and ticker-history requests use a 300-second TTL. Price history uses L1 memory → L2 disk (`.price_cache/` JSON files) → L3 network (yfinance); stale entries are refreshed and old memory entries are evicted.
 
 **All data sources are free and public. Zero API keys required. No registration.**
 
@@ -273,7 +273,7 @@ nse-sentiment-analyzer/
     └── test_history_export.py     # CSV export
 ```
 
-**13 source modules**, **22 test files**, **326 tests**.
+**13 source modules**, **22 test files**, **338 tests**.
 
 ---
 
@@ -305,7 +305,7 @@ nse-sentiment-analyzer/
 ## Testing
 
 ```bash
-# Full suite (326 tests, mocked APIs, no network)
+# Full suite (338 tests, mocked APIs, no network)
 python -m pytest tests/ -v -q
 
 # With coverage

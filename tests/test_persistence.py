@@ -71,7 +71,7 @@ class TestCache:
 
     def test_cache_fresh_edge(self, tmp_data_dir):
         """Cache entry at exactly TTL-1s should still be fresh."""
-        from persistence import CACHE_FILE, _load_json, _save_json, cache_get, cache_set
+        from persistence import CACHE_FILE, CACHE_TTL, _load_json, _save_json, cache_get, cache_set
 
         key = "fresh_key"
         cache_set(key, "fresh_data")
@@ -79,8 +79,7 @@ class TestCache:
         cache = _load_json(CACHE_FILE, {})
         cache[key] = {
             "data": "fresh_data",
-            "cached_at": (datetime.now()
-                          - timedelta(seconds=14*60 + 59)).isoformat(),
+            "cached_at": (datetime.now() - timedelta(seconds=CACHE_TTL - 1)).isoformat(),
         }
         _save_json(CACHE_FILE, cache)
         assert cache_get(key) == "fresh_data"
@@ -90,6 +89,18 @@ class TestCache:
         from persistence import cache_get
         # No cache file exists at all
         assert cache_get("any_key") is None
+
+    def test_explicit_five_minute_ttl_expires(self, tmp_data_dir):
+        from persistence import CACHE_FILE, _load_json, _save_json, cache_get, cache_set
+
+        key = "stock_TTLTEST"
+        cache_set(key, {"price": 100}, ttl=300)
+        cache = _load_json(CACHE_FILE, {})
+        assert cache[key]["ttl"] == 300
+        cache[key]["cached_at"] = (datetime.now() - timedelta(seconds=301)).isoformat()
+        _save_json(CACHE_FILE, cache)
+
+        assert cache_get(key) is None
 
 
 class TestPortfolio:

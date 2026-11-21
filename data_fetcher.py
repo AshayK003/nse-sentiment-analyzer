@@ -28,7 +28,7 @@ from adaptive_sentiment import (
     compute_dissemination_score,
     get_dissemination_clusters,
 )
-from persistence import cache_get, cache_set
+from persistence import MARKET_DATA_CACHE_TTL, cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 # ─── Global rate-limit cooldown ───
@@ -274,10 +274,11 @@ def _probe_ticker_direct(query: str) -> tuple[str | None, str | None]:
 # In-memory 1y price history cache, populated by get_stock_info,
 # consumed by get_technical_indicators to avoid duplicate yfinance calls
 _PRICE_CACHE_DIR = ".price_cache"
-_CACHE_TTL_DAYS = 7
+_HIST_CACHE_TTL_SECONDS = MARKET_DATA_CACHE_TTL
 os.makedirs(_PRICE_CACHE_DIR, exist_ok=True)
 
 _hist_cache: dict[str, pd.DataFrame] = {}
+_hist_cache_timestamps: dict[str, float] = {}
 _hist_cache_lock = threading.RLock()
 _MAX_CACHED_TICKERS = 50
 def _evict_hist_cache() -> None:
@@ -285,7 +286,9 @@ def _evict_hist_cache() -> None:
     with _hist_cache_lock:
         while len(_hist_cache) > _MAX_CACHED_TICKERS:
             # dict preserves insertion order (Python 3.7+) — pop first key
-            _hist_cache.pop(next(iter(_hist_cache)), None)
+            ticker = next(iter(_hist_cache))
+            _hist_cache.pop(ticker, None)
+            _hist_cache_timestamps.pop(ticker, None)
     
     # Evict stale L2 disk cache
     if os.path.exists(_PRICE_CACHE_DIR):
@@ -294,7 +297,7 @@ def _evict_hist_cache() -> None:
             filepath = os.path.join(_PRICE_CACHE_DIR, filename)
             if os.path.isfile(filepath):
                 try:
-                    if (now - os.path.getmtime(filepath)) > _CACHE_TTL_DAYS * 86400:
+                    if (now - os.path.getmtime(filepath)) > _HIST_CACHE_TTL_SECONDS:
                         os.remove(filepath)
                 except Exception as e:
                     logger.debug("Cache eviction failed: %s", e)  # non-fatal: stale file stays
@@ -303,10 +306,15 @@ def get_cached_history(ticker: str) -> pd.DataFrame | None:
     """Return 1y price history for a ticker, from memory cache, disk cache, or yfinance.
     Populated by get_stock_info() to share the yfinance 1y OHLCV fetch.
     """
+    now = time.time()
     with _hist_cache_lock:
         cached = _hist_cache.get(ticker)
-    if cached is not None:
-        return cached
+        cached_at = _hist_cache_timestamps.get(ticker)
+        if cached is not None and cached_at is not None and now - cached_at < _HIST_CACHE_TTL_SECONDS:
+            return cached
+        if cached is not None:
+            _hist_cache.pop(ticker, None)
+            _hist_cache_timestamps.pop(ticker, None)
 
     # Sanitize ticker to prevent path traversal
     safe_ticker = re.sub(r"[^A-Za-z0-9._-]", "_", ticker)
@@ -315,10 +323,11 @@ def get_cached_history(ticker: str) -> pd.DataFrame | None:
     cache_path = os.path.join(_PRICE_CACHE_DIR, f"{safe_ticker}.json")
     if os.path.exists(cache_path):
         try:
-            if (time.time() - os.path.getmtime(cache_path)) <= _CACHE_TTL_DAYS * 86400:
+            if (now - os.path.getmtime(cache_path)) <= _HIST_CACHE_TTL_SECONDS:
                 hist = pd.read_json(cache_path, orient="index")
                 with _hist_cache_lock:
                     _hist_cache[ticker] = hist
+                    _hist_cache_timestamps[ticker] = now
                     needs_evict = len(_hist_cache) > _MAX_CACHED_TICKERS
                 if needs_evict:
                     _evict_hist_cache()
@@ -340,6 +349,7 @@ def get_cached_history(ticker: str) -> pd.DataFrame | None:
                 
                 with _hist_cache_lock:
                     _hist_cache[ticker] = hist
+                    _hist_cache_timestamps[ticker] = time.time()
                     needs_evict = len(_hist_cache) > _MAX_CACHED_TICKERS
                 if needs_evict:
                     _evict_hist_cache()
@@ -542,8 +552,11 @@ def get_stock_info(ticker: str) -> dict[str, Any] | None:
         if hist is not None and not hist.empty:
             with _hist_cache_lock:
                 _hist_cache[ticker] = hist
+                _hist_cache_timestamps[ticker] = time.time()
                 while len(_hist_cache) > _MAX_CACHED_TICKERS:
-                    _hist_cache.pop(next(iter(_hist_cache)), None)
+                    oldest = next(iter(_hist_cache))
+                    _hist_cache.pop(oldest, None)
+                    _hist_cache_timestamps.pop(oldest, None)
 
         result = {
             "name": info.get("longName", info.get("shortName", name_fallback)) if info else name_fallback,
@@ -562,7 +575,7 @@ def get_stock_info(ticker: str) -> dict[str, Any] | None:
             "52w_low": info.get("fiftyTwoWeekLow") if info and info.get("fiftyTwoWeekLow") is not None else (_nf(hist["Low"].min()) if hist is not None and not hist.empty else None),
         }
         if info:
-            cache_set(f"stock_{ticker}", result)
+            cache_set(f"stock_{ticker}", result, ttl=MARKET_DATA_CACHE_TTL)
         else:
             cache_set(f"stock_{ticker}", result, ttl=120)  # 2 min
         return result

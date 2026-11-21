@@ -479,6 +479,7 @@ class TestHistoryCache:
         
         with data_fetcher._hist_cache_lock:
             data_fetcher._hist_cache.clear()
+            data_fetcher._hist_cache_timestamps.clear()
             
         if os.path.exists(data_fetcher._PRICE_CACHE_DIR):
             shutil.rmtree(data_fetcher._PRICE_CACHE_DIR)
@@ -678,4 +679,80 @@ class TestHistoryCache:
 
         result = get_cached_history("NONEXISTENT")
         assert result is None
+
+    def test_l1_history_cache_expires_after_five_minutes(self, mocker):
+        import os
+        import time
+
+        import data_fetcher
+        from data_fetcher import _PRICE_CACHE_DIR, get_cached_history
+
+        first_df = self._make_dummy_df()
+        second_df = first_df.copy()
+        second_df.iloc[-1, second_df.columns.get_loc("Close")] = 999.0
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.side_effect = [first_df, second_df]
+        mocker.patch("data_fetcher.yf.Ticker", return_value=mock_ticker)
+
+        assert get_cached_history("TTLTEST").equals(first_df)
+        with data_fetcher._hist_cache_lock:
+            data_fetcher._hist_cache_timestamps["TTLTEST"] = time.time() - 301
+        os.remove(os.path.join(_PRICE_CACHE_DIR, "TTLTEST.json"))
+
+        refreshed = get_cached_history("TTLTEST")
+        assert refreshed.equals(second_df)
+        assert mock_ticker.history.call_count == 2
+
+
+class TestStockInfoCache:
+    def _configure_fetches(self, mocker):
+        import pandas as pd
+
+        import data_fetcher
+
+        data_fetcher._hist_cache.clear()
+        data_fetcher._hist_cache_timestamps.clear()
+        store = {}
+        ttls = {}
+        mocker.patch("data_fetcher.cache_get", side_effect=store.get)
+
+        def save(key, value, ttl=None):
+            store[key] = value
+            ttls[key] = ttl
+
+        mocker.patch("data_fetcher.cache_set", side_effect=save)
+        mocker.patch("data_fetcher._check_rate_limited", return_value=False)
+        fetch_info = mocker.patch(
+            "data_fetcher._fetch_info_with_retry",
+            side_effect=lambda ticker, suffixes: ({"longName": ticker}, ticker),
+        )
+        history = pd.DataFrame({"Close": [100.0], "High": [101.0], "Low": [99.0], "Volume": [10]})
+        mocker.patch("data_fetcher._fetch_history_with_retry", return_value=history)
+        mocker.patch("data_fetcher._retry_sparse_info", side_effect=lambda info, hist, ticker, suffixes: info)
+        mocker.patch("data_fetcher._build_price_fields", return_value=(100.0, 1.0, 1.0, 101.0, 99.0, 10))
+        return store, ttls, fetch_info
+
+    def test_same_symbol_cache_hit_and_five_minute_ttl(self, mocker):
+        from data_fetcher import get_stock_info
+
+        store, ttls, fetch_info = self._configure_fetches(mocker)
+        first = get_stock_info("TCS")
+        second = get_stock_info("TCS")
+
+        assert first == second
+        assert fetch_info.call_count == 1
+        assert store["stock_TCS"] == first
+        assert ttls["stock_TCS"] == 300
+
+    def test_symbol_change_fetches_fresh_stock_data(self, mocker):
+        from data_fetcher import get_stock_info
+
+        store, _, fetch_info = self._configure_fetches(mocker)
+        tcs = get_stock_info("TCS")
+        infy = get_stock_info("INFY")
+
+        assert tcs["name"] == "TCS"
+        assert infy["name"] == "INFY"
+        assert fetch_info.call_count == 2
+        assert set(store) == {"stock_TCS", "stock_INFY"}
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.15.3] — 2026-11-21
+
+### Fixed
+- Profit-taking phrases (“profit booking,” “profit taking,” and “booked profits”) now receive the bearish market-context adjustment, including hyphenated variants. Explicitly negated phrases retain their underlying VADER score.
+- Market-data caches now use a consistent five-minute TTL for stock metadata, price history, and market indicators; successful metadata responses are cached with the same explicit TTL.
+- FinBERT remains opt-in (`USE_FINBERT=true`); a regression test confirms it is not loaded during normal interactions.
+- Removed stale June 2026 “Last updated” labels from the app rather than presenting an unverified review date.
+
+### Tests
+- **338 passed, 0 failed** with mocked external APIs.
+
 ## [2.15.2] — 2026-11-20
 
 ### Reliability

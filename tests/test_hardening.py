@@ -53,6 +53,13 @@ class TestPhraseSentiment:
     def test_profit_booking_is_bearish(self):
         assert self._score("Profit booking hits IT stocks")["compound"] < 0
 
+    def test_profit_taking_phrases_score_bearish(self):
+        for phrase in ("profit booking", "profit taking", "booked profits"):
+            assert self._score(phrase)["compound"] < 0, phrase
+
+    def test_plain_profit_headline_remains_bullish(self):
+        assert self._score("Company reports strong quarterly profit growth")["compound"] > 0
+
     def test_strong_profit_booking_is_bearish(self):
         assert self._score("Strong profit booking seen in midcaps")["compound"] < 0
 
@@ -61,6 +68,28 @@ class TestPhraseSentiment:
 
     def test_hyphenated_profit_booking_is_bearish(self):
         assert self._score("Profit-booking drags IT stocks")["compound"] < 0
+
+    def test_profit_taking_phrases_are_bearish(self):
+        for phrase in (
+            "profit taking",
+            "profit-taking",
+            "booked profits",
+            "booked profit",
+        ):
+            assert self._score(phrase)["compound"] < 0, phrase
+
+    def test_negated_profit_taking_phrases_keep_raw_vader(self):
+        for phrase in (
+            "no profit taking",
+            "not profit-taking",
+            "without booked profits",
+        ):
+            raw = self.sia.polarity_scores(phrase)["compound"]
+            assert self._score(phrase)["compound"] == raw, phrase
+
+    def test_negated_phrase_does_not_mask_an_affirmative_phrase(self):
+        headline = "No profit booking today, but profit taking weighed on shares"
+        assert self._score(headline)["compound"] < 0
 
     def test_order_booking_not_penalized(self):
         """'booking' alone must not turn bullish order-win news negative."""
@@ -80,6 +109,20 @@ class TestPhraseSentiment:
         text = "Profit booking hits IT stocks"
         result = self._score(text)
         assert result["vader"] == self.sia.polarity_scores(text)
+
+
+def test_sentiment_analyzer_resource_is_initialized_once(mocker):
+    import sentiment
+
+    sentiment.get_sia.clear()
+    factory = mocker.patch.object(sentiment, "SentimentIntensityAnalyzer")
+    try:
+        first = sentiment.get_sia()
+        second = sentiment.get_sia()
+        assert first is second
+        factory.assert_called_once_with()
+    finally:
+        sentiment.get_sia.clear()
 
 
 # ─── F5/F9: atomic persistence + quarantine + history pruning ───
@@ -301,6 +344,12 @@ class TestDdgsTimeout:
 
 
 class TestMarketPulseGuard:
+    def setup_method(self):
+        from market_data import _fetch_ticker, get_market_pulse
+
+        getattr(get_market_pulse, "clear")()
+        getattr(_fetch_ticker, "clear")()
+
     def test_zero_prev_close_does_not_raise(self, mocker):
         import pandas as pd
 

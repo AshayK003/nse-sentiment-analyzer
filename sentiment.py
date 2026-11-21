@@ -185,9 +185,21 @@ def analyze_headline_sentiment(
     compound = vader["compound"]
 
     text_lower = text.lower()
-    if ("profit booking" in text_lower or "profit-booking" in text_lower) and not (
-        "no profit booking" in text_lower or "no profit-booking" in text_lower
-    ):
+    profit_taking_phrases = (
+        "profit booking",
+        "profit-booking",
+        "profit taking",
+        "profit-taking",
+        "booked profits",
+        "booked profit",
+    )
+    active_profit_taking_phrases = (
+        phrase
+        for phrase in profit_taking_phrases
+        if phrase in text_lower
+        and not any(f"{negation} {phrase}" in text_lower for negation in ("no", "not", "without"))
+    )
+    if any(active_profit_taking_phrases):
         if compound > -0.3:
             compound = -0.45
 

@@ -47,6 +47,12 @@ class TestDetectVolumeSpike:
 class TestMarketPulse:
     """Tests for get_market_pulse()."""
 
+    def setup_method(self):
+        from market_data import _fetch_ticker, get_market_pulse
+
+        getattr(get_market_pulse, "clear")()
+        getattr(_fetch_ticker, "clear")()
+
     def test_graceful_on_yfinance_failure(self, mocker):
         """yfinance failure should return None-safe dict, not crash."""
         mock_ticker = mocker.patch("yfinance.Ticker")
@@ -60,6 +66,12 @@ class TestMarketPulse:
 
 class TestMMI:
     """Tests for get_mmi() and its component scores."""
+
+    def setup_method(self):
+        from market_data import _fetch_ticker, get_mmi
+
+        getattr(get_mmi, "clear")()
+        getattr(_fetch_ticker, "clear")()
 
     def _make_sector_df(self, closes):
         """Helper: build a 10-row DataFrame with given last-2 Close values."""
@@ -278,3 +290,15 @@ class TestMMI:
         result = get_market_pulse()
         assert result is not None
         assert result["nifty_price"] is None
+
+
+def test_market_data_functions_use_five_minute_streamlit_cache():
+    import market_data
+
+    for fetcher in (
+        market_data.get_fii_dii_flow,
+        market_data.get_market_pulse,
+        market_data.get_mmi,
+        market_data._fetch_ticker,
+    ):
+        assert fetcher._info.ttl == 300

@@ -1061,7 +1061,6 @@ with st.expander("🔒 Privacy & Data Policy"):
 
     **Contact:** [{CONTACT["x_handle"]} on X/Twitter]({CONTACT["x_url"]})
     """)
-    st.caption("Last updated: June 2026")
 
 # ─── DISCLAIMER ───
 _ALERT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
@@ -1091,7 +1090,7 @@ st.markdown(f"""
 
 **Contact:** [{CONTACT["x_handle"]} on X/Twitter]({CONTACT["x_url"]}) | {CONTACT["email"]}
 """)
-st.caption("Last updated: June 2026")
+
 st.markdown('</details>', unsafe_allow_html=True)
 
 # ─── FOOTER ───

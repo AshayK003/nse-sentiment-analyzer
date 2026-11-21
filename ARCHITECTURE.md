@@ -152,7 +152,7 @@ get_stock_info()    search_news()        get_fii_dii_flow()  (parallel)
 
 ### 3-Tier Price Cache
 1. **L1** — In-memory dict (`_hist_cache`), same session
-2. **L2** — `.price_cache/` JSON files on disk, survives restarts, 7-day TTL
+2. **L2** — `.price_cache/` JSON files on disk, survives restarts, 5-minute TTL
 3. **L3** — yfinance network call (only on L1/L2 miss)
 
 ### Smart Ticker Resolution (5-tier)
@@ -205,7 +205,7 @@ streamlit run app.py
 ## Testing
 
 ```bash
-# Full suite (326 tests, mocked APIs)
+# Full suite (338 tests, mocked APIs)
 python -m pytest tests/ -q
 
 # With coverage
